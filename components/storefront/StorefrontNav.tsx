@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import Logo from "@/components/shared/Logo";
+import ThemeToggle from "@/components/shared/ThemeToggle";
 
 interface StorefrontNavProps {
   slug: string;
@@ -39,13 +42,16 @@ export default function StorefrontNav({ slug, vendorName }: StorefrontNavProps) 
         </Link>
       </nav>
 
-      <Link
-        href={`/${slug}/book`}
-        className="px-4 py-2 rounded-[var(--r)] text-sm font-medium text-white transition-opacity hover:opacity-90"
-        style={{ background: "var(--ac)" }}
-      >
-        Book Now
-      </Link>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <Link
+          href={`/${slug}/book`}
+          className="px-4 py-2 rounded-[var(--r)] text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ background: "var(--ac)" }}
+        >
+          Book Now
+        </Link>
+      </div>
     </header>
   );
 }

@@ -20,12 +20,12 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const base =
-    "inline-flex items-center justify-center gap-2 font-medium rounded-[var(--r)] transition-all duration-150 cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-2";
+    "inline-flex items-center justify-center gap-2 font-medium rounded-[var(--r)] transition-all duration-150 cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.97] active:brightness-95";
 
   const sizes = {
-    sm: "px-3 py-1.5 text-xs",
-    md: "px-4 py-2 text-sm",
-    lg: "px-6 py-3 text-base",
+    sm: "px-3 py-2 text-xs",
+    md: "px-4 py-2.5 text-sm",
+    lg: "px-6 py-3.5 text-base",
   };
 
   const variants = {
@@ -39,6 +39,7 @@ export default function Button({
     primary: {
       background: "var(--ac)",
       color: "white",
+      boxShadow: "0 1px 3px rgba(192, 40, 58, 0.30), inset 0 1px 0 rgba(255,255,255,0.08)",
     },
     secondary: {
       background: "var(--bg3)",
@@ -49,8 +50,8 @@ export default function Button({
       color: "var(--tx2)",
     },
     danger: {
-      background: "rgba(185,28,28,0.08)",
-      color: "#B91C1C",
+      background: "rgba(185,28,28,0.07)",
+      color: "#C0283A",
     },
   };
 

@@ -14,8 +14,8 @@ export default function Topbar({ title, subtitle, actions }: TopbarProps) {
     >
       <div>
         <h1
-          className="font-display text-2xl font-medium"
-          style={{ color: "var(--tx)", fontFamily: "var(--font-display)" }}
+          className="text-2xl font-semibold"
+          style={{ color: "var(--tx)" }}
         >
           {title}
         </h1>

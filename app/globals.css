@@ -1,45 +1,93 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap');
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────
+   ACCENT COLORS — change these four values to retheme the
+   entire app. Everything else derives from these two pairs.
+   ───────────────────────────────────────────────────────── */
 :root {
-  --ac: #B85C4A;
-  --ac2: #8C3D2D;
-  --ac-bg: #FCF0EE;
-  --bg: #FAF7F4;
-  --bg2: #F2EDE8;
-  --bg3: #EAE3DC;
-  --tx: #1C1917;
-  --tx2: #6B5E55;
-  --tx3: #A8998F;
-  --bd: rgba(28, 25, 23, 0.1);
-  --bds: rgba(28, 25, 23, 0.06);
-  --green: #3D7A52;
-  --green-bg: rgba(61, 122, 82, 0.1);
-  --amber: #B45309;
-  --amber-bg: rgba(180, 83, 9, 0.1);
-  --r: 10px;
-  --rl: 16px;
-  --font-display: 'Playfair Display', Georgia, serif;
-  --font-body: 'Inter', system-ui, sans-serif;
+  --brand-accent-light:   #C0283A;
+  --brand-accent-light-2: #8C1827;
+  --brand-accent-dark:    #D43D50;
+  --brand-accent-dark-2:  #F08898;
+}
+
+/* ─────────────────────────────────────────────────────────
+   LIGHT MODE TOKENS (default)
+   Zinc neutral scale — cool-grey, no orange tint.
+   ───────────────────────────────────────────────────────── */
+:root {
+  --ac:       var(--brand-accent-light);
+  --ac2:      var(--brand-accent-light-2);
+  --ac-bg:    #FDF0F2;
+  --bg:       #FAFAFA;
+  --bg2:      #F4F4F5;
+  --bg3:      #E4E4E7;
+  --tx:       #18181B;
+  --tx2:      #52525B;
+  --tx3:      #A1A1AA;
+  --bd:       rgba(0, 0, 0, 0.08);
+  --bds:      rgba(0, 0, 0, 0.05);
+  --green:    #16A34A;
+  --green-bg: rgba(22, 163, 74, 0.08);
+  --amber:    #B45309;
+  --amber-bg: rgba(180, 83, 9, 0.08);
+  --r:        8px;
+  --rl:       14px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 8px 28px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06);
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+}
+
+/* ─────────────────────────────────────────────────────────
+   DARK MODE TOKENS
+   Applies when:
+     (a) html[data-theme="dark"]  — user toggled explicitly
+     (b) system preference is dark AND user hasn't set light
+   ───────────────────────────────────────────────────────── */
+html[data-theme="dark"] {
+  --ac:       var(--brand-accent-dark);
+  --ac2:      var(--brand-accent-dark-2);
+  --ac-bg:    rgba(212, 61, 80, 0.1);
+  --bg:       #09090B;
+  --bg2:      #18181B;
+  --bg3:      #27272A;
+  --tx:       #FAFAFA;
+  --tx2:      #A1A1AA;
+  --tx3:      #52525B;
+  --bd:       rgba(255, 255, 255, 0.10);
+  --bds:      rgba(255, 255, 255, 0.06);
+  --green:    #4ADE80;
+  --green-bg: rgba(74, 222, 128, 0.08);
+  --amber:    #FBBF24;
+  --amber-bg: rgba(251, 191, 36, 0.08);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.30), 0 1px 4px rgba(0,0,0,0.20);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.40), 0 2px 4px rgba(0,0,0,0.25);
+  --shadow-lg: 0 8px 28px rgba(0,0,0,0.50), 0 4px 8px rgba(0,0,0,0.30);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --ac: #C96B56;
-    --ac2: #E8907C;
-    --ac-bg: rgba(201, 107, 86, 0.1);
-    --bg: #0F0E0D;
-    --bg2: #1A1917;
-    --bg3: #242220;
-    --tx: #F0EDE6;
-    --tx2: #9A9488;
-    --tx3: #5C5850;
-    --bd: rgba(240, 237, 230, 0.12);
-    --bds: rgba(240, 237, 230, 0.06);
-    --green: #5CA877;
-    --green-bg: rgba(92, 168, 119, 0.12);
-    --amber: #D97706;
-    --amber-bg: rgba(217, 119, 6, 0.12);
+  html:not([data-theme="light"]) {
+    --ac:       var(--brand-accent-dark);
+    --ac2:      var(--brand-accent-dark-2);
+    --ac-bg:    rgba(212, 61, 80, 0.1);
+    --bg:       #09090B;
+    --bg2:      #18181B;
+    --bg3:      #27272A;
+    --tx:       #FAFAFA;
+    --tx2:      #A1A1AA;
+    --tx3:      #52525B;
+    --bd:       rgba(255, 255, 255, 0.10);
+    --bds:      rgba(255, 255, 255, 0.06);
+    --green:    #4ADE80;
+    --green-bg: rgba(74, 222, 128, 0.08);
+    --amber:    #FBBF24;
+    --amber-bg: rgba(251, 191, 36, 0.08);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.30), 0 1px 4px rgba(0,0,0,0.20);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.40), 0 2px 4px rgba(0,0,0,0.25);
+    --shadow-lg: 0 8px 28px rgba(0,0,0,0.50), 0 4px 8px rgba(0,0,0,0.30);
   }
 }
 
@@ -61,16 +109,18 @@ body {
   color: var(--tx);
   font-family: var(--font-body);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   min-height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  font-weight: 500;
+  font-family: var(--font-body);
+  font-weight: 600;
   line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
 a {
@@ -84,14 +134,14 @@ input, textarea, select, button {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bd);
+  background: var(--bg3);
   border-radius: 99px;
 }
 
@@ -105,3 +155,53 @@ input, textarea, select, button {
 .font-display {
   font-family: var(--font-display);
 }
+
+/* ─────────────────────────────────────────────────────────
+   ANIMATION SYSTEM
+   bk- prefix avoids conflict with Tailwind's built-in keyframes.
+   cubic-bezier(0.16, 1, 0.3, 1) = spring-like ease-out.
+   cubic-bezier(0.4, 0, 1, 1)    = fast ease-in for exits.
+   ───────────────────────────────────────────────────────── */
+@keyframes bk-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes bk-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes bk-scale-in {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+@keyframes bk-scale-out {
+  from { opacity: 1; transform: scale(1)    translateY(0); }
+  to   { opacity: 0; transform: scale(0.95) translateY(10px); }
+}
+@keyframes bk-slide-in-right {
+  from { transform: translateX(105%); }
+  to   { transform: translateX(0); }
+}
+@keyframes bk-slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(105%); }
+}
+@keyframes bk-fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.anim-fade-in         { animation: bk-fade-in           0.18s ease                           both; }
+.anim-fade-out        { animation: bk-fade-out           0.20s ease                           both; }
+.anim-scale-in        { animation: bk-scale-in           0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-scale-out       { animation: bk-scale-out          0.18s cubic-bezier(0.4,  0, 1,   1) both; }
+.anim-slide-right     { animation: bk-slide-in-right     0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-slide-out-right { animation: bk-slide-out-right    0.24s cubic-bezier(0.4,  0, 1,   1) both; }
+.anim-fade-up         { animation: bk-fade-up            0.38s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Stagger helpers — sequence sibling entrances */
+.anim-d1 { animation-delay:  60ms; }
+.anim-d2 { animation-delay: 120ms; }
+.anim-d3 { animation-delay: 180ms; }
+.anim-d4 { animation-delay: 240ms; }
+.anim-d5 { animation-delay: 300ms; }

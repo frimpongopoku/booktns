@@ -4,7 +4,6 @@ import { useState } from "react";
 import { staff as initialStaff } from "@/lib/data";
 import type { Staff, StaffRole } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
-import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Plus, X, MessageCircle } from "lucide-react";
@@ -15,10 +14,34 @@ const ROLE_LABELS: Record<StaffRole, string> = {
   Service: "Service",
 };
 
-function getRoleBadgeVariant(role: StaffRole) {
-  if (role === "Owner") return "owner" as const;
-  if (role === "Management") return "management" as const;
-  return "service" as const;
+const ROLE_DOT_COLORS: Record<StaffRole, string> = {
+  Owner: "var(--ac)",
+  Management: "#6366F1",
+  Service: "var(--green)",
+};
+
+function RoleChip({ role }: { role: StaffRole }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
+      style={{ background: "var(--bg3)", color: "var(--tx2)", border: "1px solid var(--bds)", borderRadius: "6px" }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ROLE_DOT_COLORS[role] }} />
+      {ROLE_LABELS[role]}
+    </span>
+  );
+}
+
+function StatusChip({ active }: { active: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
+      style={{ background: "var(--bg3)", color: active ? "var(--green)" : "var(--tx3)", border: "1px solid var(--bds)", borderRadius: "6px" }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: active ? "var(--green)" : "var(--tx3)" }} />
+      {active ? "Active" : "Inactive"}
+    </span>
+  );
 }
 
 interface AddStaffModalProps {
@@ -33,6 +56,8 @@ function AddStaffModal({ onClose, onAdd }: AddStaffModalProps) {
   const [roleDetail, setRoleDetail] = useState("");
   const [botAccess, setBotAccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const close = () => { setIsExiting(true); setTimeout(onClose, 210); };
 
   const handleSubmit = async () => {
     if (!name.trim() || !phone.trim()) return;
@@ -50,26 +75,26 @@ function AddStaffModal({ onClose, onAdd }: AddStaffModalProps) {
       active: true,
       serviceCategories: [],
     });
-    onClose();
+    close();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }}>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isExiting ? "anim-fade-out" : "anim-fade-in"}`}
+      style={{ background: "rgba(0,0,0,0.4)" }}
+    >
       <div
-        className="w-full max-w-md rounded-[var(--rl)] overflow-hidden"
-        style={{ background: "var(--bg)" }}
+        className={`w-full max-w-md rounded-[var(--rl)] overflow-hidden ${isExiting ? "anim-scale-out" : "anim-scale-in"}`}
+        style={{ background: "var(--bg)", boxShadow: "var(--shadow-lg)" }}
       >
         <div
           className="flex items-center justify-between px-5 py-4"
           style={{ borderBottom: "1px solid var(--bd)" }}
         >
-          <h2
-            className="font-display font-medium text-lg"
-            style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
-          >
+          <h2 className="text-base font-semibold" style={{ color: "var(--tx)" }}>
             Add Staff Member
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-[var(--bg3)]" style={{ color: "var(--tx3)" }}>
+          <button onClick={close} className="p-1.5 rounded-full hover:bg-[var(--bg3)] transition-colors" style={{ color: "var(--tx3)" }}>
             <X size={16} />
           </button>
         </div>
@@ -121,7 +146,7 @@ function AddStaffModal({ onClose, onAdd }: AddStaffModalProps) {
           className="flex gap-3 px-5 py-4"
           style={{ borderTop: "1px solid var(--bd)" }}
         >
-          <Button variant="secondary" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button variant="secondary" onClick={close} className="flex-1">Cancel</Button>
           <Button loading={loading} onClick={handleSubmit} className="flex-1" disabled={!name.trim() || !phone.trim()}>
             Add Staff
           </Button>
@@ -162,7 +187,7 @@ export default function StaffPage() {
         {/* Header */}
         <div
           className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1fr_1fr] gap-4 px-5 py-2.5 text-xs font-semibold uppercase tracking-wide"
-          style={{ background: "var(--bg2)", color: "var(--tx3)", borderBottom: "1px solid var(--bds)" }}
+          style={{ background: "var(--bg2)", color: "var(--tx3)" }}
         >
           <span>Name</span>
           <span>Role</span>
@@ -171,11 +196,11 @@ export default function StaffPage() {
           <span>Status</span>
         </div>
 
-        <div className="divide-y" style={{ borderColor: "var(--bds)", background: "var(--bg)" }}>
+        <div className="flex flex-col gap-0.5 p-2" style={{ background: "var(--bg)" }}>
           {staffList.map((member) => (
             <div
               key={member.id}
-              className="grid md:grid-cols-[2fr_1fr_1.5fr_1fr_1fr] gap-3 md:gap-4 px-5 py-4 items-center"
+              className="grid md:grid-cols-[2fr_1fr_1.5fr_1fr_1fr] gap-3 md:gap-4 px-3 py-3.5 rounded-lg hover:bg-[var(--bg2)] transition-colors items-center"
             >
               {/* Name */}
               <div className="flex items-center gap-3">
@@ -198,9 +223,7 @@ export default function StaffPage() {
               </div>
 
               {/* Role */}
-              <Badge variant={getRoleBadgeVariant(member.role)}>
-                {ROLE_LABELS[member.role]}
-              </Badge>
+              <RoleChip role={member.role} />
 
               {/* Phone */}
               <p className="text-sm" style={{ color: "var(--tx2)" }}>
@@ -221,9 +244,7 @@ export default function StaffPage() {
               </button>
 
               {/* Status */}
-              <Badge variant={member.active ? "active" : "inactive"}>
-                {member.active ? "Active" : "Inactive"}
-              </Badge>
+              <StatusChip active={member.active} />
             </div>
           ))}
         </div>

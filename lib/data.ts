@@ -6,6 +6,7 @@ import type {
   Booking,
   Order,
   PaymentMethod,
+  VendorVideo,
 } from "@/types";
 
 export const vendor: Vendor = {
@@ -381,10 +382,46 @@ export const paymentMethods: PaymentMethod[] = [
   },
 ];
 
+export const videos: VendorVideo[] = [
+  {
+    id: "vid1",
+    vendorId: "v1",
+    title: "Knotless Braids Transformation",
+    description: "Full installation from start to finish — medium-sized knotless braids.",
+    durationSeconds: 45,
+    gradientFrom: "#C0283A",
+    gradientTo: "#7A1524",
+  },
+  {
+    id: "vid2",
+    vendorId: "v1",
+    title: "Studio Tour — Glam by Rose",
+    description: "A look inside our space in Lekki Phase 1.",
+    durationSeconds: 62,
+    gradientFrom: "#18181B",
+    gradientTo: "#C0283A",
+  },
+  {
+    id: "vid3",
+    vendorId: "v1",
+    title: "Gel Manicure Process",
+    description: "How we achieve the perfect gel finish every time.",
+    durationSeconds: 38,
+    gradientFrom: "#7A1524",
+    gradientTo: "#F08898",
+  },
+];
+
 // Helper formatters
 export function formatPrice(pesewas: number): string {
   const amount = pesewas / 100;
   return `GH₵ ${amount.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+export function formatVideoDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 export function formatDuration(minutes: number): string {

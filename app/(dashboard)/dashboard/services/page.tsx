@@ -33,6 +33,8 @@ function ServiceModal({ service, onClose, onSave }: ServiceModalProps) {
   const [price, setPrice] = useState(String((service?.priceInPesewas ?? 0) / 100));
   const [description, setDescription] = useState(service?.description ?? "");
   const [loading, setLoading] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const close = () => { setIsExiting(true); setTimeout(onClose, 210); };
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -49,17 +51,23 @@ function ServiceModal({ service, onClose, onSave }: ServiceModalProps) {
       description: description.trim() || undefined,
       active: true,
     });
-    onClose();
+    close();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }}>
-      <div className="w-full max-w-md rounded-[var(--rl)] overflow-hidden" style={{ background: "var(--bg)" }}>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isExiting ? "anim-fade-out" : "anim-fade-in"}`}
+      style={{ background: "rgba(0,0,0,0.4)" }}
+    >
+      <div
+        className={`w-full max-w-md rounded-[var(--rl)] overflow-hidden ${isExiting ? "anim-scale-out" : "anim-scale-in"}`}
+        style={{ background: "var(--bg)", boxShadow: "var(--shadow-lg)" }}
+      >
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--bd)" }}>
-          <h2 className="font-display font-medium text-lg" style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}>
+          <h2 className="text-base font-semibold" style={{ color: "var(--tx)" }}>
             {service ? "Edit Service" : "Add Service"}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-[var(--bg3)]" style={{ color: "var(--tx3)" }}>
+          <button onClick={close} className="p-1.5 rounded-full hover:bg-[var(--bg3)] transition-colors" style={{ color: "var(--tx3)" }}>
             <X size={16} />
           </button>
         </div>
@@ -93,7 +101,7 @@ function ServiceModal({ service, onClose, onSave }: ServiceModalProps) {
           </div>
         </div>
         <div className="flex gap-3 px-5 py-4" style={{ borderTop: "1px solid var(--bd)" }}>
-          <Button variant="secondary" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button variant="secondary" onClick={close} className="flex-1">Cancel</Button>
           <Button loading={loading} onClick={handleSave} className="flex-1" disabled={!name.trim()}>
             {service ? "Save Changes" : "Add Service"}
           </Button>

@@ -26,6 +26,8 @@ function AddProductModal({ onClose, onAdd }: AddProductModalProps) {
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const close = () => { setIsExiting(true); setTimeout(onClose, 210); };
 
   const handleSubmit = async () => {
     if (!name.trim() || !price) return;
@@ -42,17 +44,23 @@ function AddProductModal({ onClose, onAdd }: AddProductModalProps) {
       description: description.trim() || undefined,
       active: true,
     });
-    onClose();
+    close();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }}>
-      <div className="w-full max-w-md rounded-[var(--rl)] overflow-hidden" style={{ background: "var(--bg)" }}>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isExiting ? "anim-fade-out" : "anim-fade-in"}`}
+      style={{ background: "rgba(0,0,0,0.4)" }}
+    >
+      <div
+        className={`w-full max-w-md rounded-[var(--rl)] overflow-hidden ${isExiting ? "anim-scale-out" : "anim-scale-in"}`}
+        style={{ background: "var(--bg)", boxShadow: "var(--shadow-lg)" }}
+      >
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--bd)" }}>
-          <h2 className="font-display font-medium text-lg" style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}>
+          <h2 className="text-base font-semibold" style={{ color: "var(--tx)" }}>
             Add Product
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-[var(--bg3)]" style={{ color: "var(--tx3)" }}>
+          <button onClick={close} className="p-1.5 rounded-full hover:bg-[var(--bg3)] transition-colors" style={{ color: "var(--tx3)" }}>
             <X size={16} />
           </button>
         </div>
@@ -75,7 +83,7 @@ function AddProductModal({ onClose, onAdd }: AddProductModalProps) {
           </div>
         </div>
         <div className="flex gap-3 px-5 py-4" style={{ borderTop: "1px solid var(--bd)" }}>
-          <Button variant="secondary" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button variant="secondary" onClick={close} className="flex-1">Cancel</Button>
           <Button loading={loading} onClick={handleSubmit} className="flex-1" disabled={!name.trim() || !price}>
             Add Product
           </Button>

@@ -91,8 +91,8 @@ export default function DashboardOverview() {
             <Link
               key={stat.label}
               href={stat.href}
-              className="p-4 rounded-[var(--r)] flex flex-col gap-3 hover:opacity-90 transition-opacity"
-              style={{ background: "var(--bg2)" }}
+              className={`anim-fade-up anim-d${stats.indexOf(stat) + 1} p-4 rounded-[var(--r)] flex flex-col gap-3 transition-all duration-200 hover:translate-y-[-2px] hover:shadow-md`}
+              style={{ background: "var(--bg2)", boxShadow: "var(--shadow-sm)" }}
             >
               <div
                 className="w-8 h-8 rounded-[var(--r)] flex items-center justify-center"
@@ -138,7 +138,7 @@ export default function DashboardOverview() {
               View all
             </Link>
           </div>
-          <div className="divide-y" style={{ borderColor: "var(--bds)" }}>
+          <div className="flex flex-col gap-0.5 p-2">
             {todaysBookings.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <p className="text-sm" style={{ color: "var(--tx3)" }}>
@@ -150,7 +150,7 @@ export default function DashboardOverview() {
                 <Link
                   key={booking.id}
                   href="/dashboard/bookings"
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg3)] transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--bg3)] transition-colors"
                 >
                   <div className="flex-shrink-0 text-xs font-medium w-16 text-right" style={{ color: "var(--tx3)" }}>
                     {formatTime(booking.startTime)}
@@ -201,12 +201,12 @@ export default function DashboardOverview() {
                 View all
               </Link>
             </div>
-            <div className="divide-y" style={{ borderColor: "var(--bds)" }}>
+            <div className="flex flex-col gap-0.5 p-2">
               {orders.map((order) => (
                 <Link
                   key={order.id}
                   href="/dashboard/orders"
-                  className="flex items-center justify-between px-4 py-3 hover:bg-[var(--bg3)] transition-colors"
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[var(--bg3)] transition-colors"
                 >
                   <div>
                     <p className="text-xs font-semibold" style={{ color: "var(--tx)" }}>

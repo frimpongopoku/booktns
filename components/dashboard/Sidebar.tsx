@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Logo from "@/components/shared/Logo";
+import ThemeToggle from "@/components/shared/ThemeToggle";
 import clsx from "clsx";
 
 interface NavItem {
@@ -74,7 +75,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-[200px] flex-shrink-0 h-screen sticky top-0 overflow-y-auto"
+      className="hidden lg:flex flex-col w-[220px] flex-shrink-0 h-screen sticky top-0 overflow-y-auto"
       style={{
         background: "var(--bg2)",
         borderRight: "1px solid var(--bd)",
@@ -155,13 +156,16 @@ export default function Sidebar() {
             Owner
           </p>
         </div>
-        <button
-          className="flex-shrink-0 p-1 rounded hover:bg-[var(--bg3)] transition-colors"
-          style={{ color: "var(--tx3)" }}
-          title="Log out"
-        >
-          <LogOut size={13} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <ThemeToggle />
+          <button
+            className="p-1.5 rounded-md hover:bg-[var(--bg3)] transition-colors"
+            style={{ color: "var(--tx3)" }}
+            title="Log out"
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
       </div>
     </aside>
   );

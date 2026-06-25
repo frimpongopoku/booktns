@@ -55,21 +55,24 @@ interface BookingDrawerProps {
 function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
   const [note, setNote] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const close = () => { setIsExiting(true); setTimeout(onClose, 260); };
 
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* Overlay */}
       <div
-        className="flex-1 cursor-pointer"
-        style={{ background: "rgba(0,0,0,0.3)" }}
-        onClick={onClose}
+        className={`flex-1 cursor-pointer ${isExiting ? "anim-fade-out" : "anim-fade-in"}`}
+        style={{ background: "rgba(0,0,0,0.35)" }}
+        onClick={close}
       />
       {/* Drawer */}
       <div
-        className="w-full max-w-sm flex flex-col overflow-hidden"
+        className={`w-full max-w-sm flex flex-col overflow-hidden ${isExiting ? "anim-slide-out-right" : "anim-slide-right"}`}
         style={{
           background: "var(--bg)",
           borderLeft: "1px solid var(--bd)",
+          boxShadow: "var(--shadow-lg)",
         }}
       >
         {/* Header */}
@@ -91,7 +94,7 @@ function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
           <div className="flex items-center gap-2">
             {bookingStatusBadge(booking.status)}
             <button
-              onClick={onClose}
+              onClick={close}
               className="p-1.5 rounded-full hover:bg-[var(--bg3)] transition-colors"
               style={{ color: "var(--tx3)" }}
             >
@@ -343,12 +346,8 @@ export default function BookingsPage() {
           >
             {/* Header */}
             <div
-              className="hidden md:grid grid-cols-[1fr_2fr_1fr_1fr_auto] gap-4 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide"
-              style={{
-                background: "var(--bg2)",
-                color: "var(--tx3)",
-                borderBottom: "1px solid var(--bds)",
-              }}
+              className="hidden md:grid grid-cols-[1fr_2fr_1fr_1fr_auto] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wide"
+              style={{ background: "var(--bg2)", color: "var(--tx3)" }}
             >
               <span>Time</span>
               <span>Customer & Service</span>
@@ -364,11 +363,11 @@ export default function BookingsPage() {
                 </p>
               </div>
             ) : (
-              <div className="divide-y" style={{ borderColor: "var(--bds)", background: "var(--bg)" }}>
+              <div className="flex flex-col gap-0.5 p-2" style={{ background: "var(--bg)" }}>
                 {filtered.map((booking) => (
                   <button
                     key={booking.id}
-                    className="w-full grid md:grid-cols-[1fr_2fr_1fr_1fr_auto] gap-2 md:gap-4 px-4 py-3.5 text-left hover:bg-[var(--bg2)] transition-colors items-center"
+                    className="w-full grid md:grid-cols-[1fr_2fr_1fr_1fr_auto] gap-2 md:gap-4 px-3 py-3 text-left rounded-lg hover:bg-[var(--bg2)] transition-colors items-center"
                     onClick={() => setSelectedBooking(booking)}
                   >
                     <div>

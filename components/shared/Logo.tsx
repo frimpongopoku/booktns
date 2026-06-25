@@ -7,20 +7,24 @@ interface LogoProps {
 
 export default function Logo({ size = "md", href = "/" }: LogoProps) {
   const sizes = {
-    sm: { text: "text-lg", dot: "w-1.5 h-1.5" },
-    md: { text: "text-xl", dot: "w-2 h-2" },
-    lg: { text: "text-3xl", dot: "w-2.5 h-2.5" },
+    sm: { text: "text-base", dot: "w-1.5 h-1.5" },
+    md: { text: "text-lg",   dot: "w-2 h-2" },
+    lg: { text: "text-2xl",  dot: "w-2.5 h-2.5" },
   };
 
   const s = sizes[size];
 
   const inner = (
-    <span className={`font-display font-medium tracking-tight ${s.text} flex items-center gap-1`}
-      style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}>
-      <span style={{ color: "var(--ac)" }}>Book</span>
+    <span
+      className={`font-semibold tracking-tight ${s.text} flex items-center gap-0.5`}
+      style={{ color: "var(--tx)", letterSpacing: "-0.03em" }}
+    >
+      <span style={{ color: "var(--ac)" }}>book</span>
       <span>tns</span>
-      <span className={`rounded-full inline-block ${s.dot} mb-0.5`}
-        style={{ background: "var(--ac)" }} />
+      <span
+        className={`rounded-full inline-block ${s.dot} mb-px`}
+        style={{ background: "var(--ac)" }}
+      />
     </span>
   );
 

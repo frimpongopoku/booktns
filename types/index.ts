@@ -131,3 +131,14 @@ export interface CartItem {
   price: number;
   quantity: number;
 }
+
+export interface VendorVideo {
+  id: string;
+  vendorId: string;
+  title: string;
+  description?: string;
+  durationSeconds: number;
+  gradientFrom: string;
+  gradientTo: string;
+  url?: string;
+}

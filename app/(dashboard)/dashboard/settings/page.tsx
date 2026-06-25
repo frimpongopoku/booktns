@@ -267,16 +267,16 @@ function BillingTab() {
       >
         <div
           className="grid grid-cols-4 gap-4 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide"
-          style={{ background: "var(--bg2)", color: "var(--tx3)", borderBottom: "1px solid var(--bds)" }}
+          style={{ background: "var(--bg2)", color: "var(--tx3)" }}
         >
           <span>Date</span>
           <span>Plan</span>
           <span>Amount</span>
           <span>Status</span>
         </div>
-        <div className="divide-y" style={{ borderColor: "var(--bds)", background: "var(--bg)" }}>
+        <div className="flex flex-col gap-0.5 p-2" style={{ background: "var(--bg)" }}>
           {BILLING_HISTORY.map((row, i) => (
-            <div key={i} className="grid grid-cols-4 gap-4 px-4 py-3 items-center">
+            <div key={i} className="grid grid-cols-4 gap-4 px-3 py-3 rounded-lg hover:bg-[var(--bg2)] transition-colors items-center">
               <span className="text-sm" style={{ color: "var(--tx2)" }}>{row.date}</span>
               <span className="text-sm" style={{ color: "var(--tx)" }}>{row.plan}</span>
               <span className="text-sm font-medium" style={{ color: "var(--tx)" }}>{row.amount}</span>

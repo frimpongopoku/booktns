@@ -26,7 +26,8 @@ export interface Staff {
   id: string;
   vendorId: string;
   name: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   role: StaffRole;
   roleDetail?: string;
   botAccess: boolean;

@@ -1,11 +1,42 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import NextTopLoader from "nextjs-toploader";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import "./globals.css";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const SITE_NAME = "Booktns";
+const SITE_DESCRIPTION =
+  "The all-in-one booking and order management platform for beauty service vendors.";
+
 export const metadata: Metadata = {
-  title: "Booktns — Beauty Booking for Vendors",
-  description: "The all-in-one booking and order management platform for beauty service vendors.",
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: "Booktns — Beauty Booking for Vendors",
+    template: "%s | Booktns",
+  },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    siteName: SITE_NAME,
+    type: "website",
+    title: "Booktns — Beauty Booking for Vendors",
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Booktns — Beauty Booking for Vendors",
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#C0283A" },
+    { media: "(prefers-color-scheme: dark)", color: "#D43D50" },
+  ],
 };
 
 const themeScript = `

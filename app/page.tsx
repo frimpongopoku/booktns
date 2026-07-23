@@ -1,6 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/shared/Logo";
 import { ArrowRight, Calendar, ShoppingBag, MessageCircle, Sparkles } from "lucide-react";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Booktns",
+  url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  logo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/icon`,
+  description:
+    "The all-in-one booking and order management platform for beauty service vendors.",
+};
 
 const features = [
   {
@@ -28,11 +43,15 @@ const features = [
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
       {/* Nav */}
       <header
         className="flex items-center justify-between px-6 md:px-12 py-4 sticky top-0 z-30"
         style={{
-          background: "rgba(250,250,250,0.85)",
+          background: "var(--bg)",
           borderBottom: "1px solid var(--bd)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",

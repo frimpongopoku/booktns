@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getVendorBySlug,
+  vendor,
   services,
   products,
   videos,
@@ -105,11 +107,54 @@ function VideoCard({ video }: { video: VendorVideo }) {
   );
 }
 
+export function generateStaticParams() {
+  return [{ slug: vendor.slug }];
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const vendorData = getVendorBySlug(slug);
+  if (!vendorData) return {};
+
+  const title = `${vendorData.name} — Book Appointments Online`;
+  const description =
+    vendorData.description ||
+    `Book beauty appointments and shop products from ${vendorData.name} in ${vendorData.location}.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/${slug}` },
+    openGraph: {
+      title,
+      description,
+      url: `/${slug}`,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    robots: { index: true, follow: true },
+  };
+}
+
 export default async function StorefrontPage({ params }: PageProps) {
   const { slug } = await params;
   const vendorData = getVendorBySlug(slug);
 
   if (!vendorData) notFound();
+
+  const businessJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BeautySalon",
+    name: vendorData.name,
+    description: vendorData.description,
+    url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/${slug}`,
+    telephone: vendorData.phone,
+    address: vendorData.location,
+  };
 
   const featuredServices = services.slice(0, 4);
   const featuredProducts = products.slice(0, 4);
@@ -117,6 +162,10 @@ export default async function StorefrontPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen pb-16 md:pb-0" style={{ background: "var(--bg)" }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
+      />
       <StorefrontNav slug={slug} vendorName={vendorData.name} />
 
       {/* Mobile header */}

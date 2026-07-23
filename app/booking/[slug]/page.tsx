@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { bookings, vendor, paymentMethods, formatPrice } from "@/lib/data";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -29,6 +30,15 @@ function formatDateTime(iso: string): string {
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  return {
+    title: "Booking Confirmation",
+    alternates: { canonical: `/booking/${slug}` },
+    robots: { index: false, follow: true },
+  };
 }
 
 export default async function BookingConfirmationPage({ params }: PageProps) {

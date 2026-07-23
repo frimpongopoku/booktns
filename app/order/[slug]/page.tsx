@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { orders, vendor, paymentMethods, formatPrice } from "@/lib/data";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -23,6 +24,15 @@ function PaymentIcon({ type }: { type: string }) {
   if (type === "momo") return <Smartphone size={16} style={{ color: "#F59E0B" }} />;
   if (type === "bank") return <CreditCard size={16} style={{ color: "#2563EB" }} />;
   return <Banknote size={16} style={{ color: "var(--green)" }} />;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  return {
+    title: "Order Confirmation",
+    alternates: { canonical: `/order/${slug}` },
+    robots: { index: false, follow: true },
+  };
 }
 
 export default async function OrderConfirmationPage({ params }: PageProps) {

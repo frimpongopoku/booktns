@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getVendorBySlug, paymentMethods } from "@/lib/data";
@@ -7,6 +8,18 @@ import { Smartphone, CreditCard, Banknote, MapPin } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const vendorData = getVendorBySlug(slug);
+  const title = vendorData ? `Payment — ${vendorData.name}` : "Payment Details";
+
+  return {
+    title,
+    alternates: { canonical: `/${slug}/pay` },
+    robots: { index: false, follow: true },
+  };
 }
 
 function PaymentIcon({ type }: { type: string }) {

@@ -51,6 +51,7 @@ interface AddStaffModalProps {
 
 function AddStaffModal({ onClose, onAdd }: AddStaffModalProps) {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<StaffRole>("Service");
   const [roleDetail, setRoleDetail] = useState("");
@@ -60,7 +61,7 @@ function AddStaffModal({ onClose, onAdd }: AddStaffModalProps) {
   const close = () => { setIsExiting(true); setTimeout(onClose, 210); };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !phone.trim()) return;
+    if (!name.trim() || !email.trim()) return;
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
@@ -68,7 +69,8 @@ function AddStaffModal({ onClose, onAdd }: AddStaffModalProps) {
       id: `s${Date.now()}`,
       vendorId: "v1",
       name: name.trim(),
-      phone: phone.trim(),
+      email: email.trim(),
+      phone: phone.trim() || undefined,
       role,
       roleDetail: roleDetail.trim() || undefined,
       botAccess,
@@ -100,7 +102,15 @@ function AddStaffModal({ onClose, onAdd }: AddStaffModalProps) {
         </div>
         <div className="p-5 flex flex-col gap-4">
           <Input label="Full name" placeholder="e.g. Chioma Okafor" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input label="Phone number" type="tel" placeholder="+234 800 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Input
+            label="Email"
+            type="email"
+            placeholder="chioma@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            hint="Becomes their Google Sign-In login — they must sign in with this exact address"
+          />
+          <Input label="Phone number (optional)" type="tel" placeholder="+234 800 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Role</label>
             <select
@@ -147,7 +157,7 @@ function AddStaffModal({ onClose, onAdd }: AddStaffModalProps) {
           style={{ borderTop: "1px solid var(--bd)" }}
         >
           <Button variant="secondary" onClick={close} className="flex-1">Cancel</Button>
-          <Button loading={loading} onClick={handleSubmit} className="flex-1" disabled={!name.trim() || !phone.trim()}>
+          <Button loading={loading} onClick={handleSubmit} className="flex-1" disabled={!name.trim() || !email.trim()}>
             Add Staff
           </Button>
         </div>
@@ -191,7 +201,7 @@ export default function StaffPage() {
         >
           <span>Name</span>
           <span>Role</span>
-          <span>Phone</span>
+          <span>Email</span>
           <span>Bot</span>
           <span>Status</span>
         </div>
@@ -225,9 +235,9 @@ export default function StaffPage() {
               {/* Role */}
               <RoleChip role={member.role} />
 
-              {/* Phone */}
+              {/* Email */}
               <p className="text-sm" style={{ color: "var(--tx2)" }}>
-                {member.phone}
+                {member.email}
               </p>
 
               {/* Bot toggle */}

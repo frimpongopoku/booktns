@@ -33,7 +33,7 @@ interface ServiceEntry {
 
 interface StaffEntry {
   name: string;
-  phone: string;
+  email: string;
   role: string;
 }
 
@@ -203,11 +203,11 @@ function AddServicesStep({ onNext }: { onNext: () => void }) {
 // Step 3: Add Staff
 function AddStaffStep({ onNext }: { onNext: () => void }) {
   const [staffList, setStaffList] = useState<StaffEntry[]>([
-    { name: "", phone: "", role: "Owner" },
+    { name: "", email: "", role: "Owner" },
   ]);
   const [loading, setLoading] = useState(false);
 
-  const addStaff = () => setStaffList((prev) => [...prev, { name: "", phone: "", role: "Service" }]);
+  const addStaff = () => setStaffList((prev) => [...prev, { name: "", email: "", role: "Service" }]);
   const removeStaff = (i: number) => setStaffList((prev) => prev.filter((_, idx) => idx !== i));
   const updateStaff = (i: number, field: keyof StaffEntry, val: string) =>
     setStaffList((prev) => prev.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
@@ -221,6 +221,9 @@ function AddStaffStep({ onNext }: { onNext: () => void }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-xs -mt-1" style={{ color: "var(--tx3)" }}>
+        Each email becomes that person&apos;s Google Sign-In login — no password to set up.
+      </p>
       {staffList.map((member, i) => (
         <div
           key={i}
@@ -235,7 +238,7 @@ function AddStaffStep({ onNext }: { onNext: () => void }) {
           <div className="flex flex-col gap-3">
             <Input label="Full name" placeholder="e.g. Chioma Okafor" value={member.name} onChange={(e) => updateStaff(i, "name", e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Phone" type="tel" placeholder="+234..." value={member.phone} onChange={(e) => updateStaff(i, "phone", e.target.value)} />
+              <Input label="Email" type="email" placeholder="name@example.com" value={member.email} onChange={(e) => updateStaff(i, "email", e.target.value)} />
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Role</label>
                 <select

@@ -158,13 +158,14 @@ export default function Sidebar() {
         </div>
         <div className="flex items-center gap-0.5">
           <ThemeToggle />
-          <button
+          <Link
+            href="/login"
             className="p-1.5 rounded-md hover:bg-[var(--bg3)] transition-colors"
             style={{ color: "var(--tx3)" }}
             title="Log out"
           >
             <LogOut size={14} />
-          </button>
+          </Link>
         </div>
       </div>
     </aside>

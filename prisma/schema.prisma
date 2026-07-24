@@ -1,0 +1,245 @@
+// Booktns data model — see functional-spec.md §10 for the conceptual model
+// this is based on, and CLAUDE.md § SEO/Auth/Data Rules for the constraints
+// (multi-tenant scoping, pesewas pricing, price snapshots, soft delete).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StaffRole {
+  Owner
+  Management
+  Service
+}
+
+enum ServiceCategory {
+  Hair
+  Nails
+  Skin
+  Lashes
+  Brows
+  Other
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  completed
+  cancelled
+  rescheduled
+}
+
+enum OrderStatus {
+  new
+  processing
+  ready
+  completed
+  cancelled
+}
+
+enum PaymentMethodType {
+  momo
+  bank
+  cash
+}
+
+enum DepositSetting {
+  None
+  Fixed
+  Percentage
+}
+
+model Vendor {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  location    String
+  hours       String
+  phone       String
+  whatsapp    String
+  coverColor  String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  // Spec §7.8-§7.11 storefront/booking settings — not editable via any UI yet,
+  // added now so that work doesn't need a follow-up migration.
+  logoUrl                String?
+  coverImageUrl          String?
+  personalWhatsappNumber String?
+  depositSetting         DepositSetting @default(None)
+  depositValue           Int?
+  cancellationPolicy     String?
+
+  staff          Staff[]
+  services       Service[]
+  products       Product[]
+  bookings       Booking[]
+  orders         Order[]
+  paymentMethods PaymentMethod[]
+  videos         VendorVideo[]
+}
+
+model Staff {
+  id                String            @id @default(cuid())
+  vendorId          String
+  vendor            Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name              String
+  email             String            @unique
+  phone             String?
+  role              StaffRole
+  roleDetail        String?
+  botAccess         Boolean           @default(false)
+  active            Boolean           @default(true)
+  serviceCategories ServiceCategory[]
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
+
+  bookingPreferences Booking[] @relation("BookingStaffPreference")
+  bookingAssignments Booking[] @relation("BookingAssignedStaff")
+
+  @@index([vendorId])
+}
+
+model Service {
+  id              String          @id @default(cuid())
+  vendorId        String
+  vendor          Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name            String
+  category        ServiceCategory
+  durationMinutes Int
+  priceInPesewas  Int
+  description     String?
+  active          Boolean         @default(true)
+  featured        Boolean         @default(false)
+  displayOrder    Int             @default(0)
+
+  bookingServices BookingService[]
+
+  @@index([vendorId])
+}
+
+model Product {
+  id                String  @id @default(cuid())
+  vendorId          String
+  vendor            Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name              String
+  priceInPesewas    Int
+  stockCount        Int
+  lowStockThreshold Int
+  description       String?
+  imageUrl          String?
+  active            Boolean @default(true)
+  featured          Boolean @default(false)
+
+  orderItems OrderItem[]
+
+  @@index([vendorId])
+}
+
+model Booking {
+  id                   String        @id @default(cuid())
+  vendorId             String
+  vendor               Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  slug                 String        @unique
+  customerName         String
+  customerPhone        String
+  staffPreferenceId    String?
+  staffPreference      Staff?        @relation("BookingStaffPreference", fields: [staffPreferenceId], references: [id], onDelete: SetNull)
+  assignedStaffId      String?
+  assignedStaff        Staff?        @relation("BookingAssignedStaff", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  startTime            DateTime      @db.Timestamptz(3)
+  endTime              DateTime      @db.Timestamptz(3)
+  status               BookingStatus @default(pending)
+  notes                String        @default("")
+  depositAmountPesewas Int           @default(0)
+  bookingRequestPdfUrl String?
+  confirmedPdfUrl      String?
+  seenByVendorAt       DateTime?     @db.Timestamptz(3)
+  createdAt            DateTime      @default(now()) @db.Timestamptz(3)
+
+  services BookingService[]
+
+  @@index([vendorId])
+}
+
+model BookingService {
+  id              String   @id @default(cuid())
+  bookingId       String
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  serviceId       String?
+  service         Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  name            String
+  priceAtBooking  Int
+  durationMinutes Int
+
+  @@index([bookingId])
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  vendorId       String
+  vendor         Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  slug           String      @unique
+  ref            String      @unique
+  customerName   String
+  customerPhone  String
+  totalPesewas   Int
+  status         OrderStatus @default(new)
+  seenByVendorAt DateTime?   @db.Timestamptz(3)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+
+  items OrderItem[]
+
+  @@index([vendorId])
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name          String
+  priceSnapshot Int
+  quantity      Int
+
+  @@index([orderId])
+}
+
+model PaymentMethod {
+  id            String            @id @default(cuid())
+  vendorId      String
+  vendor        Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  type          PaymentMethodType
+  label         String
+  accountName   String
+  accountNumber String?
+  bankName      String?
+  network       String?
+  active        Boolean           @default(true)
+  displayOrder  Int               @default(0)
+
+  @@index([vendorId])
+}
+
+// Not part of the functional spec's data model — a UI-only storefront feature
+// already built into app/[slug]/page.tsx. Persisted so it doesn't regress once
+// lib/data.ts is retired.
+model VendorVideo {
+  id              String  @id @default(cuid())
+  vendorId        String
+  vendor          Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  durationSeconds Int
+  gradientFrom    String
+  gradientTo      String
+  url             String?
+
+  @@index([vendorId])
+}

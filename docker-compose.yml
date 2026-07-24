@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: booktns
+      POSTGRES_PASSWORD: REDACTED
+      POSTGRES_DB: REDACTED
+    ports:
+      - "5434:5432"
+    volumes:
+      - booktns_pgdata:/var/lib/postgresql/data
+
+volumes:
+  booktns_pgdata:

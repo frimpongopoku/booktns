@@ -6,6 +6,7 @@ import Logo from "@/components/shared/Logo";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Input";
+import { createVendorFromOnboarding } from "./actions";
 import {
   Check,
   Plus,
@@ -14,6 +15,7 @@ import {
   ExternalLink,
   LayoutDashboard,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 
 const STEPS = [
@@ -63,11 +65,20 @@ function StepDots({ current, total }: { current: number; total: number }) {
   );
 }
 
+interface BusinessInfoData {
+  name: string;
+  slug: string;
+  description: string;
+  location: string;
+  hours: string;
+  phone: string;
+}
+
 // Step 1: Business Info
 function BusinessInfoStep({
   onNext,
 }: {
-  onNext: () => void;
+  onNext: (data: BusinessInfoData) => void;
 }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -83,11 +94,11 @@ function BusinessInfoStep({
   };
 
   const handleNext = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !slug.trim()) return;
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
-    onNext();
+    onNext({ name, slug, description, location, hours, phone });
   };
 
   return (
@@ -104,7 +115,7 @@ function BusinessInfoStep({
       <Input label="Location" placeholder="e.g. Lekki Phase 1, Lagos" value={location} onChange={(e) => setLocation(e.target.value)} />
       <Input label="Business hours" placeholder="Mon–Sat 9am–7pm" value={hours} onChange={(e) => setHours(e.target.value)} />
       <Input label="Contact phone / WhatsApp" type="tel" placeholder="+234 800 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
-      <Button size="lg" loading={loading} onClick={handleNext} disabled={!name.trim()} className="mt-2">
+      <Button size="lg" loading={loading} onClick={handleNext} disabled={!name.trim() || !slug.trim()} className="mt-2">
         Continue
       </Button>
     </div>
@@ -201,7 +212,7 @@ function AddServicesStep({ onNext }: { onNext: () => void }) {
 }
 
 // Step 3: Add Staff
-function AddStaffStep({ onNext }: { onNext: () => void }) {
+function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
   const [staffList, setStaffList] = useState<StaffEntry[]>([
     { name: "", email: "", role: "Owner" },
   ]);
@@ -212,11 +223,14 @@ function AddStaffStep({ onNext }: { onNext: () => void }) {
   const updateStaff = (i: number, field: keyof StaffEntry, val: string) =>
     setStaffList((prev) => prev.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
 
+  const isValid = staffList.every((s) => s.name.trim() && s.email.trim());
+
   const handleNext = async () => {
+    if (!isValid) return;
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
-    onNext();
+    onNext(staffList);
   };
 
   return (
@@ -258,10 +272,9 @@ function AddStaffStep({ onNext }: { onNext: () => void }) {
         <Plus size={14} />
         Add another staff member
       </button>
-      <div className="flex gap-3 mt-2">
-        <Button variant="ghost" size="lg" onClick={handleNext} className="flex-1">Skip</Button>
-        <Button size="lg" loading={loading} onClick={handleNext} className="flex-1">Continue</Button>
-      </div>
+      <Button size="lg" loading={loading} onClick={handleNext} disabled={!isValid} className="mt-2">
+        Continue
+      </Button>
     </div>
   );
 }
@@ -340,7 +353,53 @@ function PaymentStep({ onNext }: { onNext: () => void }) {
 }
 
 // Step 5: Go Live
-function GoLiveStep() {
+interface GoLiveStepProps {
+  status: "creating" | "done" | "error";
+  slug: string | null;
+  error: string | null;
+  onRetry: () => void;
+}
+
+function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
+  if (status === "creating") {
+    return (
+      <div className="text-center py-16">
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-5 animate-spin"
+          style={{ border: "3px solid var(--bds)", borderTopColor: "var(--ac)" }}
+        />
+        <p className="text-sm" style={{ color: "var(--tx2)" }}>
+          Setting up your storefront…
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="text-center py-10">
+        <div
+          className="w-12 h-12 rounded-[var(--r)] flex items-center justify-center mx-auto mb-5"
+          style={{ background: "var(--ac-bg)" }}
+        >
+          <AlertCircle size={22} style={{ color: "var(--ac)" }} />
+        </div>
+        <h2
+          className="font-display text-xl font-medium mb-2"
+          style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
+        >
+          Couldn&apos;t set up your storefront
+        </h2>
+        <p className="text-sm mb-8" style={{ color: "var(--tx2)" }}>
+          {error}
+        </p>
+        <Button size="lg" onClick={onRetry}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="text-center">
       {/* Confetti-style visual */}
@@ -380,12 +439,12 @@ function GoLiveStep() {
         style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
       >
         <p className="text-sm flex-1 text-left truncate" style={{ color: "var(--tx2)" }}>
-          booktns.com/<span style={{ color: "var(--ac)" }}>yourslug</span>
+          booktns.com/<span style={{ color: "var(--ac)" }}>{slug}</span>
         </p>
         <button
           className="text-xs font-medium px-3 py-1.5 rounded-[var(--r)]"
           style={{ background: "var(--bg3)", color: "var(--tx)" }}
-          onClick={() => {}}
+          onClick={() => navigator.clipboard.writeText(`booktns.com/${slug}`)}
         >
           Copy
         </button>
@@ -393,7 +452,7 @@ function GoLiveStep() {
 
       <div className="flex flex-col gap-3">
         <Link
-          href="/glambyrose"
+          href={`/${slug}`}
           className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium text-white"
           style={{ background: "var(--ac)" }}
         >
@@ -425,8 +484,49 @@ function GoLiveStep() {
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(0);
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfoData | null>(null);
+  const [staffList, setStaffList] = useState<StaffEntry[]>([]);
+  const [submitStatus, setSubmitStatus] = useState<"creating" | "done" | "error">("creating");
+  const [createdSlug, setCreatedSlug] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
+
+  const handleBusinessInfoNext = (data: BusinessInfoData) => {
+    setBusinessInfo(data);
+    goNext();
+  };
+
+  const handleStaffNext = (data: StaffEntry[]) => {
+    setStaffList(data);
+    goNext();
+  };
+
+  const handleFinalSubmit = () => {
+    goNext();
+    setSubmitStatus("creating");
+
+    if (!businessInfo) {
+      setSubmitStatus("error");
+      setSubmitError("Missing business info — please refresh and start again.");
+      return;
+    }
+
+    createVendorFromOnboarding({ businessInfo, staffList })
+      .then((result) => {
+        if (result.ok) {
+          setCreatedSlug(result.slug);
+          setSubmitStatus("done");
+        } else {
+          setSubmitError(result.error);
+          setSubmitStatus("error");
+        }
+      })
+      .catch(() => {
+        setSubmitError("Something went wrong. Please try again.");
+        setSubmitStatus("error");
+      });
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start py-12 px-4" style={{ background: "var(--bg)" }}>
@@ -451,11 +551,18 @@ export default function OnboardingPage() {
         </div>
 
         {/* Step content */}
-        {step === 0 && <BusinessInfoStep onNext={goNext} />}
+        {step === 0 && <BusinessInfoStep onNext={handleBusinessInfoNext} />}
         {step === 1 && <AddServicesStep onNext={goNext} />}
-        {step === 2 && <AddStaffStep onNext={goNext} />}
-        {step === 3 && <PaymentStep onNext={goNext} />}
-        {step === 4 && <GoLiveStep />}
+        {step === 2 && <AddStaffStep onNext={handleStaffNext} />}
+        {step === 3 && <PaymentStep onNext={handleFinalSubmit} />}
+        {step === 4 && (
+          <GoLiveStep
+            status={submitStatus}
+            slug={createdSlug}
+            error={submitError}
+            onRetry={handleFinalSubmit}
+          />
+        )}
 
         {/* Completed steps indicator */}
         {step < 4 && (

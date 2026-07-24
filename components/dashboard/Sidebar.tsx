@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
 import {
   LayoutDashboard,
   Calendar,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 import Logo from "@/components/shared/Logo";
 import ThemeToggle from "@/components/shared/ThemeToggle";
+import { getFirebaseAuth } from "@/lib/firebase-client";
+import type { StaffRole } from "@/types";
 import clsx from "clsx";
 
 interface NavItem {
@@ -65,12 +68,25 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  staffName: string;
+  role: StaffRole;
+  vendorName: string;
+}
+
+export default function Sidebar({ staffName, role, vendorName }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/session", { method: "DELETE" });
+    await signOut(getFirebaseAuth()).catch(() => {});
+    router.push("/login");
   };
 
   return (
@@ -146,26 +162,26 @@ export default function Sidebar() {
           className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 text-white"
           style={{ background: "var(--ac)" }}
         >
-          R
+          {staffName[0]?.toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium truncate" style={{ color: "var(--tx)" }}>
-            Rose Adeyemi
+            {staffName}
           </p>
           <p className="text-[10px] truncate" style={{ color: "var(--tx3)" }}>
-            Owner
+            {role} · {vendorName}
           </p>
         </div>
         <div className="flex items-center gap-0.5">
           <ThemeToggle />
-          <Link
-            href="/login"
+          <button
+            onClick={handleLogout}
             className="p-1.5 rounded-md hover:bg-[var(--bg3)] transition-colors"
             style={{ color: "var(--tx3)" }}
             title="Log out"
           >
             <LogOut size={14} />
-          </Link>
+          </button>
         </div>
       </div>
     </aside>

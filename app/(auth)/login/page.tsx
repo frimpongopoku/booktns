@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { signInWithPopup, type AuthError } from "firebase/auth";
+import { getFirebaseAuth, googleProvider } from "@/lib/firebase-client";
 import Logo from "@/components/shared/Logo";
 import Button from "@/components/ui/Button";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, AlertCircle } from "lucide-react";
 
 function GoogleIcon() {
   return (
@@ -32,23 +34,50 @@ function GoogleIcon() {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<"idle" | "redirecting" | "verifying">("idle");
+  const [status, setStatus] = useState<"idle" | "signing-in" | "verifying">("idle");
+  const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
-    setStatus("redirecting");
-    await new Promise((r) => setTimeout(r, 700));
+    setError(null);
+    setStatus("signing-in");
+
+    let idToken: string;
+    try {
+      const result = await signInWithPopup(getFirebaseAuth(), googleProvider);
+      idToken = await result.user.getIdToken();
+    } catch (err) {
+      const code = (err as AuthError).code;
+      setStatus("idle");
+      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
+        setError("Something went wrong signing in with Google. Please try again.");
+      }
+      return;
+    }
+
     setStatus("verifying");
-    await new Promise((r) => setTimeout(r, 700));
-    router.push("/dashboard");
+    try {
+      const res = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        router.push("/dashboard");
+        return;
+      }
+
+      setError(data.error ?? "Sign-in failed. Please try again.");
+      setStatus("idle");
+    } catch {
+      setError("Couldn't reach the server. Please try again.");
+      setStatus("idle");
+    }
   };
 
   const loading = status !== "idle";
-  const label =
-    status === "redirecting"
-      ? "Redirecting to Google…"
-      : status === "verifying"
-        ? "Verifying your account…"
-        : "Continue with Google";
+  const label = status === "verifying" ? "Verifying your account…" : "Continue with Google";
 
   return (
     <div
@@ -78,6 +107,18 @@ export default function LoginPage() {
             Staff and vendor login. No password needed.
           </p>
         </div>
+
+        {error && (
+          <div
+            className="flex items-start gap-2.5 p-3.5 rounded-[var(--r)] mb-5"
+            style={{ background: "rgba(185,28,28,0.07)", border: "1px solid var(--ac)" }}
+          >
+            <AlertCircle size={16} style={{ color: "var(--ac)" }} className="flex-shrink-0 mt-0.5" />
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ac)" }}>
+              {error}
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-4">
           <Button

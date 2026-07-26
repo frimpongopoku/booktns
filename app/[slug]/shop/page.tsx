@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getVendorBySlug, vendor, products } from "@/lib/data";
+import { getStorefrontVendor, getAllActiveVendorSlugs } from "@/lib/vendors";
 import ShopClient from "@/components/storefront/ShopClient";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export function generateStaticParams() {
-  return [{ slug: vendor.slug }];
+export async function generateStaticParams() {
+  const slugs = await getAllActiveVendorSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const vendorData = getVendorBySlug(slug);
+  const vendorData = await getStorefrontVendor(slug);
   if (!vendorData) return {};
 
   const title = `Shop — ${vendorData.name}`;
@@ -40,14 +41,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ShopPage({ params }: PageProps) {
   const { slug } = await params;
-  const vendorData = getVendorBySlug(slug);
+  const vendorData = await getStorefrontVendor(slug);
   if (!vendorData) notFound();
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    itemListElement: products.map((product, index) => ({
+    itemListElement: vendorData.products.map((product, index) => ({
       "@type": "ListItem",
       position: index + 1,
       item: {
@@ -74,7 +75,7 @@ export default async function ShopPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
       />
-      <ShopClient slug={slug} vendorName={vendorData.name} products={products} />
+      <ShopClient slug={slug} vendorName={vendorData.name} products={vendorData.products} />
     </>
   );
 }

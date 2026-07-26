@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import BookingFlow from "@/components/storefront/BookingFlow";
-import { getVendorBySlug } from "@/lib/data";
+import { getStorefrontVendor } from "@/lib/vendors";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -8,7 +9,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const vendorData = getVendorBySlug(slug);
+  const vendorData = await getStorefrontVendor(slug);
   const title = vendorData ? `Book — ${vendorData.name}` : "Book an Appointment";
 
   return {
@@ -20,5 +21,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function BookPage({ params }: PageProps) {
   const { slug } = await params;
-  return <BookingFlow slug={slug} />;
+  const vendorData = await getStorefrontVendor(slug);
+  if (!vendorData) notFound();
+
+  return (
+    <BookingFlow
+      slug={slug}
+      vendorName={vendorData.name}
+      services={vendorData.services}
+      products={vendorData.products}
+      staff={vendorData.staff}
+    />
+  );
 }

@@ -125,6 +125,11 @@ export default function ShopClient({ slug, vendorName, products }: ShopClientPro
         </div>
 
         {/* Products grid */}
+        {filtered.length === 0 ? (
+          <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
+            {products.length === 0 ? "No products in the shop yet." : "No products match this filter."}
+          </p>
+        ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {filtered.map((product) => {
             const qty = getQty(product.id);
@@ -194,6 +199,7 @@ export default function ShopClient({ slug, vendorName, products }: ShopClientPro
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Cart sticky footer on mobile */}

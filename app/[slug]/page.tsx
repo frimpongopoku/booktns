@@ -1,16 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  getVendorBySlug,
-  vendor,
-  services,
-  products,
-  videos,
-  formatPrice,
-  formatDuration,
-  formatVideoDuration,
-} from "@/lib/data";
+import { formatPrice, formatDuration, formatVideoDuration } from "@/lib/data";
+import { getStorefrontVendor, getAllActiveVendorSlugs } from "@/lib/vendors";
 import StorefrontNav from "@/components/storefront/StorefrontNav";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import {
@@ -107,13 +99,14 @@ function VideoCard({ video }: { video: VendorVideo }) {
   );
 }
 
-export function generateStaticParams() {
-  return [{ slug: vendor.slug }];
+export async function generateStaticParams() {
+  const slugs = await getAllActiveVendorSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const vendorData = getVendorBySlug(slug);
+  const vendorData = await getStorefrontVendor(slug);
   if (!vendorData) return {};
 
   const title = `${vendorData.name} — Book Appointments Online`;
@@ -142,7 +135,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function StorefrontPage({ params }: PageProps) {
   const { slug } = await params;
-  const vendorData = getVendorBySlug(slug);
+  const vendorData = await getStorefrontVendor(slug);
 
   if (!vendorData) notFound();
 
@@ -156,9 +149,9 @@ export default async function StorefrontPage({ params }: PageProps) {
     address: vendorData.location,
   };
 
-  const featuredServices = services.slice(0, 4);
-  const featuredProducts = products.slice(0, 4);
-  const vendorVideos = videos.filter((v) => v.vendorId === vendorData.id);
+  const featuredServices = vendorData.services.slice(0, 4);
+  const featuredProducts = vendorData.products.slice(0, 4);
+  const vendorVideos = vendorData.videos;
 
   return (
     <div className="min-h-screen pb-16 md:pb-0" style={{ background: "var(--bg)" }}>
@@ -332,56 +325,64 @@ export default async function StorefrontPage({ params }: PageProps) {
               Book now <ArrowRight size={13} />
             </Link>
           </div>
-          <div className="grid sm:grid-cols-2 gap-2.5">
-            {featuredServices.map((svc) => (
-              <Link
-                key={svc.id}
-                href={`/${slug}/book`}
-                className="flex items-center gap-3.5 p-4 rounded-[var(--rl)] transition-all duration-150 hover:translate-y-[-1px]"
-                style={{
-                  background: "var(--bg)",
-                  boxShadow: "var(--shadow-sm)",
-                }}
-              >
-                <div
-                  className="w-10 h-10 rounded-[var(--r)] flex items-center justify-center flex-shrink-0"
-                  style={{ background: "var(--ac-bg)", color: "var(--ac)" }}
-                >
-                  {CATEGORY_ICONS[svc.category] ?? <Sparkles size={15} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-sm font-semibold"
-                    style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
+          {featuredServices.length > 0 ? (
+            <>
+              <div className="grid sm:grid-cols-2 gap-2.5">
+                {featuredServices.map((svc) => (
+                  <Link
+                    key={svc.id}
+                    href={`/${slug}/book`}
+                    className="flex items-center gap-3.5 p-4 rounded-[var(--rl)] transition-all duration-150 hover:translate-y-[-1px]"
+                    style={{
+                      background: "var(--bg)",
+                      boxShadow: "var(--shadow-sm)",
+                    }}
                   >
-                    {svc.name}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <Clock size={11} style={{ color: "var(--tx3)" }} />
-                    <span className="text-xs" style={{ color: "var(--tx3)" }}>
-                      {formatDuration(svc.durationMinutes)}
-                    </span>
-                  </div>
-                </div>
-                <p
-                  className="text-sm font-semibold flex-shrink-0"
-                  style={{ color: "var(--tx)" }}
+                    <div
+                      className="w-10 h-10 rounded-[var(--r)] flex items-center justify-center flex-shrink-0"
+                      style={{ background: "var(--ac-bg)", color: "var(--ac)" }}
+                    >
+                      {CATEGORY_ICONS[svc.category] ?? <Sparkles size={15} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-sm font-semibold"
+                        style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
+                      >
+                        {svc.name}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Clock size={11} style={{ color: "var(--tx3)" }} />
+                        <span className="text-xs" style={{ color: "var(--tx3)" }}>
+                          {formatDuration(svc.durationMinutes)}
+                        </span>
+                      </div>
+                    </div>
+                    <p
+                      className="text-sm font-semibold flex-shrink-0"
+                      style={{ color: "var(--tx)" }}
+                    >
+                      {formatPrice(svc.priceInPesewas)}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-5 text-center">
+                <Link
+                  href={`/${slug}/book`}
+                  className="text-sm font-medium inline-flex items-center gap-1.5"
+                  style={{ color: "var(--ac)" }}
                 >
-                  {formatPrice(svc.priceInPesewas)}
-                </p>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-5 text-center">
-            <Link
-              href={`/${slug}/book`}
-              className="text-sm font-medium inline-flex items-center gap-1.5"
-              style={{ color: "var(--ac)" }}
-            >
-              View all {services.length} services
-              <ArrowRight size={13} />
-            </Link>
-          </div>
+                  View all {vendorData.services.length} services
+                  <ArrowRight size={13} />
+                </Link>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
+              Services coming soon — check back shortly.
+            </p>
+          )}
         </div>
       </section>
 
@@ -400,34 +401,40 @@ export default async function StorefrontPage({ params }: PageProps) {
               View all <ArrowRight size={13} />
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {featuredProducts.map((p) => (
-              <Link
-                key={p.id}
-                href={`/${slug}/shop`}
-                className="rounded-[var(--rl)] overflow-hidden transition-all duration-150 hover:translate-y-[-2px]"
-                style={{ boxShadow: "var(--shadow-sm)" }}
-              >
-                <div
-                  className="aspect-square flex items-center justify-center"
-                  style={{ background: "var(--bg3)" }}
+          {featuredProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {featuredProducts.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/${slug}/shop`}
+                  className="rounded-[var(--rl)] overflow-hidden transition-all duration-150 hover:translate-y-[-2px]"
+                  style={{ boxShadow: "var(--shadow-sm)" }}
                 >
-                  <ShoppingBag size={26} style={{ color: "var(--tx3)" }} />
-                </div>
-                <div className="p-3" style={{ background: "var(--bg2)" }}>
-                  <p
-                    className="text-xs font-semibold mb-1 truncate"
-                    style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
+                  <div
+                    className="aspect-square flex items-center justify-center"
+                    style={{ background: "var(--bg3)" }}
                   >
-                    {p.name}
-                  </p>
-                  <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>
-                    {formatPrice(p.priceInPesewas)}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+                    <ShoppingBag size={26} style={{ color: "var(--tx3)" }} />
+                  </div>
+                  <div className="p-3" style={{ background: "var(--bg2)" }}>
+                    <p
+                      className="text-xs font-semibold mb-1 truncate"
+                      style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
+                    >
+                      {p.name}
+                    </p>
+                    <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>
+                      {formatPrice(p.priceInPesewas)}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
+              Products coming soon — check back shortly.
+            </p>
+          )}
         </div>
       </section>
 

@@ -81,6 +81,8 @@ export const services: Service[] = [
     priceInPesewas: 35000,
     description: "Long-lasting protective knotless braids in any size.",
     active: true,
+    featured: false,
+    displayOrder: 0,
   },
   {
     id: "svc2",
@@ -91,6 +93,8 @@ export const services: Service[] = [
     priceInPesewas: 12000,
     description: "Long-lasting gel polish with nail shaping and cuticle care.",
     active: true,
+    featured: false,
+    displayOrder: 1,
   },
   {
     id: "svc3",
@@ -101,6 +105,8 @@ export const services: Service[] = [
     priceInPesewas: 20000,
     description: "Deep cleansing facial with extraction and hydration mask.",
     active: true,
+    featured: false,
+    displayOrder: 2,
   },
   {
     id: "svc4",
@@ -111,6 +117,8 @@ export const services: Service[] = [
     priceInPesewas: 15000,
     description: "Classic or volume lash extensions for a full, natural look.",
     active: true,
+    featured: false,
+    displayOrder: 3,
   },
   {
     id: "svc5",
@@ -121,6 +129,8 @@ export const services: Service[] = [
     priceInPesewas: 10000,
     description: "Relaxing foot soak, exfoliation, and nail polish.",
     active: true,
+    featured: false,
+    displayOrder: 4,
   },
   {
     id: "svc6",
@@ -131,6 +141,8 @@ export const services: Service[] = [
     priceInPesewas: 18000,
     description: "Defined twist out for natural hair.",
     active: true,
+    featured: false,
+    displayOrder: 5,
   },
 ];
 
@@ -144,6 +156,7 @@ export const products: Product[] = [
     lowStockThreshold: 5,
     description: "Pure Moroccan argan oil for shine and moisture.",
     active: true,
+    featured: false,
   },
   {
     id: "p2",
@@ -154,6 +167,7 @@ export const products: Product[] = [
     lowStockThreshold: 5,
     description: "Lightweight cream for defined, frizz-free curls.",
     active: true,
+    featured: false,
   },
   {
     id: "p3",
@@ -164,6 +178,7 @@ export const products: Product[] = [
     lowStockThreshold: 5,
     description: "Brightening serum with 15% Vitamin C complex.",
     active: true,
+    featured: false,
   },
   {
     id: "p4",
@@ -174,6 +189,7 @@ export const products: Product[] = [
     lowStockThreshold: 5,
     description: "Complete at-home nail kit in elegant nude shades.",
     active: true,
+    featured: false,
   },
   {
     id: "p5",
@@ -184,6 +200,7 @@ export const products: Product[] = [
     lowStockThreshold: 6,
     description: "Rich whipped shea butter for deep skin hydration.",
     active: true,
+    featured: false,
   },
   {
     id: "p6",
@@ -194,6 +211,7 @@ export const products: Product[] = [
     lowStockThreshold: 5,
     description: "Balancing rose water toner for all skin types.",
     active: true,
+    featured: false,
   },
 ];
 

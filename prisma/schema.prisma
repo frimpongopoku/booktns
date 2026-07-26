@@ -83,6 +83,8 @@ model Vendor {
   orders         Order[]
   paymentMethods PaymentMethod[]
   videos         VendorVideo[]
+  businessHours  BusinessHours[]
+  media          Media[]
 }
 
 model Staff {
@@ -223,6 +225,38 @@ model PaymentMethod {
   network       String?
   active        Boolean           @default(true)
   displayOrder  Int               @default(0)
+
+  @@index([vendorId])
+}
+
+// Spec §7.10 — one row per day of week (0=Sun..6=Sat). openTime/closeTime are
+// null when isClosed is true. Vendor.hours (free-text) stays for now as the
+// storefront fallback display until that's swapped to read structured hours.
+model BusinessHours {
+  id         String  @id @default(cuid())
+  vendorId   String
+  vendor     Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  isClosed   Boolean @default(false)
+  openTime   String?
+  closeTime  String?
+
+  @@unique([vendorId, dayOfWeek])
+  @@index([vendorId])
+}
+
+// Vendor's media library (Cloudflare R2-backed) — every file a vendor uploads
+// lands here regardless of what it's used for, so it can be reused across
+// products/services rather than re-uploaded each time.
+model Media {
+  id          String   @id @default(cuid())
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  url         String
+  filename    String
+  contentType String
+  sizeBytes   Int
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([vendorId])
 }

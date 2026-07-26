@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
-import type { StaffRole } from "@/types";
+import type { StaffRole, ServiceCategory, PaymentMethodType } from "@/types";
 
 interface BusinessInfoInput {
   name: string;
@@ -19,12 +19,37 @@ interface StaffInput {
   role: string;
 }
 
+interface ServiceInput {
+  name: string;
+  duration: string;
+  price: string;
+  category: string;
+}
+
+interface PaymentMethodInput {
+  type: string;
+  label: string;
+  number: string;
+  name: string;
+}
+
 interface OnboardingInput {
   businessInfo: BusinessInfoInput;
   staffList: StaffInput[];
+  services: ServiceInput[];
+  paymentMethods: PaymentMethodInput[];
 }
 
 type OnboardingResult = { ok: true; slug: string } | { ok: false; error: string };
+
+// dayOfWeek: 0=Sun..6=Sat. Default matches the dummy-data vendor's prior
+// free-text hours ("Mon–Sat 9am–7pm") so onboarding doesn't regress the look
+// of a freshly created storefront before the owner customises it.
+const DEFAULT_BUSINESS_HOURS = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) =>
+  dayOfWeek === 0
+    ? { dayOfWeek, isClosed: true, openTime: null, closeTime: null }
+    : { dayOfWeek, isClosed: false, openTime: "09:00", closeTime: "19:00" }
+);
 
 // Prisma's P2002 metadata shape differs between the classic query engine
 // (`meta.target`) and the driver-adapter path used here (`meta.driverAdapterError...constraint.fields`).
@@ -39,7 +64,7 @@ function uniqueConstraintFields(meta: Record<string, unknown> | undefined): stri
 }
 
 export async function createVendorFromOnboarding(input: OnboardingInput): Promise<OnboardingResult> {
-  const { businessInfo, staffList } = input;
+  const { businessInfo, staffList, services, paymentMethods } = input;
 
   const name = businessInfo.name.trim();
   const slug = businessInfo.slug.trim();
@@ -51,6 +76,15 @@ export async function createVendorFromOnboarding(input: OnboardingInput): Promis
   if (validStaff.length === 0) {
     return { ok: false, error: "Add at least one staff member with a name and email." };
   }
+  if (!validStaff.some((s) => s.role === "Owner")) {
+    return { ok: false, error: "Every business needs an owner — add yourself as the owner to continue." };
+  }
+
+  const validServices = services.filter((s) => s.name.trim());
+
+  const validPaymentMethods = paymentMethods.filter(
+    (pm) => pm.label.trim() && (pm.type === "cash" || (pm.name.trim() && pm.number.trim()))
+  );
 
   try {
     const vendor = await db.$transaction(async (tx) => {
@@ -74,6 +108,39 @@ export async function createVendorFromOnboarding(input: OnboardingInput): Promis
           role: s.role as StaffRole,
         })),
       });
+
+      await tx.businessHours.createMany({
+        data: DEFAULT_BUSINESS_HOURS.map((day) => ({
+          vendorId: createdVendor.id,
+          ...day,
+        })),
+      });
+
+      if (validServices.length > 0) {
+        await tx.service.createMany({
+          data: validServices.map((s, i) => ({
+            vendorId: createdVendor.id,
+            name: s.name.trim(),
+            category: s.category as ServiceCategory,
+            durationMinutes: parseInt(s.duration) || 60,
+            priceInPesewas: Math.round(parseFloat(s.price) * 100) || 0,
+            displayOrder: i,
+          })),
+        });
+      }
+
+      if (validPaymentMethods.length > 0) {
+        await tx.paymentMethod.createMany({
+          data: validPaymentMethods.map((pm, i) => ({
+            vendorId: createdVendor.id,
+            type: pm.type as PaymentMethodType,
+            label: pm.label.trim(),
+            accountName: pm.name.trim() || pm.label.trim(),
+            accountNumber: pm.type === "cash" ? null : pm.number.trim(),
+            displayOrder: i,
+          })),
+        });
+      }
 
       return createdVendor;
     });

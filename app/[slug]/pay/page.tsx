@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getVendorBySlug, paymentMethods } from "@/lib/data";
+import { getStorefrontVendor } from "@/lib/vendors";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { Smartphone, CreditCard, Banknote, MapPin } from "lucide-react";
@@ -12,7 +12,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const vendorData = getVendorBySlug(slug);
+  const vendorData = await getStorefrontVendor(slug);
   const title = vendorData ? `Payment — ${vendorData.name}` : "Payment Details";
 
   return {
@@ -30,7 +30,7 @@ function PaymentIcon({ type }: { type: string }) {
 
 export default async function PayPage({ params }: PageProps) {
   const { slug } = await params;
-  const vendorData = getVendorBySlug(slug);
+  const vendorData = await getStorefrontVendor(slug);
   if (!vendorData) notFound();
 
   return (
@@ -59,7 +59,7 @@ export default async function PayPage({ params }: PageProps) {
             className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-semibold text-white mx-auto mb-4"
             style={{ background: "var(--ac)" }}
           >
-            G
+            {vendorData.name[0]}
           </div>
           <h1
             className="font-display text-2xl font-medium mb-1"
@@ -79,8 +79,13 @@ export default async function PayPage({ params }: PageProps) {
           Payment Details
         </p>
 
+        {vendorData.paymentMethods.length === 0 ? (
+          <p className="text-sm text-center py-6" style={{ color: "var(--tx3)" }}>
+            Payment details aren&apos;t set up yet — message us on WhatsApp to arrange payment.
+          </p>
+        ) : (
         <div className="flex flex-col gap-3">
-          {paymentMethods.map((pm) => (
+          {vendorData.paymentMethods.map((pm) => (
             <div
               key={pm.id}
               className="p-5 rounded-[var(--rl)]"
@@ -138,6 +143,7 @@ export default async function PayPage({ params }: PageProps) {
             </div>
           ))}
         </div>
+        )}
 
         <p className="text-center text-xs mt-8" style={{ color: "var(--tx3)" }}>
           After paying, send your receipt to{" "}

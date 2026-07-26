@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { serializeStaff } from "@/lib/serialize";
-import StaffClient from "@/components/dashboard/StaffClient";
+import { serializeMedia } from "@/lib/serialize";
+import MediaClient from "@/components/dashboard/MediaClient";
 
-export default async function StaffPage() {
+export default async function MediaPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  if (session.role !== "Owner") {
+  if (session.role === "Service") {
     return (
       <div
         className="flex flex-col items-center justify-center gap-2 py-16 rounded-[var(--rl)] text-center"
@@ -16,16 +16,16 @@ export default async function StaffPage() {
       >
         <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>You don&apos;t have access to this page</p>
         <p className="text-xs max-w-xs" style={{ color: "var(--tx3)" }}>
-          Managing staff is limited to the business owner.
+          Managing media is limited to owners and management staff.
         </p>
       </div>
     );
   }
 
-  const staff = await db.staff.findMany({
+  const media = await db.media.findMany({
     where: { vendorId: session.vendorId },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
   });
 
-  return <StaffClient initialStaff={staff.map(serializeStaff)} />;
+  return <MediaClient initialMedia={media.map(serializeMedia)} />;
 }

@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import type { StaffRole } from "@/types";
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
@@ -63,4 +64,34 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function clearSession(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+}
+
+export type RequireRoleResult =
+  | { ok: true; session: SessionPayload }
+  | { ok: false; response: NextResponse };
+
+// API-route guard: confirms a session exists and its role is one of `allowedRoles`,
+// per the spec §7 role-permission table. Callers do:
+//   const auth = await requireRole(["Owner", "Management"]);
+//   if (!auth.ok) return auth.response;
+export async function requireRole(allowedRoles: StaffRole[]): Promise<RequireRoleResult> {
+  const session = await getSession();
+  if (!session) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Not signed in", code: "unauthenticated" }, { status: 401 }),
+    };
+  }
+
+  if (!allowedRoles.includes(session.role)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "You don't have permission to do this", code: "forbidden" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { ok: true, session };
 }

@@ -13,8 +13,8 @@ import {
   Minus,
   Plus,
 } from "lucide-react";
-import { services, products, staff, vendor, paymentMethods, formatPrice, formatDuration } from "@/lib/data";
-import type { Service, Product } from "@/types";
+import { formatPrice, formatDuration } from "@/lib/data";
+import type { Service, Product, Staff } from "@/types";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Input";
@@ -49,7 +49,15 @@ function generateCalendarDays(year: number, month: number): (number | null)[] {
 
 const BLOCKED_DAYS = [3, 7, 14, 21, 22, 28];
 
-export default function BookingFlow({ slug }: { slug: string }) {
+interface BookingFlowProps {
+  slug: string;
+  vendorName: string;
+  services: Service[];
+  products: Product[];
+  staff: Staff[];
+}
+
+export default function BookingFlow({ slug, vendorName, services, products, staff }: BookingFlowProps) {
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
 
@@ -131,7 +139,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
             Booking Submitted!
           </h2>
           <p className="text-sm mb-2" style={{ color: "var(--tx2)" }}>
-            Your booking request has been sent to <strong>{vendor.name}</strong>.
+            Your booking request has been sent to <strong>{vendorName}</strong>.
           </p>
           <p className="text-sm mb-8" style={{ color: "var(--tx2)" }}>
             You&apos;ll receive a WhatsApp message at {customerPhone} once it&apos;s confirmed.
@@ -226,6 +234,11 @@ export default function BookingFlow({ slug }: { slug: string }) {
             <h2 className="font-display text-xl font-medium mb-4" style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}>
               What would you like?
             </h2>
+            {services.length === 0 ? (
+              <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
+                No services available yet — check back soon or contact us on WhatsApp.
+              </p>
+            ) : (
             <div className="flex flex-col gap-2">
               {services.map((svc) => {
                 const selected = selectedServices.some((s) => s.id === svc.id);
@@ -266,6 +279,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
                 );
               })}
             </div>
+            )}
           </div>
         )}
 

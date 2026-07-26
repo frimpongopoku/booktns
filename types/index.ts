@@ -44,6 +44,8 @@ export interface Service {
   priceInPesewas: number;
   description?: string;
   active: boolean;
+  featured: boolean;
+  displayOrder: number;
 }
 
 export interface Product {
@@ -56,6 +58,7 @@ export interface Product {
   description?: string;
   imageUrl?: string;
   active: boolean;
+  featured: boolean;
 }
 
 export interface BookingService {
@@ -131,6 +134,25 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
+}
+
+export interface BusinessHours {
+  id: string;
+  vendorId: string;
+  dayOfWeek: number; // 0=Sun..6=Sat
+  isClosed: boolean;
+  openTime: string | null;
+  closeTime: string | null;
+}
+
+export interface Media {
+  id: string;
+  vendorId: string;
+  url: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAt: string;
 }
 
 export interface VendorVideo {

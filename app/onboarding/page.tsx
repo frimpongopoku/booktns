@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Logo from "@/components/shared/Logo";
 import Button from "@/components/ui/Button";
@@ -12,11 +12,13 @@ import {
   Plus,
   X,
   Rocket,
-  ExternalLink,
   LayoutDashboard,
   Sparkles,
   AlertCircle,
+  Crown,
 } from "lucide-react";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const STEPS = [
   "Business Info",
@@ -74,6 +76,8 @@ interface BusinessInfoData {
   phone: string;
 }
 
+type SlugStatus = "idle" | "checking" | "available" | "taken" | "error";
+
 // Step 1: Business Info
 function BusinessInfoStep({
   onNext,
@@ -87,19 +91,53 @@ function BusinessInfoStep({
   const [hours, setHours] = useState("Mon–Sat 9am–7pm");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
 
   const handleSlugify = (val: string) => {
     setName(val);
     setSlug(val.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, ""));
   };
 
+  useEffect(() => {
+    const trimmed = slug.trim();
+    if (!trimmed) {
+      setSlugStatus("idle");
+      return;
+    }
+    setSlugStatus("checking");
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/vendors/check-slug?slug=${encodeURIComponent(trimmed)}`);
+        const data = await res.json();
+        setSlugStatus(res.ok ? (data.available ? "available" : "taken") : "error");
+      } catch {
+        setSlugStatus("error");
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [slug]);
+
+  const canContinue = Boolean(name.trim() && slug.trim()) && slugStatus !== "checking" && slugStatus !== "taken";
+
   const handleNext = async () => {
-    if (!name.trim() || !slug.trim()) return;
+    if (!canContinue) return;
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
     onNext({ name, slug, description, location, hours, phone });
   };
+
+  const slugHint =
+    slugStatus === "checking"
+      ? `Checking booktns.com/${slug}…`
+      : slugStatus === "available"
+        ? `✓ booktns.com/${slug} is available`
+        : slugStatus === "error"
+          ? "Couldn't check availability — you can still continue"
+          : slug
+            ? `booktns.com/${slug}`
+            : undefined;
+  const slugError = slugStatus === "taken" ? "That storefront URL is already taken — try another" : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -108,14 +146,15 @@ function BusinessInfoStep({
         label="Storefront URL slug"
         placeholder="glambyrose"
         value={slug}
-        onChange={(e) => setSlug(e.target.value)}
-        hint={slug ? `booktns.com/${slug}` : undefined}
+        onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+        hint={slugHint}
+        error={slugError}
       />
       <Textarea label="Description" placeholder="Tell customers what makes you special…" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
       <Input label="Location" placeholder="e.g. Lekki Phase 1, Lagos" value={location} onChange={(e) => setLocation(e.target.value)} />
       <Input label="Business hours" placeholder="Mon–Sat 9am–7pm" value={hours} onChange={(e) => setHours(e.target.value)} />
       <Input label="Contact phone / WhatsApp" type="tel" placeholder="+234 800 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
-      <Button size="lg" loading={loading} onClick={handleNext} disabled={!name.trim() || !slug.trim()} className="mt-2">
+      <Button size="lg" loading={loading} onClick={handleNext} disabled={!canContinue} className="mt-2">
         Continue
       </Button>
     </div>
@@ -123,7 +162,7 @@ function BusinessInfoStep({
 }
 
 // Step 2: Add Services
-function AddServicesStep({ onNext }: { onNext: () => void }) {
+function AddServicesStep({ onNext }: { onNext: (data: ServiceEntry[]) => void }) {
   const [services, setServices] = useState<ServiceEntry[]>([
     { name: "", duration: "60", price: "", category: "Hair" },
   ]);
@@ -145,7 +184,7 @@ function AddServicesStep({ onNext }: { onNext: () => void }) {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
-    onNext();
+    onNext(services);
   };
 
   return (
@@ -223,7 +262,8 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
   const updateStaff = (i: number, field: keyof StaffEntry, val: string) =>
     setStaffList((prev) => prev.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
 
-  const isValid = staffList.every((s) => s.name.trim() && s.email.trim());
+  const isValid = staffList.every((s) => s.name.trim() && EMAIL_PATTERN.test(s.email.trim()));
+  const emailError = (email: string) => (email.trim() && !EMAIL_PATTERN.test(email.trim()) ? "Enter a valid email address" : undefined);
 
   const handleNext = async () => {
     if (!isValid) return;
@@ -233,41 +273,83 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
     onNext(staffList);
   };
 
+  const [owner, ...team] = staffList;
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs -mt-1" style={{ color: "var(--tx3)" }}>
-        Each email becomes that person&apos;s Google Sign-In login — no password to set up.
+        Every email must be a Google account (Gmail or Google Workspace) — it becomes that person&apos;s sign-in, no password to set up.
       </p>
-      {staffList.map((member, i) => (
-        <div
-          key={i}
-          className="p-4 rounded-[var(--rl)] relative"
-          style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
-        >
-          {staffList.length > 1 && (
+
+      {/* Owner — always the first entry, visually distinct */}
+      <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--ac-bg)", border: "1px solid var(--ac)" }}>
+        <div className="flex items-center gap-2 mb-3">
+          <Crown size={14} style={{ color: "var(--ac)" }} />
+          <span className="text-xs font-semibold" style={{ color: "var(--ac)" }}>
+            You — Owner
+          </span>
+        </div>
+        <p className="text-xs mb-3" style={{ color: "var(--ac2)" }}>
+          Full access: manage staff, services, products, payments, and settings.
+        </p>
+        <div className="flex flex-col gap-3">
+          <Input
+            label="Full name"
+            placeholder="e.g. Rose Adebayo"
+            value={owner.name}
+            onChange={(e) => updateStaff(0, "name", e.target.value)}
+          />
+          <Input
+            label="Your Google email"
+            type="email"
+            placeholder="you@example.com"
+            value={owner.email}
+            onChange={(e) => updateStaff(0, "email", e.target.value)}
+            error={emailError(owner.email)}
+          />
+        </div>
+      </div>
+
+      {/* Team members */}
+      {team.map((member, idx) => {
+        const i = idx + 1;
+        return (
+          <div
+            key={i}
+            className="p-4 rounded-[var(--rl)] relative"
+            style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
+          >
             <button onClick={() => removeStaff(i)} className="absolute top-3 right-3" style={{ color: "var(--tx3)" }}>
               <X size={14} />
             </button>
-          )}
-          <div className="flex flex-col gap-3">
-            <Input label="Full name" placeholder="e.g. Chioma Okafor" value={member.name} onChange={(e) => updateStaff(i, "name", e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Email" type="email" placeholder="name@example.com" value={member.email} onChange={(e) => updateStaff(i, "email", e.target.value)} />
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Role</label>
-                <select
-                  value={member.role}
-                  onChange={(e) => updateStaff(i, "role", e.target.value)}
-                  className="px-3 py-2 rounded-[var(--r)] text-sm focus:outline-none"
-                  style={{ background: "var(--bg3)", color: "var(--tx)", border: "1px solid var(--bd)" }}
-                >
-                  {["Owner", "Management", "Service"].map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
+            <div className="flex flex-col gap-3">
+              <Input label="Full name" placeholder="e.g. Chioma Okafor" value={member.name} onChange={(e) => updateStaff(i, "name", e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Google email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={member.email}
+                  onChange={(e) => updateStaff(i, "email", e.target.value)}
+                  error={emailError(member.email)}
+                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Role</label>
+                  <select
+                    value={member.role}
+                    onChange={(e) => updateStaff(i, "role", e.target.value)}
+                    className="px-3 py-2 rounded-[var(--r)] text-sm focus:outline-none"
+                    style={{ background: "var(--bg3)", color: "var(--tx)", border: "1px solid var(--bd)" }}
+                  >
+                    {["Management", "Service"].map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
+
       <button onClick={addStaff} className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--ac)" }}>
         <Plus size={14} />
         Add another staff member
@@ -280,7 +362,7 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
 }
 
 // Step 4: Payment Methods
-function PaymentStep({ onNext }: { onNext: () => void }) {
+function PaymentStep({ onNext }: { onNext: (data: PaymentEntry[]) => void }) {
   const [methods, setMethods] = useState<PaymentEntry[]>([
     { type: "momo", label: "MTN MoMo", number: "", name: "" },
   ]);
@@ -295,7 +377,7 @@ function PaymentStep({ onNext }: { onNext: () => void }) {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
-    onNext();
+    onNext(methods);
   };
 
   return (
@@ -428,10 +510,10 @@ function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
         className="font-display text-2xl font-medium mb-2"
         style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
       >
-        Your storefront is live!
+        Your account is set up!
       </h2>
       <p className="text-sm mb-8" style={{ color: "var(--tx2)" }}>
-        Share your link with clients and start taking bookings.
+        Head to your dashboard to finish setting up your business.
       </p>
 
       <div
@@ -439,30 +521,15 @@ function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
         style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
       >
         <p className="text-sm flex-1 text-left truncate" style={{ color: "var(--tx2)" }}>
-          booktns.com/<span style={{ color: "var(--ac)" }}>{slug}</span>
+          Your future storefront: booktns.com/<span style={{ color: "var(--ac)" }}>{slug}</span>
         </p>
-        <button
-          className="text-xs font-medium px-3 py-1.5 rounded-[var(--r)]"
-          style={{ background: "var(--bg3)", color: "var(--tx)" }}
-          onClick={() => navigator.clipboard.writeText(`booktns.com/${slug}`)}
-        >
-          Copy
-        </button>
       </div>
 
       <div className="flex flex-col gap-3">
         <Link
-          href={`/${slug}`}
+          href="/dashboard"
           className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium text-white"
           style={{ background: "var(--ac)" }}
-        >
-          <ExternalLink size={15} />
-          View my storefront
-        </Link>
-        <Link
-          href="/dashboard"
-          className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"
-          style={{ background: "var(--bg3)", color: "var(--tx)" }}
         >
           <LayoutDashboard size={15} />
           Go to dashboard
@@ -472,10 +539,10 @@ function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
       <div className="mt-8 p-4 rounded-[var(--rl)] text-left" style={{ background: "var(--ac-bg)", border: "1px solid var(--ac)" }}>
         <div className="flex items-center gap-2 mb-2">
           <Sparkles size={14} style={{ color: "var(--ac)" }} />
-          <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>Pro tip</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>What's next</p>
         </div>
         <p className="text-xs leading-relaxed" style={{ color: "var(--ac2)" }}>
-          Share your storefront link in your Instagram bio, WhatsApp status, and on Google Maps to start getting bookings.
+          Your public storefront page isn't live yet — we'll let you know when it's ready to share with clients. For now, everything else is manageable from your dashboard.
         </p>
       </div>
     </div>
@@ -486,6 +553,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [businessInfo, setBusinessInfo] = useState<BusinessInfoData | null>(null);
   const [staffList, setStaffList] = useState<StaffEntry[]>([]);
+  const [services, setServices] = useState<ServiceEntry[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentEntry[]>([]);
   const [submitStatus, setSubmitStatus] = useState<"creating" | "done" | "error">("creating");
   const [createdSlug, setCreatedSlug] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -497,13 +566,21 @@ export default function OnboardingPage() {
     goNext();
   };
 
+  const handleServicesNext = (data: ServiceEntry[]) => {
+    setServices(data);
+    goNext();
+  };
+
   const handleStaffNext = (data: StaffEntry[]) => {
     setStaffList(data);
     goNext();
   };
 
-  const handleFinalSubmit = () => {
-    goNext();
+  // Takes payment methods directly as an argument rather than reading them
+  // from state — handlePaymentNext calls this in the same tick as
+  // setPaymentMethods, and state updates aren't visible until the next
+  // render, so reading `paymentMethods` here would see the stale value.
+  const submitVendor = (payment: PaymentEntry[]) => {
     setSubmitStatus("creating");
 
     if (!businessInfo) {
@@ -512,7 +589,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    createVendorFromOnboarding({ businessInfo, staffList })
+    createVendorFromOnboarding({ businessInfo, staffList, services, paymentMethods: payment })
       .then((result) => {
         if (result.ok) {
           setCreatedSlug(result.slug);
@@ -527,6 +604,14 @@ export default function OnboardingPage() {
         setSubmitStatus("error");
       });
   };
+
+  const handlePaymentNext = (data: PaymentEntry[]) => {
+    setPaymentMethods(data);
+    goNext();
+    submitVendor(data);
+  };
+
+  const handleRetry = () => submitVendor(paymentMethods);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start py-12 px-4" style={{ background: "var(--bg)" }}>
@@ -552,15 +637,15 @@ export default function OnboardingPage() {
 
         {/* Step content */}
         {step === 0 && <BusinessInfoStep onNext={handleBusinessInfoNext} />}
-        {step === 1 && <AddServicesStep onNext={goNext} />}
+        {step === 1 && <AddServicesStep onNext={handleServicesNext} />}
         {step === 2 && <AddStaffStep onNext={handleStaffNext} />}
-        {step === 3 && <PaymentStep onNext={handleFinalSubmit} />}
+        {step === 3 && <PaymentStep onNext={handlePaymentNext} />}
         {step === 4 && (
           <GoLiveStep
             status={submitStatus}
             slug={createdSlug}
             error={submitError}
-            onRetry={handleFinalSubmit}
+            onRetry={handleRetry}
           />
         )}
 

@@ -1,4 +1,4 @@
-import { getVendorBySlug } from "@/lib/data";
+import { getStorefrontVendor } from "@/lib/vendors";
 import { ogImageContentType, ogImageSize, renderBrandCard } from "@/lib/og-image";
 
 export const size = ogImageSize;
@@ -10,7 +10,7 @@ interface ImageProps {
 
 export default async function Image({ params }: ImageProps) {
   const { slug } = await params;
-  const vendor = getVendorBySlug(slug);
+  const vendor = await getStorefrontVendor(slug);
 
   return renderBrandCard({
     title: vendor?.name ?? "Booktns",

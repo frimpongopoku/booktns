@@ -19,6 +19,7 @@ async function main() {
   await db.order.deleteMany();
   await db.paymentMethod.deleteMany();
   await db.vendorVideo.deleteMany();
+  await db.businessHours.deleteMany();
   await db.product.deleteMany();
   await db.service.deleteMany();
   await db.staff.deleteMany();
@@ -37,6 +38,17 @@ async function main() {
       active: vendor.active,
       createdAt: new Date(vendor.createdAt),
     },
+  });
+
+  // Matches the demo vendor's prior free-text hours ("Mon–Sat 9am–7pm").
+  await db.businessHours.createMany({
+    data: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+      vendorId: createdVendor.id,
+      dayOfWeek,
+      isClosed: dayOfWeek === 0,
+      openTime: dayOfWeek === 0 ? null : "09:00",
+      closeTime: dayOfWeek === 0 ? null : "19:00",
+    })),
   });
 
   const staffIdByDummyId = new Map<string, string>();

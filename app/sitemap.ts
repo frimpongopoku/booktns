@@ -1,13 +1,9 @@
 import type { MetadataRoute } from "next";
-import { vendor } from "@/lib/data";
+import { getAllActiveVendorSlugs } from "@/lib/vendors";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-// Single dummy vendor today — becomes a real query across all active vendors
-// once the database is wired up.
-const vendors = [vendor];
-
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
     {
       url: APP_URL,
@@ -16,16 +12,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  for (const v of vendors) {
-    if (!v.active) continue;
+  const slugs = await getAllActiveVendorSlugs();
+  for (const slug of slugs) {
     entries.push(
       {
-        url: `${APP_URL}/${v.slug}`,
+        url: `${APP_URL}/${slug}`,
         changeFrequency: "weekly",
         priority: 0.8,
       },
       {
-        url: `${APP_URL}/${v.slug}/shop`,
+        url: `${APP_URL}/${slug}/shop`,
         changeFrequency: "weekly",
         priority: 0.7,
       }

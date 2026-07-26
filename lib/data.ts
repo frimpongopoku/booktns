@@ -18,6 +18,9 @@ export const vendor: Vendor = {
   hours: "Mon–Sat 9am–7pm",
   phone: "+2348012345678",
   whatsapp: "+2348012345678",
+  depositSetting: "None",
+  storefrontPublished: true,
+  storefrontDisplayMode: "All",
   active: true,
   createdAt: "2024-01-15T09:00:00Z",
 };
@@ -389,6 +392,7 @@ export const paymentMethods: PaymentMethod[] = [
     accountNumber: "0551234567",
     network: "MTN",
     active: true,
+    displayOrder: 0,
   },
   {
     id: "pm2",
@@ -399,6 +403,7 @@ export const paymentMethods: PaymentMethod[] = [
     accountNumber: "0123456789",
     bankName: "GTBank PLC",
     active: true,
+    displayOrder: 1,
   },
   {
     id: "pm3",
@@ -407,9 +412,12 @@ export const paymentMethods: PaymentMethod[] = [
     label: "Cash on Arrival",
     accountName: "Rose Adeyemi",
     active: true,
+    displayOrder: 2,
   },
 ];
 
+// Placeholder external links (dev seed data only) — real vendors paste their
+// own YouTube/Instagram/TikTok/Vimeo URLs via the dashboard.
 export const videos: VendorVideo[] = [
   {
     id: "vid1",
@@ -419,6 +427,8 @@ export const videos: VendorVideo[] = [
     durationSeconds: 45,
     gradientFrom: "#C0283A",
     gradientTo: "#7A1524",
+    url: "https://www.youtube.com/watch?v=demo-knotless-braids",
+    displayOrder: 0,
   },
   {
     id: "vid2",
@@ -428,6 +438,8 @@ export const videos: VendorVideo[] = [
     durationSeconds: 62,
     gradientFrom: "#18181B",
     gradientTo: "#C0283A",
+    url: "https://www.youtube.com/watch?v=demo-studio-tour",
+    displayOrder: 1,
   },
   {
     id: "vid3",
@@ -437,6 +449,8 @@ export const videos: VendorVideo[] = [
     durationSeconds: 38,
     gradientFrom: "#7A1524",
     gradientTo: "#F08898",
+    url: "https://www.youtube.com/watch?v=demo-gel-manicure",
+    displayOrder: 2,
   },
 ];
 

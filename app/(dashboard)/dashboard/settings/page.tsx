@@ -1,16 +1,46 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { serializeVendor, serializePaymentMethod } from "@/lib/serialize";
 import SettingsClient from "@/components/dashboard/SettingsClient";
 
 export default async function SettingsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const businessHours = await db.businessHours.findMany({
-    where: { vendorId: session.vendorId },
-    orderBy: { dayOfWeek: "asc" },
-  });
+  if (session.role !== "Owner") {
+    return (
+      <div
+        className="flex flex-col items-center justify-center gap-2 py-16 rounded-[var(--rl)] text-center"
+        style={{ background: "var(--bg2)", border: "1px dashed var(--bds)" }}
+      >
+        <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>You don&apos;t have access to this page</p>
+        <p className="text-xs max-w-xs" style={{ color: "var(--tx3)" }}>
+          Settings — storefront, payment, booking, WhatsApp, and billing — are limited to the business owner.
+        </p>
+      </div>
+    );
+  }
 
-  return <SettingsClient businessHours={businessHours} />;
+  const [vendor, businessHours, paymentMethods] = await Promise.all([
+    db.vendor.findUnique({ where: { id: session.vendorId } }),
+    db.businessHours.findMany({
+      where: { vendorId: session.vendorId },
+      orderBy: { dayOfWeek: "asc" },
+    }),
+    db.paymentMethod.findMany({
+      where: { vendorId: session.vendorId },
+      orderBy: { displayOrder: "asc" },
+    }),
+  ]);
+
+  if (!vendor) redirect("/login");
+
+  return (
+    <SettingsClient
+      vendor={serializeVendor(vendor)}
+      businessHours={businessHours}
+      initialPaymentMethods={paymentMethods.map(serializePaymentMethod)}
+    />
+  );
 }

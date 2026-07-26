@@ -9,7 +9,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import MediaPickerModal from "@/components/dashboard/MediaPickerModal";
-import { Plus, X, AlertTriangle, Package, Archive, ImagePlus, Search } from "lucide-react";
+import { Plus, X, AlertTriangle, Package, Archive, ImagePlus, Search, Star } from "lucide-react";
 
 const MAX_IMAGES_PER_PRODUCT = 5;
 
@@ -37,6 +37,7 @@ function ProductModal({ product, onClose, onSaved }: ProductModalProps) {
   const [lowStockThreshold, setLowStockThreshold] = useState(String(product?.lowStockThreshold ?? 5));
   const [description, setDescription] = useState(product?.description ?? "");
   const [images, setImages] = useState<string[]>(product?.images.map((img) => img.url) ?? []);
+  const [featured, setFeatured] = useState(product?.featured ?? false);
   const [showPicker, setShowPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +56,7 @@ function ProductModal({ product, onClose, onSaved }: ProductModalProps) {
       lowStockThreshold: parseInt(lowStockThreshold) || 0,
       description: description.trim() || undefined,
       images,
+      featured,
     };
 
     try {
@@ -164,6 +166,29 @@ function ProductModal({ product, onClose, onSaved }: ProductModalProps) {
               style={{ background: "var(--bg2)", color: "var(--tx)", border: "1px solid var(--bd)" }}
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setFeatured((v) => !v)}
+            className="flex items-center justify-between p-3 rounded-[var(--r)]"
+            style={{ background: "var(--bg2)" }}
+          >
+            <div className="flex items-center gap-2">
+              <Star size={16} style={{ color: featured ? "var(--ac)" : "var(--tx3)" }} fill={featured ? "var(--ac)" : "none"} />
+              <div className="text-left">
+                <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>Featured</p>
+                <p className="text-xs" style={{ color: "var(--tx3)" }}>Highlighted on your storefront home page</p>
+              </div>
+            </div>
+            <div
+              className="w-10 h-6 rounded-full transition-colors relative flex-shrink-0"
+              style={{ background: featured ? "var(--green)" : "var(--bg3)" }}
+            >
+              <span
+                className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                style={{ left: featured ? "calc(100% - 18px)" : "2px" }}
+              />
+            </div>
+          </button>
         </div>
         <div className="flex gap-3 px-5 py-4" style={{ borderTop: "1px solid var(--bd)" }}>
           <Button variant="secondary" onClick={close} className="flex-1">Cancel</Button>
@@ -199,6 +224,7 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
   const [showModal, setShowModal] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<Product | null>(null);
+  const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [searching, setSearching] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -278,6 +304,23 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
     } finally {
       setArchivingId(null);
       setArchiving(null);
+    }
+  };
+
+  const handleToggleFeatured = async (product: Product) => {
+    setTogglingFeaturedId(product.id);
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ featured: !product.featured }),
+      });
+      if (res.ok) {
+        const { product: updated } = (await res.json()) as { product: Product };
+        handleSaved(updated);
+      }
+    } finally {
+      setTogglingFeaturedId(null);
     }
   };
 
@@ -368,6 +411,16 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
                     {formatPrice(product.priceInPesewas)}
                   </p>
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleToggleFeatured(product)}
+                      disabled={togglingFeaturedId === product.id}
+                      className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
+                      style={{ color: product.featured ? "var(--ac)" : "var(--tx3)" }}
+                      aria-label={product.featured ? `Unfeature ${product.name}` : `Feature ${product.name}`}
+                      title={product.featured ? "Featured — click to unfeature" : "Mark as featured"}
+                    >
+                      <Star size={14} fill={product.featured ? "currentColor" : "none"} />
+                    </button>
                     <Button
                       variant="ghost"
                       size="sm"

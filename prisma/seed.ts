@@ -35,6 +35,9 @@ async function main() {
       phone: vendor.phone,
       whatsapp: vendor.whatsapp,
       coverColor: vendor.coverColor,
+      depositSetting: vendor.depositSetting,
+      storefrontPublished: vendor.storefrontPublished,
+      storefrontDisplayMode: vendor.storefrontDisplayMode,
       active: vendor.active,
       createdAt: new Date(vendor.createdAt),
     },
@@ -164,6 +167,7 @@ async function main() {
         bankName: pm.bankName,
         network: pm.network,
         active: pm.active,
+        displayOrder: pm.displayOrder,
       },
     });
   }
@@ -178,6 +182,7 @@ async function main() {
         gradientFrom: video.gradientFrom,
         gradientTo: video.gradientTo,
         url: video.url,
+        displayOrder: video.displayOrder,
       },
     });
   }

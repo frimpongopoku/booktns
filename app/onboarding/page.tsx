@@ -542,7 +542,7 @@ function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
           <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>What's next</p>
         </div>
         <p className="text-xs leading-relaxed" style={{ color: "var(--ac2)" }}>
-          Your public storefront page isn't live yet — we'll let you know when it's ready to share with clients. For now, everything else is manageable from your dashboard.
+          Your public storefront page isn&apos;t live yet — preview it anytime from the dashboard, then publish it from Settings once you&apos;re happy with how it looks.
         </p>
       </div>
     </div>

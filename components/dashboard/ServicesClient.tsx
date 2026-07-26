@@ -8,7 +8,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { Plus, X, Pencil, Archive, Scissors, Sparkles, Hand, Eye } from "lucide-react";
+import { Plus, X, Pencil, Archive, Star, Scissors, Sparkles, Hand, Eye } from "lucide-react";
 
 const CATEGORY_ICONS: Record<ServiceCategory, React.ReactNode> = {
   Hair: <Scissors size={14} />,
@@ -38,6 +38,7 @@ function ServiceModal({ service, onClose, onSaved }: ServiceModalProps) {
   const [duration, setDuration] = useState(String(service?.durationMinutes ?? 60));
   const [price, setPrice] = useState(String((service?.priceInPesewas ?? 0) / 100));
   const [description, setDescription] = useState(service?.description ?? "");
+  const [featured, setFeatured] = useState(service?.featured ?? false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExiting, setIsExiting] = useState(false);
@@ -54,6 +55,7 @@ function ServiceModal({ service, onClose, onSaved }: ServiceModalProps) {
       durationMinutes: parseInt(duration) || 60,
       priceInPesewas: Math.round(parseFloat(price) * 100) || 0,
       description: description.trim() || undefined,
+      featured,
     };
 
     try {
@@ -129,6 +131,29 @@ function ServiceModal({ service, onClose, onSaved }: ServiceModalProps) {
               style={{ background: "var(--bg2)", color: "var(--tx)", border: "1px solid var(--bd)" }}
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setFeatured((v) => !v)}
+            className="flex items-center justify-between p-3 rounded-[var(--r)]"
+            style={{ background: "var(--bg2)" }}
+          >
+            <div className="flex items-center gap-2">
+              <Star size={16} style={{ color: featured ? "var(--ac)" : "var(--tx3)" }} fill={featured ? "var(--ac)" : "none"} />
+              <div className="text-left">
+                <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>Featured</p>
+                <p className="text-xs" style={{ color: "var(--tx3)" }}>Highlighted on your storefront home page</p>
+              </div>
+            </div>
+            <div
+              className="w-10 h-6 rounded-full transition-colors relative flex-shrink-0"
+              style={{ background: featured ? "var(--green)" : "var(--bg3)" }}
+            >
+              <span
+                className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                style={{ left: featured ? "calc(100% - 18px)" : "2px" }}
+              />
+            </div>
+          </button>
         </div>
         <div className="flex gap-3 px-5 py-4" style={{ borderTop: "1px solid var(--bd)" }}>
           <Button variant="secondary" onClick={close} className="flex-1">Cancel</Button>
@@ -151,6 +176,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   const [showModal, setShowModal] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<Service | null>(null);
+  const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
 
   const grouped = CATEGORIES.reduce<Record<ServiceCategory, Service[]>>((acc, cat) => {
     acc[cat] = serviceList.filter((s) => s.category === cat && s.active);
@@ -167,6 +193,23 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
       }
       return [...prev, s];
     });
+  };
+
+  const handleToggleFeatured = async (service: Service) => {
+    setTogglingFeaturedId(service.id);
+    try {
+      const res = await fetch(`/api/services/${service.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ featured: !service.featured }),
+      });
+      if (res.ok) {
+        const { service: updated } = (await res.json()) as { service: Service };
+        handleSaved(updated);
+      }
+    } finally {
+      setTogglingFeaturedId(null);
+    }
   };
 
   const handleArchive = async (service: Service) => {
@@ -235,6 +278,16 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                       {formatPrice(svc.priceInPesewas)}
                     </p>
                     <Badge variant="active">Active</Badge>
+                    <button
+                      onClick={() => handleToggleFeatured(svc)}
+                      disabled={togglingFeaturedId === svc.id}
+                      className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0 disabled:opacity-50"
+                      style={{ color: svc.featured ? "var(--ac)" : "var(--tx3)" }}
+                      aria-label={svc.featured ? `Unfeature ${svc.name}` : `Feature ${svc.name}`}
+                      title={svc.featured ? "Featured — click to unfeature" : "Mark as featured"}
+                    >
+                      <Star size={13} fill={svc.featured ? "currentColor" : "none"} />
+                    </button>
                     <button
                       onClick={() => { setEditingService(svc); setShowModal(true); }}
                       className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0"

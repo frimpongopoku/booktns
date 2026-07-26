@@ -13,6 +13,7 @@ import {
   Scissors,
   Package,
   Images,
+  Video,
   Settings,
   LogOut,
   ChevronRight,
@@ -41,6 +42,7 @@ const manageNav: NavItem[] = [
   { label: "Services", href: "/dashboard/services", icon: <Scissors size={15} /> },
   { label: "Products", href: "/dashboard/products", icon: <Package size={15} /> },
   { label: "Media", href: "/dashboard/media", icon: <Images size={15} /> },
+  { label: "Videos", href: "/dashboard/videos", icon: <Video size={15} /> },
 ];
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {

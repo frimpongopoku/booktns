@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatPrice, formatDuration, formatVideoDuration } from "@/lib/data";
-import { getStorefrontVendor, getAllActiveVendorSlugs } from "@/lib/vendors";
+import { getStorefrontVendor, getAllActiveVendorSlugs, getStorefrontVendorForPreview } from "@/lib/vendors";
+import { getSession } from "@/lib/auth";
 import StorefrontNav from "@/components/storefront/StorefrontNav";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import {
@@ -17,8 +18,19 @@ import {
   ArrowRight,
   CheckCircle,
   Play,
+  Star,
 } from "lucide-react";
-import type { VendorVideo } from "@/types";
+import type { VendorVideo, StorefrontDisplayMode } from "@/types";
+
+// The home page's "featured" teaser sections respect the vendor's display
+// mode; the full /book and /shop pages always show everything regardless.
+function selectStorefrontItems<T extends { featured: boolean }>(items: T[], mode: StorefrontDisplayMode): T[] {
+  if (mode === "FeaturedOnly") return items.filter((item) => item.featured);
+  if (mode === "AllWithFeaturedHighlighted") {
+    return [...items].sort((a, b) => Number(b.featured) - Number(a.featured));
+  }
+  return items;
+}
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -34,8 +46,11 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 
 function VideoCard({ video }: { video: VendorVideo }) {
   return (
-    <div
-      className="group rounded-[var(--rl)] overflow-hidden cursor-pointer transition-all duration-200"
+    <a
+      href={video.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block rounded-[var(--rl)] overflow-hidden cursor-pointer transition-all duration-200"
       style={{ boxShadow: "var(--shadow-sm)" }}
     >
       {/* Thumbnail */}
@@ -74,12 +89,14 @@ function VideoCard({ video }: { video: VendorVideo }) {
           </div>
         </div>
         {/* Duration badge */}
-        <div
-          className="absolute bottom-3 right-3 px-2 py-0.5 rounded text-xs font-semibold"
-          style={{ background: "rgba(0,0,0,0.55)", color: "white" }}
-        >
-          {formatVideoDuration(video.durationSeconds)}
-        </div>
+        {video.durationSeconds !== undefined && (
+          <div
+            className="absolute bottom-3 right-3 px-2 py-0.5 rounded text-xs font-semibold"
+            style={{ background: "rgba(0,0,0,0.55)", color: "white" }}
+          >
+            {formatVideoDuration(video.durationSeconds)}
+          </div>
+        )}
       </div>
       {/* Info */}
       <div className="p-3.5" style={{ background: "var(--bg2)" }}>
@@ -95,7 +112,7 @@ function VideoCard({ video }: { video: VendorVideo }) {
           </p>
         )}
       </div>
-    </div>
+    </a>
   );
 }
 
@@ -135,7 +152,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function StorefrontPage({ params }: PageProps) {
   const { slug } = await params;
-  const vendorData = await getStorefrontVendor(slug);
+  let vendorData = await getStorefrontVendor(slug);
+  let isPreview = false;
+
+  // Storefront isn't published (or doesn't exist) for anonymous visitors —
+  // but a vendor's own staff can still preview it before deciding to publish.
+  if (!vendorData) {
+    const session = await getSession();
+    if (session) {
+      const previewData = await getStorefrontVendorForPreview(slug);
+      if (previewData && previewData.id === session.vendorId) {
+        vendorData = previewData;
+        isPreview = true;
+      }
+    }
+  }
 
   if (!vendorData) notFound();
 
@@ -149,8 +180,9 @@ export default async function StorefrontPage({ params }: PageProps) {
     address: vendorData.location,
   };
 
-  const featuredServices = vendorData.services.slice(0, 4);
-  const featuredProducts = vendorData.products.slice(0, 4);
+  const displayedServices = selectStorefrontItems(vendorData.services, vendorData.storefrontDisplayMode);
+  const displayedProducts = selectStorefrontItems(vendorData.products, vendorData.storefrontDisplayMode);
+  const showFeaturedBadge = vendorData.storefrontDisplayMode === "AllWithFeaturedHighlighted";
   const vendorVideos = vendorData.videos;
 
   return (
@@ -160,6 +192,16 @@ export default async function StorefrontPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
       />
       <StorefrontNav slug={slug} vendorName={vendorData.name} />
+
+      {isPreview && (
+        <div
+          className="px-4 md:px-8 py-2.5 flex items-center justify-center gap-2 text-sm font-medium"
+          style={{ background: "var(--amber-bg)", color: "var(--amber)" }}
+        >
+          Preview mode — this storefront isn&apos;t published yet.
+          <Link href="/dashboard/settings" className="underline">Publish it</Link>
+        </div>
+      )}
 
       {/* Mobile header */}
       <div
@@ -186,6 +228,15 @@ export default async function StorefrontPage({ params }: PageProps) {
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10 items-center">
           {/* Left: text */}
           <div>
+            {vendorData.logoUrl && (
+              <div
+                className="anim-fade-up w-14 h-14 rounded-full overflow-hidden mb-5"
+                style={{ boxShadow: "var(--shadow-sm)", border: "1px solid var(--bd)" }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={vendorData.logoUrl} alt={`${vendorData.name} logo`} className="w-full h-full object-cover" />
+              </div>
+            )}
             <div
               className="anim-fade-up inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-7"
               style={{ background: "var(--green-bg)", color: "var(--green)" }}
@@ -249,27 +300,45 @@ export default async function StorefrontPage({ params }: PageProps) {
             className="hidden md:flex relative rounded-[var(--rl)] overflow-hidden"
             style={{ aspectRatio: "4/3", boxShadow: "var(--shadow-lg)" }}
           >
-            {/* Rich gradient background */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(145deg, #C0283A 0%, #7A1524 45%, #09090B 100%)",
-              }}
-            />
-            {/* Ambient light shapes */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(ellipse at 20% 80%, rgba(240,136,152,0.20) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(255,255,255,0.06) 0%, transparent 40%)",
-              }}
-            />
-            {/* Decorative circle */}
-            <div
-              className="absolute -bottom-24 -right-24 w-64 h-64 rounded-full"
-              style={{ background: "rgba(192,40,58,0.18)" }}
-            />
+            {vendorData.coverImageUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={vendorData.coverImageUrl}
+                  alt={`${vendorData.name} cover`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                {/* Legibility gradient over the photo for the text overlay */}
+                <div
+                  className="absolute inset-0"
+                  style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.05) 55%, transparent 100%)" }}
+                />
+              </>
+            ) : (
+              <>
+                {/* Rich gradient background */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "linear-gradient(145deg, #C0283A 0%, #7A1524 45%, #09090B 100%)",
+                  }}
+                />
+                {/* Ambient light shapes */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "radial-gradient(ellipse at 20% 80%, rgba(240,136,152,0.20) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(255,255,255,0.06) 0%, transparent 40%)",
+                  }}
+                />
+                {/* Decorative circle */}
+                <div
+                  className="absolute -bottom-24 -right-24 w-64 h-64 rounded-full"
+                  style={{ background: "rgba(192,40,58,0.18)" }}
+                />
+              </>
+            )}
             {/* Open badge */}
             <div
               className="absolute top-5 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
@@ -325,14 +394,14 @@ export default async function StorefrontPage({ params }: PageProps) {
               Book now <ArrowRight size={13} />
             </Link>
           </div>
-          {featuredServices.length > 0 ? (
+          {displayedServices.length > 0 ? (
             <>
               <div className="grid sm:grid-cols-2 gap-2.5">
-                {featuredServices.map((svc) => (
+                {displayedServices.map((svc) => (
                   <Link
                     key={svc.id}
                     href={`/${slug}/book`}
-                    className="flex items-center gap-3.5 p-4 rounded-[var(--rl)] transition-all duration-150 hover:translate-y-[-1px]"
+                    className="relative flex items-center gap-3.5 p-4 rounded-[var(--rl)] transition-all duration-150 hover:translate-y-[-1px]"
                     style={{
                       background: "var(--bg)",
                       boxShadow: "var(--shadow-sm)",
@@ -345,12 +414,23 @@ export default async function StorefrontPage({ params }: PageProps) {
                       {CATEGORY_ICONS[svc.category] ?? <Sparkles size={15} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p
-                        className="text-sm font-semibold"
-                        style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
-                      >
-                        {svc.name}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p
+                          className="text-sm font-semibold"
+                          style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
+                        >
+                          {svc.name}
+                        </p>
+                        {showFeaturedBadge && svc.featured && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0"
+                            style={{ background: "var(--ac-bg)", color: "var(--ac)" }}
+                          >
+                            <Star size={9} fill="currentColor" />
+                            Featured
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <Clock size={11} style={{ color: "var(--tx3)" }} />
                         <span className="text-xs" style={{ color: "var(--tx3)" }}>
@@ -373,14 +453,18 @@ export default async function StorefrontPage({ params }: PageProps) {
                   className="text-sm font-medium inline-flex items-center gap-1.5"
                   style={{ color: "var(--ac)" }}
                 >
-                  View all {vendorData.services.length} services
+                  {displayedServices.length < vendorData.services.length
+                    ? `View all ${vendorData.services.length} services`
+                    : "Book now"}
                   <ArrowRight size={13} />
                 </Link>
               </div>
             </>
           ) : (
             <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
-              Services coming soon — check back shortly.
+              {vendorData.services.length > 0
+                ? "No featured services yet — check back shortly."
+                : "Services coming soon — check back shortly."}
             </p>
           )}
         </div>
@@ -401,20 +485,34 @@ export default async function StorefrontPage({ params }: PageProps) {
               View all <ArrowRight size={13} />
             </Link>
           </div>
-          {featuredProducts.length > 0 ? (
+          {displayedProducts.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {featuredProducts.map((p) => (
+              {displayedProducts.map((p) => (
                 <Link
                   key={p.id}
                   href={`/${slug}/shop`}
-                  className="rounded-[var(--rl)] overflow-hidden transition-all duration-150 hover:translate-y-[-2px]"
+                  className="relative rounded-[var(--rl)] overflow-hidden transition-all duration-150 hover:translate-y-[-2px]"
                   style={{ boxShadow: "var(--shadow-sm)" }}
                 >
+                  {showFeaturedBadge && p.featured && (
+                    <span
+                      className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                      style={{ background: "rgba(0,0,0,0.6)", color: "white" }}
+                    >
+                      <Star size={9} fill="currentColor" />
+                      Featured
+                    </span>
+                  )}
                   <div
                     className="aspect-square flex items-center justify-center"
                     style={{ background: "var(--bg3)" }}
                   >
-                    <ShoppingBag size={26} style={{ color: "var(--tx3)" }} />
+                    {p.images[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.images[0].url} alt={p.name} className="w-full h-full object-cover object-top" />
+                    ) : (
+                      <ShoppingBag size={26} style={{ color: "var(--tx3)" }} />
+                    )}
                   </div>
                   <div className="p-3" style={{ background: "var(--bg2)" }}>
                     <p
@@ -432,7 +530,9 @@ export default async function StorefrontPage({ params }: PageProps) {
             </div>
           ) : (
             <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
-              Products coming soon — check back shortly.
+              {vendorData.products.length > 0
+                ? "No featured products yet — check back shortly."
+                : "Products coming soon — check back shortly."}
             </p>
           )}
         </div>

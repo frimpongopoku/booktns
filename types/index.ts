@@ -8,6 +8,10 @@ export type OrderStatus = "new" | "processing" | "ready" | "completed" | "cancel
 
 export type PaymentMethodType = "momo" | "bank" | "cash";
 
+export type StorefrontDisplayMode = "All" | "FeaturedOnly" | "AllWithFeaturedHighlighted";
+
+export type DepositSetting = "None" | "Fixed" | "Percentage";
+
 export interface Vendor {
   id: string;
   name: string;
@@ -18,6 +22,14 @@ export interface Vendor {
   phone: string;
   whatsapp: string;
   coverColor?: string;
+  logoUrl?: string;
+  coverImageUrl?: string;
+  personalWhatsappNumber?: string;
+  depositSetting: DepositSetting;
+  depositValue?: number;
+  cancellationPolicy?: string;
+  storefrontPublished: boolean;
+  storefrontDisplayMode: StorefrontDisplayMode;
   active: boolean;
   createdAt: string;
 }
@@ -134,6 +146,7 @@ export interface PaymentMethod {
   bankName?: string;
   network?: string;
   active: boolean;
+  displayOrder: number;
 }
 
 export interface CartItem {
@@ -168,8 +181,9 @@ export interface VendorVideo {
   vendorId: string;
   title: string;
   description?: string;
-  durationSeconds: number;
+  durationSeconds?: number;
   gradientFrom: string;
   gradientTo: string;
-  url?: string;
+  url: string;
+  displayOrder: number;
 }

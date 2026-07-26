@@ -54,6 +54,15 @@ enum DepositSetting {
   Percentage
 }
 
+// Governs how the storefront home page's service/product teaser sections
+// behave — distinct from the full /book and /shop pages, which always show
+// everything regardless of this setting.
+enum StorefrontDisplayMode {
+  All
+  FeaturedOnly
+  AllWithFeaturedHighlighted
+}
+
 model Vendor {
   id          String   @id @default(cuid())
   name        String
@@ -75,6 +84,12 @@ model Vendor {
   depositSetting         DepositSetting @default(None)
   depositValue           Int?
   cancellationPolicy     String?
+
+  // Spec §5 step 7 ("storefront goes live") — distinct from `active`, which
+  // gates the vendor account itself. A vendor explicitly publishes when ready;
+  // the storefront route 404s until then even though the account is active.
+  storefrontPublished   Boolean               @default(false)
+  storefrontDisplayMode StorefrontDisplayMode @default(All)
 
   staff          Staff[]
   services       Service[]
@@ -276,17 +291,21 @@ model Media {
 
 // Not part of the functional spec's data model — a UI-only storefront feature
 // already built into app/[slug]/page.tsx. Persisted so it doesn't regress once
-// lib/data.ts is retired.
+// lib/data.ts is retired. Videos are external links (YouTube/Instagram/TikTok/
+// Vimeo etc.) rather than self-hosted files — url is the whole point of an
+// entry. gradientFrom/gradientTo are auto-assigned server-side from a preset
+// palette, not vendor-configurable.
 model VendorVideo {
   id              String  @id @default(cuid())
   vendorId        String
   vendor          Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   title           String
   description     String?
-  durationSeconds Int
+  durationSeconds Int?
   gradientFrom    String
   gradientTo      String
-  url             String?
+  url             String
+  displayOrder    Int     @default(0)
 
   @@index([vendorId])
 }

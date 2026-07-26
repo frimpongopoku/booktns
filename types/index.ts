@@ -48,6 +48,13 @@ export interface Service {
   displayOrder: number;
 }
 
+export interface ProductImage {
+  id: string;
+  productId: string;
+  url: string;
+  displayOrder: number;
+}
+
 export interface Product {
   id: string;
   vendorId: string;
@@ -56,7 +63,7 @@ export interface Product {
   stockCount: number;
   lowStockThreshold: number;
   description?: string;
-  imageUrl?: string;
+  images: ProductImage[];
   active: boolean;
   featured: boolean;
 }
@@ -152,6 +159,7 @@ export interface Media {
   filename: string;
   contentType: string;
   sizeBytes: number;
+  tags: string[];
   createdAt: string;
 }
 

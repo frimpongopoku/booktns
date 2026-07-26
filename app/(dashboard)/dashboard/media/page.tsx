@@ -22,10 +22,18 @@ export default async function MediaPage() {
     );
   }
 
-  const media = await db.media.findMany({
+  // Keep in sync with PAGE_SIZE in app/api/media/route.ts — this is the same
+  // first page the client would get from GET /api/media, fetched directly to
+  // avoid a redundant round-trip on initial page load.
+  const PAGE_SIZE = 24;
+  const page = await db.media.findMany({
     where: { vendorId: session.vendorId },
     orderBy: { createdAt: "desc" },
+    take: PAGE_SIZE + 1,
   });
+  const hasMore = page.length > PAGE_SIZE;
+  const media = page.slice(0, PAGE_SIZE);
+  const nextCursor = hasMore ? media[media.length - 1].id : null;
 
-  return <MediaClient initialMedia={media.map(serializeMedia)} />;
+  return <MediaClient initialMedia={media.map(serializeMedia)} initialNextCursor={nextCursor} />;
 }

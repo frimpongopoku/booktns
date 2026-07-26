@@ -134,13 +134,25 @@ model Product {
   stockCount        Int
   lowStockThreshold Int
   description       String?
-  imageUrl          String?
   active            Boolean @default(true)
   featured          Boolean @default(false)
 
+  images     ProductImage[]
   orderItems OrderItem[]
 
   @@index([vendorId])
+}
+
+// Spec §7.6 — up to 5 images per product, ordered for display. Replaces the
+// old single Product.imageUrl field.
+model ProductImage {
+  id           String  @id @default(cuid())
+  productId    String
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url          String
+  displayOrder Int     @default(0)
+
+  @@index([productId])
 }
 
 model Booking {
@@ -256,6 +268,7 @@ model Media {
   filename    String
   contentType String
   sizeBytes   Int
+  tags        String[] @default([])
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([vendorId])

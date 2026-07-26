@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   LayoutDashboard,
   Calendar,
@@ -79,6 +81,7 @@ interface SidebarProps {
 export default function Sidebar({ staffName, role, vendorName }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -177,7 +180,7 @@ export default function Sidebar({ staffName, role, vendorName }: SidebarProps) {
         <div className="flex items-center gap-0.5">
           <ThemeToggle />
           <button
-            onClick={handleLogout}
+            onClick={() => setConfirmingLogout(true)}
             className="p-1.5 rounded-md hover:bg-[var(--bg3)] transition-colors"
             style={{ color: "var(--tx3)" }}
             title="Log out"
@@ -186,6 +189,17 @@ export default function Sidebar({ staffName, role, vendorName }: SidebarProps) {
           </button>
         </div>
       </div>
+
+      {confirmingLogout && (
+        <ConfirmDialog
+          title="Log out"
+          message="Are you sure you want to log out?"
+          confirmLabel="Log out"
+          danger
+          onConfirm={handleLogout}
+          onCancel={() => setConfirmingLogout(false)}
+        />
+      )}
     </aside>
   );
 }

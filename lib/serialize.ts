@@ -1,4 +1,10 @@
-import type { Service as PrismaService, Product as PrismaProduct, Staff as PrismaStaff, Media as PrismaMedia } from "@/lib/generated/prisma/client";
+import type {
+  Service as PrismaService,
+  Product as PrismaProduct,
+  ProductImage as PrismaProductImage,
+  Staff as PrismaStaff,
+  Media as PrismaMedia,
+} from "@/lib/generated/prisma/client";
 import type { Service, Product, Staff, Media } from "@/types";
 
 // Prisma's nullable String? fields come back as `null`; our app types use
@@ -7,11 +13,11 @@ export function serializeService(service: PrismaService): Service {
   return { ...service, description: service.description ?? undefined };
 }
 
-export function serializeProduct(product: PrismaProduct): Product {
+export function serializeProduct(product: PrismaProduct & { images: PrismaProductImage[] }): Product {
   return {
     ...product,
     description: product.description ?? undefined,
-    imageUrl: product.imageUrl ?? undefined,
+    images: [...product.images].sort((a, b) => a.displayOrder - b.displayOrder),
   };
 }
 

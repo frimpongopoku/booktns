@@ -4,13 +4,15 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { serializeProduct } from "@/lib/serialize";
 
+const MAX_IMAGES_PER_PRODUCT = 5;
+
 const updateSchema = z.object({
   name: z.string().trim().min(1, "Name is required").optional(),
   priceInPesewas: z.number().int().nonnegative("Price cannot be negative").optional(),
   stockCount: z.number().int().nonnegative("Stock count cannot be negative").optional(),
   lowStockThreshold: z.number().int().nonnegative("Low-stock threshold cannot be negative").optional(),
   description: z.string().trim().optional(),
-  imageUrl: z.string().trim().url().nullable().optional(),
+  images: z.array(z.string().trim().url()).max(MAX_IMAGES_PER_PRODUCT, `Up to ${MAX_IMAGES_PER_PRODUCT} photos per product`).optional(),
   active: z.boolean().optional(),
   featured: z.boolean().optional(),
 });
@@ -40,9 +42,23 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Product not found", code: "not_found" }, { status: 404 });
   }
 
-  const product = await db.product.update({
-    where: { id },
-    data: parsed.data,
+  const { images, ...fields } = parsed.data;
+
+  const product = await db.$transaction(async (tx) => {
+    if (images) {
+      await tx.productImage.deleteMany({ where: { productId: id } });
+    }
+
+    return tx.product.update({
+      where: { id },
+      data: {
+        ...fields,
+        ...(images
+          ? { images: { create: images.map((url, displayOrder) => ({ url, displayOrder })) } }
+          : {}),
+      },
+      include: { images: true },
+    });
   });
 
   return NextResponse.json({ product: serializeProduct(product) });
@@ -66,6 +82,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
   const product = await db.product.update({
     where: { id },
     data: { active: false },
+    include: { images: true },
   });
 
   return NextResponse.json({ product: serializeProduct(product) });

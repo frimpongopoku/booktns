@@ -95,7 +95,6 @@ async function main() {
         stockCount: p.stockCount,
         lowStockThreshold: p.lowStockThreshold,
         description: p.description,
-        imageUrl: p.imageUrl,
         active: p.active,
       },
     });

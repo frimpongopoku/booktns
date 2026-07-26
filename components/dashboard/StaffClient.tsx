@@ -5,6 +5,7 @@ import type { Staff, StaffRole } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Plus, X, MessageCircle, Pencil, UserX } from "lucide-react";
 
 const ROLE_LABELS: Record<StaffRole, string> = {
@@ -203,6 +204,7 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
   const [editingStaff, setEditingStaff] = useState<Staff | undefined>();
   const [showModal, setShowModal] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deactivating, setDeactivating] = useState<Staff | null>(null);
 
   const handleSaved = (s: Staff) => {
     setStaffList((prev) => {
@@ -234,7 +236,6 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
   };
 
   const handleDeactivate = async (member: Staff) => {
-    if (!confirm(`Deactivate ${member.name}? They'll no longer be able to sign in.`)) return;
     setBusyId(member.id);
     try {
       const res = await fetch(`/api/staff/${member.id}`, { method: "DELETE" });
@@ -243,6 +244,7 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
       }
     } finally {
       setBusyId(null);
+      setDeactivating(null);
     }
   };
 
@@ -339,7 +341,7 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
                 </button>
                 {member.active && (
                   <button
-                    onClick={() => handleDeactivate(member)}
+                    onClick={() => setDeactivating(member)}
                     disabled={busyId === member.id}
                     className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
                     style={{ color: "var(--tx3)" }}
@@ -359,6 +361,17 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
           staff={editingStaff}
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {deactivating && (
+        <ConfirmDialog
+          title="Deactivate staff member"
+          message={`Deactivate ${deactivating.name}? They'll no longer be able to sign in.`}
+          confirmLabel="Deactivate"
+          danger
+          onConfirm={() => handleDeactivate(deactivating)}
+          onCancel={() => setDeactivating(null)}
         />
       )}
     </div>

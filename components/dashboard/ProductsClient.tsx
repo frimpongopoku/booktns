@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatPrice } from "@/lib/data";
-import type { Product, Media } from "@/types";
+import type { Product } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import MediaPickerModal from "@/components/dashboard/MediaPickerModal";
-import { Plus, X, AlertTriangle, Package, Archive, ImagePlus } from "lucide-react";
+import { Plus, X, AlertTriangle, Package, Archive, ImagePlus, Search } from "lucide-react";
+
+const MAX_IMAGES_PER_PRODUCT = 5;
 
 function getStockBadge(p: Product) {
   if (p.stockCount === 0) return <Badge variant="out">Out of stock</Badge>;
@@ -23,19 +26,17 @@ interface ApiErrorBody {
 
 interface ProductModalProps {
   product?: Product;
-  media: Media[];
   onClose: () => void;
   onSaved: (p: Product) => void;
-  onMediaUploaded: (item: Media) => void;
 }
 
-function ProductModal({ product, media, onClose, onSaved, onMediaUploaded }: ProductModalProps) {
+function ProductModal({ product, onClose, onSaved }: ProductModalProps) {
   const [name, setName] = useState(product?.name ?? "");
   const [price, setPrice] = useState(String((product?.priceInPesewas ?? 0) / 100));
   const [stock, setStock] = useState(String(product?.stockCount ?? ""));
   const [lowStockThreshold, setLowStockThreshold] = useState(String(product?.lowStockThreshold ?? 5));
   const [description, setDescription] = useState(product?.description ?? "");
-  const [imageUrl, setImageUrl] = useState(product?.imageUrl);
+  const [images, setImages] = useState<string[]>(product?.images.map((img) => img.url) ?? []);
   const [showPicker, setShowPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +54,7 @@ function ProductModal({ product, media, onClose, onSaved, onMediaUploaded }: Pro
       stockCount: parseInt(stock) || 0,
       lowStockThreshold: parseInt(lowStockThreshold) || 0,
       description: description.trim() || undefined,
-      imageUrl: imageUrl ?? null,
+      images,
     };
 
     try {
@@ -96,42 +97,47 @@ function ProductModal({ product, media, onClose, onSaved, onMediaUploaded }: Pro
             <X size={16} />
           </button>
         </div>
-        <div className="p-5 flex flex-col gap-4">
+        <div className="p-5 flex flex-col gap-4 overflow-y-auto">
           {error && (
             <div className="px-3 py-2 rounded-[var(--r)] text-sm" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
               {error}
             </div>
           )}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Photo</label>
-            <div className="flex items-center gap-3">
-              <div
-                className="w-16 h-16 rounded-[var(--r)] overflow-hidden flex items-center justify-center flex-shrink-0"
-                style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
-              >
-                {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imageUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <Package size={20} style={{ color: "var(--tx3)" }} />
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <Button type="button" variant="secondary" size="sm" onClick={() => setShowPicker(true)}>
-                  <ImagePlus size={13} />
-                  {imageUrl ? "Change photo" : "Choose photo"}
-                </Button>
-                {imageUrl && (
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>
+              Photos ({images.length}/{MAX_IMAGES_PER_PRODUCT})
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {images.map((url, i) => (
+                <div key={url} className="relative w-16 h-16 rounded-[var(--r)] overflow-hidden flex-shrink-0" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="w-full h-full object-cover object-top" />
                   <button
                     type="button"
-                    onClick={() => setImageUrl(undefined)}
-                    className="text-xs text-left"
-                    style={{ color: "var(--tx3)" }}
+                    onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="absolute top-0.5 right-0.5 p-0.5 rounded-full"
+                    style={{ background: "rgba(0,0,0,0.6)", color: "white" }}
+                    aria-label="Remove photo"
                   >
-                    Remove photo
+                    <X size={11} />
                   </button>
-                )}
-              </div>
+                </div>
+              ))}
+              {images.length < MAX_IMAGES_PER_PRODUCT && (
+                <button
+                  type="button"
+                  onClick={() => setShowPicker(true)}
+                  className="w-16 h-16 rounded-[var(--r)] flex flex-col items-center justify-center gap-0.5 flex-shrink-0 transition-colors hover:bg-[var(--bg3)]"
+                  style={{ background: "var(--bg2)", border: "1px dashed var(--bds)" }}
+                >
+                  <ImagePlus size={16} style={{ color: "var(--tx3)" }} />
+                </button>
+              )}
+              {images.length === 0 && (
+                <div className="w-16 h-16 rounded-[var(--r)] flex items-center justify-center flex-shrink-0" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+                  <Package size={18} style={{ color: "var(--tx3)" }} />
+                </div>
+              )}
             </div>
           </div>
           <Input label="Product name" placeholder="e.g. Argan Hair Oil" value={name} onChange={(e) => setName(e.target.value)} />
@@ -169,10 +175,10 @@ function ProductModal({ product, media, onClose, onSaved, onMediaUploaded }: Pro
 
       {showPicker && (
         <MediaPickerModal
-          media={media}
+          selectedUrls={images}
+          maxSelectable={MAX_IMAGES_PER_PRODUCT - images.length}
           onClose={() => setShowPicker(false)}
-          onSelect={(url) => setImageUrl(url)}
-          onUploaded={onMediaUploaded}
+          onConfirm={(urls) => setImages((prev) => [...prev, ...urls])}
         />
       )}
     </div>
@@ -181,18 +187,72 @@ function ProductModal({ product, media, onClose, onSaved, onMediaUploaded }: Pro
 
 interface ProductsClientProps {
   initialProducts: Product[];
-  initialMedia: Media[];
+  initialNextCursor: string | null;
+  lowStockProductNames: string[];
 }
 
-export default function ProductsClient({ initialProducts, initialMedia }: ProductsClientProps) {
+export default function ProductsClient({ initialProducts, initialNextCursor, lowStockProductNames }: ProductsClientProps) {
   const [productList, setProductList] = useState<Product[]>(initialProducts);
-  const [mediaList, setMediaList] = useState<Media[]>(initialMedia);
+  const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [showModal, setShowModal] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [archiving, setArchiving] = useState<Product | null>(null);
+  const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const activeProducts = productList.filter((p) => p.active);
-  const lowStockProducts = activeProducts.filter((p) => p.stockCount > 0 && p.stockCount <= p.lowStockThreshold);
+  const fetchPage = useCallback(async (query: string, cursor: string | null) => {
+    const params = new URLSearchParams();
+    if (query) params.set("search", query);
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(`/api/products?${params.toString()}`);
+    if (!res.ok) return null;
+    return (await res.json()) as { products: Product[]; nextCursor: string | null };
+  }, []);
+
+  // Debounced search — re-fetches page one from scratch whenever the query changes.
+  // Skips the very first run: `initialProducts` already covers search="" on mount,
+  // so re-fetching there would just duplicate that request.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      const data = await fetchPage(search, null);
+      if (cancelled || !data) return;
+      setProductList(data.products);
+      setNextCursor(data.nextCursor);
+      setSearching(false);
+    }, 300);
+    return () => { cancelled = true; clearTimeout(handle); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    const data = await fetchPage(search, nextCursor);
+    if (data) {
+      setProductList((prev) => [...prev, ...data.products]);
+      setNextCursor(data.nextCursor);
+    }
+    setLoadingMore(false);
+  }, [nextCursor, loadingMore, search, fetchPage]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: "300px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   const handleSaved = (p: Product) => {
     setProductList((prev) => {
@@ -207,15 +267,17 @@ export default function ProductsClient({ initialProducts, initialMedia }: Produc
   };
 
   const handleArchive = async (product: Product) => {
-    if (!confirm(`Archive "${product.name}"? It will no longer be visible in your shop.`)) return;
     setArchivingId(product.id);
     try {
       const res = await fetch(`/api/products/${product.id}`, { method: "DELETE" });
       if (res.ok) {
-        setProductList((prev) => prev.map((p) => (p.id === product.id ? { ...p, active: false } : p)));
+        // The API only ever returns active products, so once archived it no
+        // longer belongs in this list at all.
+        setProductList((prev) => prev.filter((p) => p.id !== product.id));
       }
     } finally {
       setArchivingId(null);
+      setArchiving(null);
     }
   };
 
@@ -223,7 +285,7 @@ export default function ProductsClient({ initialProducts, initialMedia }: Produc
     <div>
       <Topbar
         title="Products"
-        subtitle={`${activeProducts.length} products`}
+        subtitle={`${productList.length}${nextCursor ? "+" : ""} product${productList.length === 1 && !nextCursor ? "" : "s"}`}
         actions={
           <Button size="sm" onClick={() => { setEditingProduct(undefined); setShowModal(true); }}>
             <Plus size={14} />
@@ -232,112 +294,145 @@ export default function ProductsClient({ initialProducts, initialMedia }: Produc
         }
       />
 
-      {/* Low stock warning */}
-      {lowStockProducts.length > 0 && (
+      <div className="relative mb-5">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tx3)" }} />
+        <input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setSearching(true); }}
+          placeholder="Search products by name or description…"
+          className="w-full max-w-sm pl-9 pr-3 py-2.5 rounded-[var(--r)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--ac)]"
+          style={{ background: "var(--bg2)", color: "var(--tx)", border: "1px solid var(--bd)" }}
+        />
+      </div>
+
+      {/* Low stock warning — scans the whole catalog, not just the loaded page */}
+      {lowStockProductNames.length > 0 && (
         <div
           className="flex items-center gap-3 p-3 rounded-[var(--r)] mb-5"
           style={{ background: "var(--amber-bg)" }}
         >
           <AlertTriangle size={16} style={{ color: "var(--amber)" }} />
           <p className="text-sm" style={{ color: "var(--amber)" }}>
-            <span className="font-semibold">{lowStockProducts.length} product{lowStockProducts.length > 1 ? "s" : ""}</span> {lowStockProducts.length > 1 ? "are" : "is"} running low:{" "}
-            {lowStockProducts.map((p) => p.name).join(", ")}
+            <span className="font-semibold">{lowStockProductNames.length} product{lowStockProductNames.length > 1 ? "s" : ""}</span> {lowStockProductNames.length > 1 ? "are" : "is"} running low:{" "}
+            {lowStockProductNames.join(", ")}
           </p>
         </div>
       )}
 
-      {/* Products grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {activeProducts.map((product) => (
-          <div
-            key={product.id}
-            className="rounded-[var(--rl)] overflow-hidden"
-            style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
-          >
-            {/* Image */}
+      {productList.length === 0 && search.trim() && !searching ? (
+        <div
+          className="flex flex-col items-center justify-center gap-2 py-16 rounded-[var(--rl)] text-center"
+          style={{ background: "var(--bg2)", border: "1px dashed var(--bds)" }}
+        >
+          <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>No products match &quot;{search}&quot;</p>
+        </div>
+      ) : (
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${searching ? "opacity-50" : ""} transition-opacity`}>
+          {productList.map((product) => (
             <div
-              className="w-full aspect-[4/3] flex items-center justify-center"
-              style={{ background: "var(--bg3)" }}
+              key={product.id}
+              className="rounded-[var(--rl)] overflow-hidden"
+              style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
             >
-              {product.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-              ) : (
-                <Package size={32} style={{ color: "var(--tx3)" }} />
-              )}
-            </div>
-
-            {/* Info */}
-            <div className="p-4">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
-                  {product.name}
-                </h3>
-                {getStockBadge(product)}
+              {/* Image */}
+              <div
+                className="w-full aspect-[4/3] flex items-center justify-center"
+                style={{ background: "var(--bg3)" }}
+              >
+                {product.images[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.images[0].url} alt={product.name} className="w-full h-full object-cover object-top" />
+                ) : (
+                  <Package size={32} style={{ color: "var(--tx3)" }} />
+                )}
               </div>
-              {product.description && (
-                <p className="text-xs mb-3 leading-relaxed" style={{ color: "var(--tx3)" }}>
-                  {product.description}
-                </p>
-              )}
-              <div className="flex items-center justify-between">
-                <p
-                  className="font-display text-lg font-medium"
-                  style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
-                >
-                  {formatPrice(product.priceInPesewas)}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { setEditingProduct(product); setShowModal(true); }}
+
+              {/* Info */}
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
+                    {product.name}
+                  </h3>
+                  {getStockBadge(product)}
+                </div>
+                {product.description && (
+                  <p className="text-xs mb-3 leading-relaxed" style={{ color: "var(--tx3)" }}>
+                    {product.description}
+                  </p>
+                )}
+                <div className="flex items-center justify-between">
+                  <p
+                    className="font-display text-lg font-medium"
+                    style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
                   >
-                    Edit
-                  </Button>
-                  <button
-                    onClick={() => handleArchive(product)}
-                    disabled={archivingId === product.id}
-                    className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
-                    style={{ color: "var(--tx3)" }}
-                    aria-label={`Archive ${product.name}`}
-                  >
-                    <Archive size={14} />
-                  </button>
+                    {formatPrice(product.priceInPesewas)}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setEditingProduct(product); setShowModal(true); }}
+                    >
+                      Edit
+                    </Button>
+                    <button
+                      onClick={() => setArchiving(product)}
+                      disabled={archivingId === product.id}
+                      className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
+                      style={{ color: "var(--tx3)" }}
+                      aria-label={`Archive ${product.name}`}
+                    >
+                      <Archive size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {/* Add new card */}
-        <button
-          onClick={() => { setEditingProduct(undefined); setShowModal(true); }}
-          className="rounded-[var(--rl)] flex flex-col items-center justify-center gap-2 min-h-[200px] transition-colors hover:bg-[var(--bg3)]"
-          style={{
-            background: "var(--bg2)",
-            border: "2px dashed var(--bds)",
-          }}
-        >
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: "var(--bg3)" }}
+          {/* Add new card */}
+          <button
+            onClick={() => { setEditingProduct(undefined); setShowModal(true); }}
+            className="rounded-[var(--rl)] flex flex-col items-center justify-center gap-2 min-h-[200px] transition-colors hover:bg-[var(--bg3)]"
+            style={{
+              background: "var(--bg2)",
+              border: "2px dashed var(--bds)",
+            }}
           >
-            <Plus size={20} style={{ color: "var(--tx3)" }} />
-          </div>
-          <p className="text-sm" style={{ color: "var(--tx3)" }}>
-            Add product
-          </p>
-        </button>
-      </div>
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: "var(--bg3)" }}
+            >
+              <Plus size={20} style={{ color: "var(--tx3)" }} />
+            </div>
+            <p className="text-sm" style={{ color: "var(--tx3)" }}>
+              Add product
+            </p>
+          </button>
+        </div>
+      )}
+
+      <div ref={sentinelRef} className="h-4" />
+      {loadingMore && (
+        <p className="text-center text-sm py-4" style={{ color: "var(--tx3)" }}>Loading more…</p>
+      )}
 
       {showModal && (
         <ProductModal
           product={editingProduct}
-          media={mediaList}
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
-          onMediaUploaded={(item) => setMediaList((prev) => [item, ...prev])}
+        />
+      )}
+
+      {archiving && (
+        <ConfirmDialog
+          title="Archive product"
+          message={`Archive "${archiving.name}"? It will no longer be visible in your shop.`}
+          confirmLabel="Archive"
+          danger
+          onConfirm={() => handleArchive(archiving)}
+          onCancel={() => setArchiving(null)}
         />
       )}
     </div>

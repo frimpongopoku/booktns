@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
+import { serializeService, serializeProduct } from "@/lib/serialize";
 import type { Vendor, Service, Product, VendorVideo, PaymentMethod, Staff } from "@/types";
 
 export interface StorefrontVendor extends Vendor {
@@ -15,7 +16,7 @@ export const getStorefrontVendor = cache(async (slug: string): Promise<Storefron
     where: { slug, active: true },
     include: {
       services: { where: { active: true }, orderBy: { displayOrder: "asc" } },
-      products: { where: { active: true } },
+      products: { where: { active: true }, include: { images: true } },
       videos: true,
       paymentMethods: { where: { active: true }, orderBy: { displayOrder: "asc" } },
       staff: { where: { active: true } },
@@ -28,12 +29,8 @@ export const getStorefrontVendor = cache(async (slug: string): Promise<Storefron
     ...vendor,
     createdAt: vendor.createdAt.toISOString(),
     coverColor: vendor.coverColor ?? undefined,
-    services: vendor.services.map((s) => ({ ...s, description: s.description ?? undefined })),
-    products: vendor.products.map((p) => ({
-      ...p,
-      description: p.description ?? undefined,
-      imageUrl: p.imageUrl ?? undefined,
-    })),
+    services: vendor.services.map(serializeService),
+    products: vendor.products.map(serializeProduct),
     videos: vendor.videos.map((v) => ({
       ...v,
       description: v.description ?? undefined,

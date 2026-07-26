@@ -7,6 +7,7 @@ import Topbar from "@/components/dashboard/Topbar";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Plus, X, Pencil, Archive, Scissors, Sparkles, Hand, Eye } from "lucide-react";
 
 const CATEGORY_ICONS: Record<ServiceCategory, React.ReactNode> = {
@@ -149,6 +150,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   const [editingService, setEditingService] = useState<Service | undefined>();
   const [showModal, setShowModal] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [archiving, setArchiving] = useState<Service | null>(null);
 
   const grouped = CATEGORIES.reduce<Record<ServiceCategory, Service[]>>((acc, cat) => {
     acc[cat] = serviceList.filter((s) => s.category === cat && s.active);
@@ -168,7 +170,6 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   };
 
   const handleArchive = async (service: Service) => {
-    if (!confirm(`Archive "${service.name}"? It will no longer be bookable on your storefront.`)) return;
     setArchivingId(service.id);
     try {
       const res = await fetch(`/api/services/${service.id}`, { method: "DELETE" });
@@ -177,6 +178,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
       }
     } finally {
       setArchivingId(null);
+      setArchiving(null);
     }
   };
 
@@ -242,7 +244,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                       <Pencil size={13} />
                     </button>
                     <button
-                      onClick={() => handleArchive(svc)}
+                      onClick={() => setArchiving(svc)}
                       disabled={archivingId === svc.id}
                       className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0 disabled:opacity-50"
                       style={{ color: "var(--tx3)" }}
@@ -275,6 +277,17 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
           service={editingService}
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {archiving && (
+        <ConfirmDialog
+          title="Archive service"
+          message={`Archive "${archiving.name}"? It will no longer be bookable on your storefront.`}
+          confirmLabel="Archive"
+          danger
+          onConfirm={() => handleArchive(archiving)}
+          onCancel={() => setArchiving(null)}
         />
       )}
     </div>

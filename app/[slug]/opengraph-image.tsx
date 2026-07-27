@@ -15,5 +15,6 @@ export default async function Image({ params }: ImageProps) {
   return renderBrandCard({
     title: vendor?.name ?? "Booktns",
     subtitle: vendor?.location ?? "Book appointments online",
+    theme: vendor?.storefrontTheme,
   });
 }

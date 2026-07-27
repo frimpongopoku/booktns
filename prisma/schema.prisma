@@ -63,6 +63,29 @@ enum StorefrontDisplayMode {
   AllWithFeaturedHighlighted
 }
 
+// Governs what the storefront home page's right-side hero card shows.
+// CoverImage is the original single-photo behaviour; Gallery/Video are
+// vendor-opt-in. heroGalleryUrls/heroVideoId (on Vendor) are only meaningful
+// when this is set to the matching mode — the storefront falls back to
+// CoverImage rendering if the selected mode has nothing usable.
+enum HeroCardMode {
+  CoverImage
+  Gallery
+  Video
+}
+
+// Vendor-selectable storefront color theme (see lib/theme.ts for the hex
+// values behind each name). Red matches the app's original default accent —
+// picking it is a no-op. Scoped entirely to the public storefront via a
+// [data-storefront-theme] CSS override; the dashboard always stays Red
+// regardless of what a vendor picks here.
+enum StorefrontTheme {
+  Red
+  Emerald
+  Indigo
+  Orchid
+}
+
 model Vendor {
   id          String   @id @default(cuid())
   name        String
@@ -90,6 +113,17 @@ model Vendor {
   // the storefront route 404s until then even though the account is active.
   storefrontPublished   Boolean               @default(false)
   storefrontDisplayMode StorefrontDisplayMode @default(All)
+
+  // Hero card mode (see HeroCardMode). heroGalleryUrls holds plain Media
+  // URLs (copied by value, same as coverImageUrl/logoUrl — no relation).
+  // heroVideoId points at one of this vendor's own VendorVideo rows, also by
+  // plain id rather than a Prisma relation — resolved against the already-
+  // fetched `videos` list at render time, so a stale/deleted id just falls
+  // back to CoverImage rendering instead of failing.
+  heroCardMode    HeroCardMode    @default(CoverImage)
+  heroGalleryUrls String[]        @default([])
+  heroVideoId     String?
+  storefrontTheme StorefrontTheme @default(Red)
 
   staff          Staff[]
   services       Service[]

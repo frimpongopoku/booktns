@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { STOREFRONT_THEMES, type StorefrontTheme } from "@/lib/theme";
 
 export const ogImageSize = { width: 1200, height: 630 };
 export const ogImageContentType = "image/png";
@@ -6,9 +7,12 @@ export const ogImageContentType = "image/png";
 interface BrandCardOptions {
   title: string;
   subtitle?: string;
+  theme?: StorefrontTheme;
 }
 
-export function renderBrandCard({ title, subtitle }: BrandCardOptions) {
+export function renderBrandCard({ title, subtitle, theme = "Red" }: BrandCardOptions) {
+  const palette = STOREFRONT_THEMES[theme];
+
   return new ImageResponse(
     (
       <div
@@ -19,12 +23,12 @@ export function renderBrandCard({ title, subtitle }: BrandCardOptions) {
           flexDirection: "column",
           justifyContent: "center",
           padding: "80px",
-          background: "linear-gradient(135deg, #C0283A 0%, #7A1524 45%, #09090B 100%)",
+          background: `linear-gradient(135deg, ${palette.light} 0%, ${palette.light2} 45%, #09090B 100%)`,
           fontFamily: "sans-serif",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 44 }}>
-          <span style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#F08898" }}>
+          <span style={{ display: "flex", fontSize: 40, fontWeight: 700, color: palette.dark2 }}>
             book
           </span>
           <span style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#FFFFFF" }}>
@@ -36,7 +40,7 @@ export function renderBrandCard({ title, subtitle }: BrandCardOptions) {
               width: 14,
               height: 14,
               borderRadius: 999,
-              background: "#F08898",
+              background: palette.dark2,
               marginLeft: 6,
               marginBottom: 8,
             }}

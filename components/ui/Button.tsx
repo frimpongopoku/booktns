@@ -39,7 +39,7 @@ export default function Button({
     primary: {
       background: "var(--ac)",
       color: "white",
-      boxShadow: "0 1px 3px rgba(192, 40, 58, 0.30), inset 0 1px 0 rgba(255,255,255,0.08)",
+      boxShadow: "0 1px 3px color-mix(in srgb, var(--ac) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)",
     },
     secondary: {
       background: "var(--bg3)",

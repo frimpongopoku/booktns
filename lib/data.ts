@@ -21,6 +21,9 @@ export const vendor: Vendor = {
   depositSetting: "None",
   storefrontPublished: true,
   storefrontDisplayMode: "All",
+  heroCardMode: "CoverImage",
+  heroGalleryUrls: [],
+  storefrontTheme: "Red",
   active: true,
   createdAt: "2024-01-15T09:00:00Z",
 };

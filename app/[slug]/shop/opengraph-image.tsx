@@ -15,5 +15,6 @@ export default async function Image({ params }: ImageProps) {
   return renderBrandCard({
     title: `Shop — ${vendor?.name ?? "Booktns"}`,
     subtitle: "Hair, skin, and nail products, shipped from the source.",
+    theme: vendor?.storefrontTheme,
   });
 }

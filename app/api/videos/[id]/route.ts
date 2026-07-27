@@ -63,7 +63,13 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Video not found", code: "not_found" }, { status: 404 });
   }
 
-  await db.vendorVideo.delete({ where: { id } });
+  // Also clear the hero card's video pick if it was pointing at this video —
+  // rendering already falls back gracefully without this, but this keeps the
+  // stored value from pointing at a deleted row indefinitely.
+  await db.$transaction([
+    db.vendor.updateMany({ where: { id: auth.session.vendorId, heroVideoId: id }, data: { heroVideoId: null } }),
+    db.vendorVideo.delete({ where: { id } }),
+  ]);
 
   return NextResponse.json({ ok: true });
 }

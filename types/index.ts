@@ -12,6 +12,10 @@ export type StorefrontDisplayMode = "All" | "FeaturedOnly" | "AllWithFeaturedHig
 
 export type DepositSetting = "None" | "Fixed" | "Percentage";
 
+export type HeroCardMode = "CoverImage" | "Gallery" | "Video";
+
+export type StorefrontTheme = "Red" | "Emerald" | "Indigo" | "Orchid";
+
 export interface Vendor {
   id: string;
   name: string;
@@ -30,6 +34,10 @@ export interface Vendor {
   cancellationPolicy?: string;
   storefrontPublished: boolean;
   storefrontDisplayMode: StorefrontDisplayMode;
+  heroCardMode: HeroCardMode;
+  heroGalleryUrls: string[];
+  heroVideoId?: string;
+  storefrontTheme: StorefrontTheme;
   active: boolean;
   createdAt: string;
 }

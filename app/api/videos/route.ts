@@ -7,13 +7,18 @@ import { resolveVideoThumbnail } from "@/lib/oembed";
 
 // Auto-assigned server-side (cycled by creation order) rather than exposed
 // as a vendor-facing color picker — keeps the "add a video" form to just the
-// content fields.
+// content fields. Stored as CSS var() expressions rather than literal hex so
+// the fallback gradient follows the vendor's storefront theme live (see
+// app/globals.css [data-storefront-theme]) instead of freezing whatever
+// color was current when the video was added — and correctly stays the
+// default red when rendered in the dashboard (VideosClient.tsx), which sits
+// outside the storefront's theme scope.
 const GRADIENT_PALETTE: [string, string][] = [
-  ["#C0283A", "#7A1524"],
-  ["#18181B", "#C0283A"],
-  ["#7A1524", "#F08898"],
-  ["#4C1D95", "#C0283A"],
-  ["#0F172A", "#7A1524"],
+  ["var(--brand-accent-light)", "var(--brand-accent-light-2)"],
+  ["#18181B", "var(--brand-accent-light)"],
+  ["var(--brand-accent-light-2)", "var(--brand-accent-dark-2)"],
+  ["color-mix(in srgb, var(--brand-accent-dark) 55%, black)", "var(--brand-accent-light)"],
+  ["#0F172A", "var(--brand-accent-light-2)"],
 ];
 
 const createSchema = z.object({

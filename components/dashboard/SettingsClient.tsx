@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { BusinessHours, Vendor, StorefrontDisplayMode, PaymentMethod, PaymentMethodType } from "@/types";
+import Link from "next/link";
+import type { BusinessHours, Vendor, StorefrontDisplayMode, PaymentMethod, PaymentMethodType, HeroCardMode, VendorVideo, StorefrontTheme } from "@/types";
+import { STOREFRONT_THEMES } from "@/lib/theme";
 import Topbar from "@/components/dashboard/Topbar";
 import BusinessHoursCard from "@/components/dashboard/BusinessHoursCard";
 import MediaPickerModal from "@/components/dashboard/MediaPickerModal";
@@ -21,6 +23,14 @@ const DISPLAY_MODE_OPTIONS: { value: StorefrontDisplayMode; label: string; desc:
   { value: "FeaturedOnly", label: "Featured only", desc: "Only items you've marked as featured appear" },
   { value: "AllWithFeaturedHighlighted", label: "Show all, highlight featured", desc: "Everything appears, but featured items are shown first with a badge" },
 ];
+
+const HERO_MODE_OPTIONS: { value: HeroCardMode; label: string; desc: string }[] = [
+  { value: "CoverImage", label: "Cover image", desc: "Uses the cover image above (or a plain gradient if you haven't set one)" },
+  { value: "Gallery", label: "Photo gallery", desc: "Rotates through several photos" },
+  { value: "Video", label: "Video", desc: "Plays one of your videos on a loop" },
+];
+
+const THEME_OPTIONS: StorefrontTheme[] = ["Red", "Emerald", "Indigo", "Orchid"];
 
 type SettingsTab = "storefront" | "payment" | "booking" | "whatsapp" | "billing";
 
@@ -47,9 +57,10 @@ function PaymentMethodIcon({ type }: { type: string }) {
 interface StorefrontTabProps {
   vendor: Vendor;
   businessHours: BusinessHours[];
+  initialVideos: VendorVideo[];
 }
 
-function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
+function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabProps) {
   const [name, setName] = useState(vendor.name);
   const [description, setDescription] = useState(vendor.description);
   const [location, setLocation] = useState(vendor.location);
@@ -58,10 +69,19 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
   const [coverImageUrl, setCoverImageUrl] = useState(vendor.coverImageUrl);
   const [displayMode, setDisplayMode] = useState<StorefrontDisplayMode>(vendor.storefrontDisplayMode);
   const [published, setPublished] = useState(vendor.storefrontPublished);
+  const [heroCardMode, setHeroCardMode] = useState<HeroCardMode>(vendor.heroCardMode);
+  const [heroGalleryUrls, setHeroGalleryUrls] = useState<string[]>(vendor.heroGalleryUrls);
+  const [heroVideoId, setHeroVideoId] = useState(vendor.heroVideoId);
+  const [storefrontTheme, setStorefrontTheme] = useState<StorefrontTheme>(vendor.storefrontTheme);
   const [showLogoPicker, setShowLogoPicker] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
   const [savingLogo, setSavingLogo] = useState(false);
   const [savingCover, setSavingCover] = useState(false);
+  const [savingHeroMode, setSavingHeroMode] = useState(false);
+  const [savingGallery, setSavingGallery] = useState(false);
+  const [savingHeroVideo, setSavingHeroVideo] = useState(false);
+  const [savingTheme, setSavingTheme] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -106,6 +126,58 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSavingCover(false);
+    }
+  };
+
+  const handleHeroModeChange = async (mode: HeroCardMode) => {
+    setSavingHeroMode(true);
+    setError(null);
+    try {
+      await patchVendor({ heroCardMode: mode });
+      setHeroCardMode(mode);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSavingHeroMode(false);
+    }
+  };
+
+  const handleGalleryChange = async (urls: string[]) => {
+    setSavingGallery(true);
+    setError(null);
+    try {
+      await patchVendor({ heroGalleryUrls: urls });
+      setHeroGalleryUrls(urls);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSavingGallery(false);
+    }
+  };
+
+  const handleHeroVideoChange = async (id: string) => {
+    setSavingHeroVideo(true);
+    setError(null);
+    try {
+      await patchVendor({ heroVideoId: id || null });
+      setHeroVideoId(id || undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSavingHeroVideo(false);
+    }
+  };
+
+  const handleThemeChange = async (theme: StorefrontTheme) => {
+    setSavingTheme(true);
+    setError(null);
+    try {
+      await patchVendor({ storefrontTheme: theme });
+      setStorefrontTheme(theme);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSavingTheme(false);
     }
   };
 
@@ -225,6 +297,122 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
           </div>
         </div>
 
+        <div className="flex flex-col gap-3">
+          <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>
+            Storefront color <span style={{ color: "var(--tx3)", fontWeight: 400 }}>— saves instantly</span>
+          </label>
+          <div className="flex gap-3">
+            {THEME_OPTIONS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                disabled={savingTheme}
+                onClick={() => handleThemeChange(t)}
+                className="flex flex-col items-center gap-1.5 disabled:opacity-60"
+                aria-label={t}
+              >
+                <span
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{
+                    background: STOREFRONT_THEMES[t].light,
+                    outline: storefrontTheme === t ? "2px solid var(--tx)" : "2px solid transparent",
+                    outlineOffset: "2px",
+                  }}
+                >
+                  {storefrontTheme === t && <Check size={14} color="white" />}
+                </span>
+                <span className="text-xs" style={{ color: "var(--tx3)" }}>{t}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>
+            Hero card <span style={{ color: "var(--tx3)", fontWeight: 400 }}>— saves instantly</span>
+          </label>
+          <div className="flex flex-col gap-2">
+            {HERO_MODE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={savingHeroMode}
+                onClick={() => handleHeroModeChange(opt.value)}
+                className="flex items-center gap-3 p-3 rounded-[var(--r)] text-left disabled:opacity-60"
+                style={{
+                  background: heroCardMode === opt.value ? "var(--ac-bg)" : "var(--bg2)",
+                  border: `1px solid ${heroCardMode === opt.value ? "var(--ac)" : "var(--bds)"}`,
+                }}
+              >
+                <div
+                  className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                  style={{
+                    borderColor: heroCardMode === opt.value ? "var(--ac)" : "var(--bd)",
+                    background: heroCardMode === opt.value ? "var(--ac)" : "transparent",
+                  }}
+                >
+                  {heroCardMode === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </div>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{opt.label}</p>
+                  <p className="text-xs" style={{ color: "var(--tx3)" }}>{opt.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {heroCardMode === "Gallery" && (
+            <div className="flex flex-col gap-2 pl-1">
+              {heroGalleryUrls.length > 0 && (
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {heroGalleryUrls.map((url) => (
+                    <div key={url} className="relative aspect-square rounded-[var(--r)] overflow-hidden" style={{ background: "var(--bg3)" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="w-full h-full object-cover object-top" />
+                      <button
+                        type="button"
+                        onClick={() => handleGalleryChange(heroGalleryUrls.filter((u) => u !== url))}
+                        className="absolute top-1 right-1 p-1 rounded-full"
+                        style={{ background: "rgba(0,0,0,0.6)", color: "white" }}
+                        aria-label="Remove photo"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button type="button" variant="secondary" size="sm" loading={savingGallery} onClick={() => setShowGalleryPicker(true)} className="w-fit">
+                <Plus size={13} />
+                Add photos
+              </Button>
+            </div>
+          )}
+
+          {heroCardMode === "Video" && (
+            <div className="pl-1">
+              {initialVideos.length === 0 ? (
+                <p className="text-xs" style={{ color: "var(--tx3)" }}>
+                  You haven&apos;t added any videos yet — <Link href="/dashboard/videos" className="underline">add one</Link> to use it here.
+                </p>
+              ) : (
+                <select
+                  value={heroVideoId ?? ""}
+                  disabled={savingHeroVideo}
+                  onChange={(e) => handleHeroVideoChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-[var(--r)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--ac)] disabled:opacity-60"
+                  style={{ background: "var(--bg2)", color: "var(--tx)", border: "1px solid var(--bd)" }}
+                >
+                  <option value="">Choose a video…</option>
+                  {initialVideos.map((v) => (
+                    <option key={v.id} value={v.id}>{v.title}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+        </div>
+
         <Input label="Business name" value={name} onChange={(e) => setName(e.target.value)} />
         <Input
           label="Storefront URL slug"
@@ -291,6 +479,14 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
           maxSelectable={1}
           onClose={() => setShowCoverPicker(false)}
           onConfirm={(urls) => handleCoverChange(urls[0])}
+        />
+      )}
+      {showGalleryPicker && (
+        <MediaPickerModal
+          selectedUrls={heroGalleryUrls}
+          maxSelectable={6}
+          onClose={() => setShowGalleryPicker(false)}
+          onConfirm={(urls) => handleGalleryChange([...new Set([...heroGalleryUrls, ...urls])].slice(0, 6))}
         />
       )}
     </div>
@@ -811,9 +1007,10 @@ interface SettingsClientProps {
   vendor: Vendor;
   businessHours: BusinessHours[];
   initialPaymentMethods: PaymentMethod[];
+  initialVideos: VendorVideo[];
 }
 
-export default function SettingsClient({ vendor, businessHours, initialPaymentMethods }: SettingsClientProps) {
+export default function SettingsClient({ vendor, businessHours, initialPaymentMethods, initialVideos }: SettingsClientProps) {
   const [tab, setTab] = useState<SettingsTab>("storefront");
 
   return (
@@ -841,7 +1038,7 @@ export default function SettingsClient({ vendor, businessHours, initialPaymentMe
         ))}
       </div>
 
-      {tab === "storefront" && <StorefrontTab vendor={vendor} businessHours={businessHours} />}
+      {tab === "storefront" && <StorefrontTab vendor={vendor} businessHours={businessHours} initialVideos={initialVideos} />}
       {tab === "payment" && <PaymentTab vendor={vendor} initialPaymentMethods={initialPaymentMethods} />}
       {tab === "booking" && <BookingTab vendor={vendor} />}
       {tab === "whatsapp" && <WhatsAppTab />}

@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth";
 import StorefrontNav from "@/components/storefront/StorefrontNav";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import VideoCard from "@/components/storefront/VideoCard";
+import HeroCard from "@/components/storefront/HeroCard";
 import StorefrontUnavailable from "@/components/storefront/StorefrontUnavailable";
 import {
   MapPin,
@@ -160,7 +161,7 @@ export default async function StorefrontPage({ params }: PageProps) {
           className="px-3.5 py-2 rounded-[var(--r)] text-sm font-medium text-white"
           style={{
             background: "var(--ac)",
-            boxShadow: "0 1px 3px rgba(192,40,58,0.30)",
+            boxShadow: "0 1px 3px color-mix(in srgb, var(--ac) 30%, transparent)",
           }}
         >
           Book Now
@@ -218,7 +219,7 @@ export default async function StorefrontPage({ params }: PageProps) {
                 className="px-6 py-2.5 rounded-[var(--r)] text-white font-medium text-sm inline-flex items-center gap-2"
                 style={{
                   background: "var(--ac)",
-                  boxShadow: "0 1px 3px rgba(192,40,58,0.30), inset 0 1px 0 rgba(255,255,255,0.08)",
+                  boxShadow: "0 1px 3px color-mix(in srgb, var(--ac) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)",
                 }}
               >
                 Book Appointment
@@ -239,83 +240,16 @@ export default async function StorefrontPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Right: cover card */}
-          <div
-            className="hidden md:flex relative rounded-[var(--rl)] overflow-hidden"
-            style={{ aspectRatio: "4/3", boxShadow: "var(--shadow-lg)" }}
-          >
-            {vendorData.coverImageUrl ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={vendorData.coverImageUrl}
-                  alt={`${vendorData.name} cover`}
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-                {/* Legibility gradient over the photo for the text overlay */}
-                <div
-                  className="absolute inset-0"
-                  style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.05) 55%, transparent 100%)" }}
-                />
-              </>
-            ) : (
-              <>
-                {/* Rich gradient background */}
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      "linear-gradient(145deg, #C0283A 0%, #7A1524 45%, #09090B 100%)",
-                  }}
-                />
-                {/* Ambient light shapes */}
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      "radial-gradient(ellipse at 20% 80%, rgba(240,136,152,0.20) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(255,255,255,0.06) 0%, transparent 40%)",
-                  }}
-                />
-                {/* Decorative circle */}
-                <div
-                  className="absolute -bottom-24 -right-24 w-64 h-64 rounded-full"
-                  style={{ background: "rgba(192,40,58,0.18)" }}
-                />
-              </>
-            )}
-            {/* Open badge */}
-            <div
-              className="absolute top-5 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                color: "white",
-                backdropFilter: "blur(8px)",
-                WebkitBackdropFilter: "blur(8px)",
-                border: "1px solid rgba(255,255,255,0.15)",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ADE80" }} />
-              Open Today
-            </div>
-            {/* Text content */}
-            <div className="relative z-10 flex flex-col justify-end p-8 h-full">
-              <p
-                className="text-xs font-semibold uppercase tracking-widest mb-3"
-                style={{ color: "rgba(255,255,255,0.5)" }}
-              >
-                Premium Beauty Studio
-              </p>
-              <p
-                className="text-3xl font-semibold text-white leading-tight"
-                style={{ letterSpacing: "-0.025em" }}
-              >
-                {vendorData.name}
-              </p>
-              <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
-                {vendorData.location}
-              </p>
-            </div>
-          </div>
+          {/* Right: hero card */}
+          <HeroCard
+            name={vendorData.name}
+            location={vendorData.location}
+            coverImageUrl={vendorData.coverImageUrl}
+            heroCardMode={vendorData.heroCardMode}
+            heroGalleryUrls={vendorData.heroGalleryUrls}
+            heroVideoId={vendorData.heroVideoId}
+            videos={vendorData.videos}
+          />
         </div>
       </section>
 
@@ -565,7 +499,7 @@ export default async function StorefrontPage({ params }: PageProps) {
           <div
             className="rounded-[var(--rl)] px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden relative"
             style={{
-              background: "linear-gradient(135deg, #C0283A 0%, #7A1524 100%)",
+              background: "linear-gradient(135deg, var(--brand-accent-light) 0%, var(--brand-accent-light-2) 100%)",
               boxShadow: "var(--shadow-md)",
             }}
           >
@@ -592,7 +526,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               className="relative flex-shrink-0 px-6 py-3 rounded-[var(--r)] font-semibold text-sm inline-flex items-center gap-2"
               style={{
                 background: "white",
-                color: "#C0283A",
+                color: "var(--brand-accent-light)",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
               }}
             >

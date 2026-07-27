@@ -6,6 +6,8 @@ import { serializeVendor } from "@/lib/serialize";
 
 const DISPLAY_MODES = ["All", "FeaturedOnly", "AllWithFeaturedHighlighted"] as const;
 const DEPOSIT_SETTINGS = ["None", "Fixed", "Percentage"] as const;
+const HERO_CARD_MODES = ["CoverImage", "Gallery", "Video"] as const;
+const STOREFRONT_THEME_VALUES = ["Red", "Emerald", "Indigo", "Orchid"] as const;
 
 // Slug is deliberately excluded — changing it affects live URLs and spec
 // calls it "editable once"; that needs its own careful flow, not a plain
@@ -25,6 +27,10 @@ const updateSchema = z
     cancellationPolicy: z.string().trim().nullable().optional(),
     storefrontDisplayMode: z.enum(DISPLAY_MODES).optional(),
     storefrontPublished: z.boolean().optional(),
+    heroCardMode: z.enum(HERO_CARD_MODES).optional(),
+    heroGalleryUrls: z.array(z.string().trim().url()).max(6).optional(),
+    heroVideoId: z.string().trim().nullable().optional(),
+    storefrontTheme: z.enum(STOREFRONT_THEME_VALUES).optional(),
   })
   .refine(
     (data) => data.depositSetting !== "Fixed" && data.depositSetting !== "Percentage" ? true : data.depositValue !== undefined && data.depositValue !== null,
@@ -53,6 +59,16 @@ export async function PATCH(request: Request) {
       { error: parsed.error.issues[0]?.message ?? "Invalid request", code: "invalid_request" },
       { status: 400 }
     );
+  }
+
+  if (parsed.data.heroVideoId) {
+    const heroVideo = await db.vendorVideo.findFirst({
+      where: { id: parsed.data.heroVideoId, vendorId: auth.session.vendorId },
+      select: { id: true },
+    });
+    if (!heroVideo) {
+      return NextResponse.json({ error: "Video not found", code: "not_found" }, { status: 400 });
+    }
   }
 
   const vendor = await db.vendor.update({

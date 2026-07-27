@@ -55,6 +55,10 @@ export function serializeVendor(vendor: PrismaVendor): Vendor {
     cancellationPolicy: vendor.cancellationPolicy ?? undefined,
     storefrontPublished: vendor.storefrontPublished,
     storefrontDisplayMode: vendor.storefrontDisplayMode,
+    heroCardMode: vendor.heroCardMode,
+    heroGalleryUrls: vendor.heroGalleryUrls,
+    heroVideoId: vendor.heroVideoId ?? undefined,
+    storefrontTheme: vendor.storefrontTheme,
     active: vendor.active,
     createdAt: vendor.createdAt.toISOString(),
   };

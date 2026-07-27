@@ -62,7 +62,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col" style={{ background: "var(--bg)", color: "var(--tx)" }}>
         <ThemeProvider>
-          <NextTopLoader color="var(--ac)" height={2} showSpinner={false} />
+          <NextTopLoader color="var(--tx)" height={2} showSpinner={false} />
           {children}
         </ThemeProvider>
       </body>

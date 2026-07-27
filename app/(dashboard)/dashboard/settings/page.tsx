@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { serializeVendor, serializePaymentMethod } from "@/lib/serialize";
+import { serializeVendor, serializePaymentMethod, serializeVendorVideo } from "@/lib/serialize";
 import SettingsClient from "@/components/dashboard/SettingsClient";
 
 export default async function SettingsPage() {
@@ -22,13 +22,17 @@ export default async function SettingsPage() {
     );
   }
 
-  const [vendor, businessHours, paymentMethods] = await Promise.all([
+  const [vendor, businessHours, paymentMethods, videos] = await Promise.all([
     db.vendor.findUnique({ where: { id: session.vendorId } }),
     db.businessHours.findMany({
       where: { vendorId: session.vendorId },
       orderBy: { dayOfWeek: "asc" },
     }),
     db.paymentMethod.findMany({
+      where: { vendorId: session.vendorId },
+      orderBy: { displayOrder: "asc" },
+    }),
+    db.vendorVideo.findMany({
       where: { vendorId: session.vendorId },
       orderBy: { displayOrder: "asc" },
     }),
@@ -41,6 +45,7 @@ export default async function SettingsPage() {
       vendor={serializeVendor(vendor)}
       businessHours={businessHours}
       initialPaymentMethods={paymentMethods.map(serializePaymentMethod)}
+      initialVideos={videos.map(serializeVendorVideo)}
     />
   );
 }

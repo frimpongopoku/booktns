@@ -60,6 +60,8 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
   const [published, setPublished] = useState(vendor.storefrontPublished);
   const [showLogoPicker, setShowLogoPicker] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
+  const [savingLogo, setSavingLogo] = useState(false);
+  const [savingCover, setSavingCover] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -78,6 +80,35 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
     return (await res.json()) as { vendor: Vendor };
   };
 
+  // Logo and cover image save immediately on selection/removal — waiting for
+  // the separate "Save Changes" button was an easy step to miss, since
+  // picking a photo already feels like a complete action on its own.
+  const handleLogoChange = async (url: string | undefined) => {
+    setSavingLogo(true);
+    setError(null);
+    try {
+      await patchVendor({ logoUrl: url ?? null });
+      setLogoUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSavingLogo(false);
+    }
+  };
+
+  const handleCoverChange = async (url: string | undefined) => {
+    setSavingCover(true);
+    setError(null);
+    try {
+      await patchVendor({ coverImageUrl: url ?? null });
+      setCoverImageUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSavingCover(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -87,8 +118,6 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
         description: description.trim(),
         location: location.trim(),
         phone: phone.trim(),
-        logoUrl: logoUrl ?? null,
-        coverImageUrl: coverImageUrl ?? null,
         storefrontDisplayMode: displayMode,
       });
       setSaved(true);
@@ -147,7 +176,9 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
 
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Logo</label>
+          <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>
+            Logo <span style={{ color: "var(--tx3)", fontWeight: 400 }}>— saves instantly</span>
+          </label>
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
               {logoUrl ? (
@@ -158,11 +189,11 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
               )}
             </div>
             <div className="flex flex-col gap-2">
-              <Button type="button" variant="secondary" size="sm" onClick={() => setShowLogoPicker(true)} className="w-fit">
+              <Button type="button" variant="secondary" size="sm" loading={savingLogo} onClick={() => setShowLogoPicker(true)} className="w-fit">
                 {logoUrl ? "Change logo" : "Choose logo"}
               </Button>
               {logoUrl && (
-                <button type="button" onClick={() => setLogoUrl(undefined)} className="text-xs text-left" style={{ color: "var(--tx3)" }}>
+                <button type="button" onClick={() => handleLogoChange(undefined)} className="text-xs text-left" style={{ color: "var(--tx3)" }}>
                   Remove logo
                 </button>
               )}
@@ -171,7 +202,9 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Cover image</label>
+          <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>
+            Cover image <span style={{ color: "var(--tx3)", fontWeight: 400 }}>— saves instantly</span>
+          </label>
           <div className="w-full aspect-[3/1] rounded-[var(--r)] overflow-hidden flex items-center justify-center" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
             {coverImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -181,11 +214,11 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setShowCoverPicker(true)} className="w-fit">
+            <Button type="button" variant="secondary" size="sm" loading={savingCover} onClick={() => setShowCoverPicker(true)} className="w-fit">
               {coverImageUrl ? "Change cover image" : "Choose cover image"}
             </Button>
             {coverImageUrl && (
-              <button type="button" onClick={() => setCoverImageUrl(undefined)} className="text-xs" style={{ color: "var(--tx3)" }}>
+              <button type="button" onClick={() => handleCoverChange(undefined)} className="text-xs" style={{ color: "var(--tx3)" }}>
                 Remove
               </button>
             )}
@@ -249,7 +282,7 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
           selectedUrls={logoUrl ? [logoUrl] : []}
           maxSelectable={1}
           onClose={() => setShowLogoPicker(false)}
-          onConfirm={(urls) => setLogoUrl(urls[0])}
+          onConfirm={(urls) => handleLogoChange(urls[0])}
         />
       )}
       {showCoverPicker && (
@@ -257,7 +290,7 @@ function StorefrontTab({ vendor, businessHours }: StorefrontTabProps) {
           selectedUrls={coverImageUrl ? [coverImageUrl] : []}
           maxSelectable={1}
           onClose={() => setShowCoverPicker(false)}
-          onConfirm={(urls) => setCoverImageUrl(urls[0])}
+          onConfirm={(urls) => handleCoverChange(urls[0])}
         />
       )}
     </div>

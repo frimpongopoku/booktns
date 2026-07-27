@@ -305,6 +305,11 @@ model VendorVideo {
   gradientFrom    String
   gradientTo      String
   url             String
+  // Resolved server-side via the platform's public oEmbed API at
+  // create/update time (YouTube/TikTok/Vimeo). Null when the platform has no
+  // public oEmbed (Instagram) or resolution failed — falls back to the
+  // gradient+play-button card design.
+  thumbnailUrl    String?
   displayOrder    Int     @default(0)
 
   @@index([vendorId])

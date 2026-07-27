@@ -185,5 +185,6 @@ export interface VendorVideo {
   gradientFrom: string;
   gradientTo: string;
   url: string;
+  thumbnailUrl?: string;
   displayOrder: number;
 }

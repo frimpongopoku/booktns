@@ -12,7 +12,7 @@ import {
   Plus,
   X,
   Rocket,
-  LayoutDashboard,
+  LogIn,
   Sparkles,
   AlertCircle,
   Crown,
@@ -513,7 +513,7 @@ function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
         Your account is set up!
       </h2>
       <p className="text-sm mb-8" style={{ color: "var(--tx2)" }}>
-        Head to your dashboard to finish setting up your business.
+        One last step — sign in with the Google account you registered as owner to open your dashboard.
       </p>
 
       <div
@@ -527,12 +527,12 @@ function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
 
       <div className="flex flex-col gap-3">
         <Link
-          href="/dashboard"
+          href="/login"
           className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium text-white"
           style={{ background: "var(--ac)" }}
         >
-          <LayoutDashboard size={15} />
-          Go to dashboard
+          <LogIn size={15} />
+          Sign in with Google
         </Link>
       </div>
 
@@ -542,7 +542,7 @@ function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
           <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>What's next</p>
         </div>
         <p className="text-xs leading-relaxed" style={{ color: "var(--ac2)" }}>
-          Your public storefront page isn&apos;t live yet — preview it anytime from the dashboard, then publish it from Settings once you&apos;re happy with how it looks.
+          After signing in, your public storefront page still won&apos;t be live yet — preview it anytime from the dashboard, then publish it from Settings once you&apos;re happy with how it looks.
         </p>
       </div>
     </div>

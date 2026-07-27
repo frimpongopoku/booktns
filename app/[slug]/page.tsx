@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatPrice, formatDuration, formatVideoDuration } from "@/lib/data";
+import { formatPrice, formatDuration } from "@/lib/data";
 import { getStorefrontVendor, getAllActiveVendorSlugs, getStorefrontVendorForPreview } from "@/lib/vendors";
 import { getSession } from "@/lib/auth";
 import StorefrontNav from "@/components/storefront/StorefrontNav";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
+import VideoCard from "@/components/storefront/VideoCard";
 import {
   MapPin,
   Clock,
@@ -17,10 +18,9 @@ import {
   MessageCircle,
   ArrowRight,
   CheckCircle,
-  Play,
   Star,
 } from "lucide-react";
-import type { VendorVideo, StorefrontDisplayMode } from "@/types";
+import type { StorefrontDisplayMode } from "@/types";
 
 // The home page's "featured" teaser sections respect the vendor's display
 // mode; the full /book and /shop pages always show everything regardless.
@@ -43,78 +43,6 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   Lashes: <Eye size={15} />,
   Other: <Sparkles size={15} />,
 };
-
-function VideoCard({ video }: { video: VendorVideo }) {
-  return (
-    <a
-      href={video.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block rounded-[var(--rl)] overflow-hidden cursor-pointer transition-all duration-200"
-      style={{ boxShadow: "var(--shadow-sm)" }}
-    >
-      {/* Thumbnail */}
-      <div
-        className="relative"
-        style={{
-          aspectRatio: "16/9",
-          background: `linear-gradient(135deg, ${video.gradientFrom} 0%, ${video.gradientTo} 100%)`,
-        }}
-      >
-        {/* Subtle overlay pattern */}
-        <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage:
-              "radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)",
-          }}
-        />
-        {/* Darken on hover */}
-        <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity duration-200" />
-        {/* Play button */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
-            style={{
-              background: "rgba(255,255,255,0.92)",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
-            }}
-          >
-            <Play
-              size={18}
-              className="ml-0.5"
-              style={{ color: video.gradientFrom }}
-              fill={video.gradientFrom}
-            />
-          </div>
-        </div>
-        {/* Duration badge */}
-        {video.durationSeconds !== undefined && (
-          <div
-            className="absolute bottom-3 right-3 px-2 py-0.5 rounded text-xs font-semibold"
-            style={{ background: "rgba(0,0,0,0.55)", color: "white" }}
-          >
-            {formatVideoDuration(video.durationSeconds)}
-          </div>
-        )}
-      </div>
-      {/* Info */}
-      <div className="p-3.5" style={{ background: "var(--bg2)" }}>
-        <p
-          className="text-sm font-semibold leading-snug"
-          style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
-        >
-          {video.title}
-        </p>
-        {video.description && (
-          <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--tx3)" }}>
-            {video.description}
-          </p>
-        )}
-      </div>
-    </a>
-  );
-}
 
 export async function generateStaticParams() {
   const slugs = await getAllActiveVendorSlugs();

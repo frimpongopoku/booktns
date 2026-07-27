@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { serializeVendorVideo } from "@/lib/serialize";
+import { resolveVideoThumbnail } from "@/lib/oembed";
 
 // Auto-assigned server-side (cycled by creation order) rather than exposed
 // as a vendor-facing color picker — keeps the "add a video" form to just the
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
   });
   const nextOrder = (highestOrder._max.displayOrder ?? -1) + 1;
   const [gradientFrom, gradientTo] = GRADIENT_PALETTE[nextOrder % GRADIENT_PALETTE.length];
+  const thumbnailUrl = await resolveVideoThumbnail(parsed.data.url);
 
   const video = await db.vendorVideo.create({
     data: {
@@ -62,6 +64,7 @@ export async function POST(request: Request) {
       durationSeconds: parsed.data.durationSeconds,
       gradientFrom,
       gradientTo,
+      thumbnailUrl,
       displayOrder: nextOrder,
     },
   });

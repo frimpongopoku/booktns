@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { serializeVendorVideo } from "@/lib/serialize";
+import { resolveVideoThumbnail } from "@/lib/oembed";
 
 const updateSchema = z.object({
   title: z.string().trim().min(1, "Title is required").optional(),
@@ -36,9 +37,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Video not found", code: "not_found" }, { status: 404 });
   }
 
+  // Only re-resolve the thumbnail when the link itself is changing — no need
+  // to hit the oEmbed endpoint again for a title/description-only edit.
+  const thumbnailUrl = parsed.data.url ? await resolveVideoThumbnail(parsed.data.url) : undefined;
+
   const video = await db.vendorVideo.update({
     where: { id },
-    data: parsed.data,
+    data: { ...parsed.data, ...(thumbnailUrl !== undefined ? { thumbnailUrl } : {}) },
   });
 
   return NextResponse.json({ video: serializeVendorVideo(video) });

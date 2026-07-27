@@ -187,10 +187,19 @@ export default function VideosClient({ initialVideos }: VideosClientProps) {
             >
               <div
                 className="relative aspect-video flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${video.gradientFrom} 0%, ${video.gradientTo} 100%)` }}
+                style={{ background: video.thumbnailUrl ? "var(--bg3)" : `linear-gradient(135deg, ${video.gradientFrom} 0%, ${video.gradientTo} 100%)` }}
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.92)" }}>
-                  <Play size={16} className="ml-0.5" style={{ color: video.gradientFrom }} fill={video.gradientFrom} />
+                {video.thumbnailUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={video.thumbnailUrl} alt={video.title} className="absolute inset-0 w-full h-full object-cover" />
+                )}
+                <div className="relative w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.92)" }}>
+                  <Play
+                    size={16}
+                    className="ml-0.5"
+                    style={{ color: video.thumbnailUrl ? "var(--ac)" : video.gradientFrom }}
+                    fill={video.thumbnailUrl ? "var(--ac)" : video.gradientFrom}
+                  />
                 </div>
               </div>
               <div className="p-4">

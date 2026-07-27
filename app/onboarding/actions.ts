@@ -42,14 +42,15 @@ interface OnboardingInput {
 
 type OnboardingResult = { ok: true; slug: string } | { ok: false; error: string };
 
-// dayOfWeek: 0=Sun..6=Sat. Default matches the dummy-data vendor's prior
-// free-text hours ("Mon–Sat 9am–7pm") so onboarding doesn't regress the look
-// of a freshly created storefront before the owner customises it.
-const DEFAULT_BUSINESS_HOURS = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) =>
-  dayOfWeek === 0
-    ? { dayOfWeek, isClosed: true, openTime: null, closeTime: null }
-    : { dayOfWeek, isClosed: false, openTime: "09:00", closeTime: "19:00" }
-);
+// dayOfWeek: 0=Sun..6=Sat. All 7 days default to open — which days (if any)
+// a vendor is closed is entirely their call, made afterward in Settings, not
+// an assumption baked into onboarding.
+const DEFAULT_BUSINESS_HOURS = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+  dayOfWeek,
+  isClosed: false,
+  openTime: "09:00",
+  closeTime: "19:00",
+}));
 
 // Prisma's P2002 metadata shape differs between the classic query engine
 // (`meta.target`) and the driver-adapter path used here (`meta.driverAdapterError...constraint.fields`).

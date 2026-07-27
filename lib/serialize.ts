@@ -61,7 +61,12 @@ export function serializeVendor(vendor: PrismaVendor): Vendor {
 }
 
 export function serializeVendorVideo(video: PrismaVendorVideo): VendorVideo {
-  return { ...video, description: video.description ?? undefined, durationSeconds: video.durationSeconds ?? undefined };
+  return {
+    ...video,
+    description: video.description ?? undefined,
+    durationSeconds: video.durationSeconds ?? undefined,
+    thumbnailUrl: video.thumbnailUrl ?? undefined,
+  };
 }
 
 export function serializePaymentMethod(pm: PrismaPaymentMethod): PaymentMethod {

@@ -20,9 +20,18 @@
    theme] wrapper around the public storefront only (see
    app/[slug]/layout.tsx) — never on :root, so the dashboard
    always stays the default Red regardless of a vendor's pick.
-   `--ac`/`--ac2` reference these by var(), so overriding just
-   these four here is enough to retheme everything that reads
-   var(--ac)/var(--ac2)/var(--ac-bg) beneath the wrapper.
+
+   IMPORTANT: --ac/--ac2/--ac-bg must be redeclared here too,
+   not just --brand-accent-*. Custom properties resolve var()
+   using the element where the *referencing* property itself is
+   declared, not lazily per element that later reads it — since
+   --ac is only ever declared at :root/html[data-theme=dark], a
+   descendant only inherits whatever value --ac already resolved
+   to at that ancestor, and overriding --brand-accent-light down
+   here never reaches it. Every var(--ac)/var(--ac2)/var(--ac-bg)
+   usage across the storefront depends on the redeclaration below
+   actually existing per theme, in both light and dark variants —
+   don't remove it as a "redundant" simplification.
    No "Red" block needed — it's identical to the :root default.
    ───────────────────────────────────────────────────────── */
 [data-storefront-theme="Emerald"] {
@@ -30,18 +39,61 @@
   --brand-accent-light-2: #1A6143;
   --brand-accent-dark:    #3DAE7F;
   --brand-accent-dark-2:  #81DAB5;
+  --ac:    var(--brand-accent-light);
+  --ac2:   var(--brand-accent-light-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 8%, white);
 }
 [data-storefront-theme="Indigo"] {
   --brand-accent-light:   #2A37C0;
   --brand-accent-light-2: #19238F;
   --brand-accent-dark:    #4955D4;
   --brand-accent-dark-2:  #969DEE;
+  --ac:    var(--brand-accent-light);
+  --ac2:   var(--brand-accent-light-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 8%, white);
 }
 [data-storefront-theme="Orchid"] {
   --brand-accent-light:   #8A2DA9;
   --brand-accent-light-2: #621B79;
   --brand-accent-dark:    #A740C9;
   --brand-accent-dark-2:  #CF88E7;
+  --ac:    var(--brand-accent-light);
+  --ac2:   var(--brand-accent-light-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 8%, white);
+}
+
+html[data-theme="dark"] [data-storefront-theme="Emerald"] {
+  --ac:    var(--brand-accent-dark);
+  --ac2:   var(--brand-accent-dark-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+}
+html[data-theme="dark"] [data-storefront-theme="Indigo"] {
+  --ac:    var(--brand-accent-dark);
+  --ac2:   var(--brand-accent-dark-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+}
+html[data-theme="dark"] [data-storefront-theme="Orchid"] {
+  --ac:    var(--brand-accent-dark);
+  --ac2:   var(--brand-accent-dark-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) [data-storefront-theme="Emerald"] {
+    --ac:    var(--brand-accent-dark);
+    --ac2:   var(--brand-accent-dark-2);
+    --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+  }
+  html:not([data-theme="light"]) [data-storefront-theme="Indigo"] {
+    --ac:    var(--brand-accent-dark);
+    --ac2:   var(--brand-accent-dark-2);
+    --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+  }
+  html:not([data-theme="light"]) [data-storefront-theme="Orchid"] {
+    --ac:    var(--brand-accent-dark);
+    --ac2:   var(--brand-accent-dark-2);
+    --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────

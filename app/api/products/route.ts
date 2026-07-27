@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { serializeProduct } from "@/lib/serialize";
+import { slugifyProductName, dedupeSlug } from "@/lib/slugs";
 
 const MAX_IMAGES_PER_PRODUCT = 5;
 // Matches the media gallery's page size for a consistent infinite-scroll feel across the dashboard.
@@ -66,10 +67,17 @@ export async function POST(request: Request) {
     );
   }
 
+  const existingSlugs = await db.product.findMany({
+    where: { vendorId: auth.session.vendorId },
+    select: { slug: true },
+  });
+  const slug = dedupeSlug(slugifyProductName(parsed.data.name), new Set(existingSlugs.map((p) => p.slug)));
+
   const product = await db.product.create({
     data: {
       vendorId: auth.session.vendorId,
       name: parsed.data.name,
+      slug,
       priceInPesewas: parsed.data.priceInPesewas,
       stockCount: parsed.data.stockCount,
       lowStockThreshold: parsed.data.lowStockThreshold,

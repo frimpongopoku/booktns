@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { orders, vendor, paymentMethods, formatPrice } from "@/lib/data";
+import { notFound } from "next/navigation";
+import { getOrderBySlug } from "@/lib/orders";
+import { formatPrice } from "@/lib/data";
 import { CopyButton } from "@/components/ui/CopyButton";
 import {
   PackageCheck,
-  Download,
   MessageCircle,
   Smartphone,
   CreditCard,
@@ -38,12 +39,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function OrderConfirmationPage({ params }: PageProps) {
   const { slug } = await params;
 
-  const order = orders.find((o) => o.slug === slug) ?? orders[0];
+  const order = await getOrderBySlug(slug);
+  if (!order) notFound();
 
-  const primaryPayment = paymentMethods.find((pm) => pm.type === "momo") ?? paymentMethods[0];
-
+  const whatsappNumber = order.vendor.personalWhatsappNumber ?? order.vendor.whatsapp;
   const whatsappMsg = encodeURIComponent(
-    `Hi ${vendor.name}, I placed order ${order.ref}. Customer: ${order.customerName}.`
+    `Hi ${order.vendor.name}, I placed order ${order.ref}. Customer: ${order.customerName}.`
   );
 
   const subtotal = order.items.reduce((s, item) => s + item.priceSnapshot * item.quantity, 0);
@@ -106,6 +107,18 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                 <p className="text-xs" style={{ color: "var(--tx3)" }}>{order.customerPhone}</p>
               </div>
             </div>
+            <div className="flex items-center gap-4 mt-3 pt-3" style={{ borderTop: "1px solid var(--bds)" }}>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Preference</p>
+                <p className="text-sm" style={{ color: "var(--tx2)" }}>{order.deliveryPreference}</p>
+              </div>
+              {order.notes && (
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Notes</p>
+                  <p className="text-sm truncate" style={{ color: "var(--tx2)" }}>{order.notes}</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Line items */}
@@ -119,7 +132,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                 <span className="text-right">Price</span>
               </div>
               {order.items.map((item) => (
-                <div key={item.productId} className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
+                <div key={item.id} className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                   <span className="text-sm" style={{ color: "var(--tx)" }}>{item.name}</span>
                   <span className="text-sm text-right" style={{ color: "var(--tx3)" }}>×{item.quantity}</span>
                   <span className="text-sm font-medium text-right" style={{ color: "var(--tx2)" }}>
@@ -151,62 +164,66 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
           {/* Payment details */}
           <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
             <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>Pay via</p>
-            <div className="flex items-center gap-3 mb-3">
-              <div
-                className="w-9 h-9 rounded-[var(--r)] flex items-center justify-center"
-                style={{ background: "var(--bg3)" }}
-              >
-                <PaymentIcon type={primaryPayment.type} />
-              </div>
-              <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{primaryPayment.label}</p>
-            </div>
-            {primaryPayment.accountNumber && (
-              <div
-                className="flex items-center justify-between p-3 rounded-[var(--r)]"
-                style={{ background: "var(--bg3)" }}
-              >
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
-                    {primaryPayment.type === "momo" ? "MoMo Number" : "Account Number"}
-                  </p>
-                  <p className="text-base font-bold tracking-wider" style={{ color: "var(--tx)" }}>
-                    {primaryPayment.accountNumber}
-                  </p>
+            {order.paymentMethod ? (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className="w-9 h-9 rounded-[var(--r)] flex items-center justify-center"
+                    style={{ background: "var(--bg3)" }}
+                  >
+                    <PaymentIcon type={order.paymentMethod.type} />
+                  </div>
+                  <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{order.paymentMethod.label}</p>
                 </div>
-                <CopyButton text={primaryPayment.accountNumber} />
-              </div>
+                {order.paymentMethod.accountNumber && (
+                  <div
+                    className="flex items-center justify-between p-3 rounded-[var(--r)]"
+                    style={{ background: "var(--bg3)" }}
+                  >
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
+                        {order.paymentMethod.type === "momo" ? "MoMo Number" : "Account Number"}
+                      </p>
+                      <p className="text-base font-bold tracking-wider" style={{ color: "var(--tx)" }}>
+                        {order.paymentMethod.accountNumber}
+                      </p>
+                    </div>
+                    <CopyButton text={order.paymentMethod.accountNumber} />
+                  </div>
+                )}
+                <div
+                  className="flex items-center justify-between p-3 rounded-[var(--r)] mt-2"
+                  style={{ background: "var(--bg3)" }}
+                >
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Account Name</p>
+                    <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{order.paymentMethod.accountName}</p>
+                  </div>
+                  <CopyButton text={order.paymentMethod.accountName} />
+                </div>
+                <p className="text-xs mt-3" style={{ color: "var(--tx3)" }}>
+                  Send{" "}
+                  <span className="font-bold" style={{ color: "var(--tx)" }}>
+                    {formatPrice(order.totalPesewas)}
+                  </span>{" "}
+                  and send your receipt to WhatsApp.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm" style={{ color: "var(--tx2)" }}>
+                See{" "}
+                <Link href={`/${order.vendor.slug}/pay`} className="underline" style={{ color: "var(--ac)" }}>
+                  {order.vendor.name}&apos;s payment options
+                </Link>{" "}
+                and send your receipt to WhatsApp.
+              </p>
             )}
-            <div
-              className="flex items-center justify-between p-3 rounded-[var(--r)] mt-2"
-              style={{ background: "var(--bg3)" }}
-            >
-              <div>
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Account Name</p>
-                <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{primaryPayment.accountName}</p>
-              </div>
-              <CopyButton text={primaryPayment.accountName} />
-            </div>
-            <p className="text-xs mt-3" style={{ color: "var(--tx3)" }}>
-              Send{" "}
-              <span className="font-bold" style={{ color: "var(--tx)" }}>
-                {formatPrice(order.totalPesewas)}
-              </span>{" "}
-              and send your receipt to WhatsApp.
-            </p>
           </div>
 
           {/* Actions */}
           <div className="flex flex-col gap-2 mt-2">
             <a
-              href="#"
-              className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium text-white"
-              style={{ background: "var(--ac)" }}
-            >
-              <Download size={15} />
-              Download PDF Receipt
-            </a>
-            <a
-              href={`https://wa.me/${vendor.whatsapp.replace("+", "")}?text=${whatsappMsg}`}
+              href={`https://wa.me/${whatsappNumber.replace("+", "")}?text=${whatsappMsg}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"
@@ -218,7 +235,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
           </div>
 
           <div className="text-center pt-2">
-            <Link href={`/${vendor.slug}/shop`} className="text-sm" style={{ color: "var(--tx3)" }}>
+            <Link href={`/${order.vendor.slug}/shop`} className="text-sm" style={{ color: "var(--tx3)" }}>
               ← Back to shop
             </Link>
           </div>

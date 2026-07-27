@@ -75,7 +75,7 @@ export default async function ShopPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
       />
-      <ShopClient slug={slug} vendorName={vendorData.name} products={vendorData.products} />
+      <ShopClient slug={slug} vendorName={vendorData.name} products={vendorData.products} paymentMethods={vendorData.paymentMethods} />
     </>
   );
 }

@@ -48,6 +48,11 @@ enum PaymentMethodType {
   cash
 }
 
+enum OrderDeliveryPreference {
+  Pickup
+  Delivery
+}
+
 enum DepositSetting {
   None
   Fixed
@@ -179,6 +184,7 @@ model Product {
   vendorId          String
   vendor            Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   name              String
+  slug              String
   priceInPesewas    Int
   stockCount        Int
   lowStockThreshold Int
@@ -190,6 +196,7 @@ model Product {
   orderItems OrderItem[]
 
   @@index([vendorId])
+  @@unique([vendorId, slug])
 }
 
 // Spec §7.6 — up to 5 images per product, ordered for display. Replaces the
@@ -244,21 +251,26 @@ model BookingService {
 }
 
 model Order {
-  id             String      @id @default(cuid())
-  vendorId       String
-  vendor         Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  slug           String      @unique
-  ref            String      @unique
-  customerName   String
-  customerPhone  String
-  totalPesewas   Int
-  status         OrderStatus @default(new)
-  seenByVendorAt DateTime?   @db.Timestamptz(3)
-  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+  id                 String                  @id @default(cuid())
+  vendorId           String
+  vendor             Vendor                  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  slug               String                  @unique
+  ref                String                  @unique
+  customerName       String
+  customerPhone      String
+  notes              String                  @default("")
+  deliveryPreference OrderDeliveryPreference @default(Pickup)
+  paymentMethodId    String?
+  paymentMethod      PaymentMethod?          @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  totalPesewas       Int
+  status             OrderStatus             @default(new)
+  seenByVendorAt     DateTime?               @db.Timestamptz(3)
+  createdAt          DateTime                @default(now()) @db.Timestamptz(3)
 
   items OrderItem[]
 
   @@index([vendorId])
+  @@index([paymentMethodId])
 }
 
 model OrderItem {
@@ -286,6 +298,8 @@ model PaymentMethod {
   network       String?
   active        Boolean           @default(true)
   displayOrder  Int               @default(0)
+
+  orders Order[]
 
   @@index([vendorId])
 }

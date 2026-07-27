@@ -68,6 +68,20 @@ export async function getAllActiveVendorSlugs(): Promise<string[]> {
   return vendors.map((v) => v.slug);
 }
 
+export interface VendorProductSlugPair {
+  vendorSlug: string;
+  productSlug: string;
+}
+
+// Used by app/sitemap.ts to list every indexable product page.
+export async function getAllActiveProductSlugs(): Promise<VendorProductSlugPair[]> {
+  const vendors = await db.vendor.findMany({
+    where: { active: true, storefrontPublished: true },
+    select: { slug: true, products: { where: { active: true }, select: { slug: true } } },
+  });
+  return vendors.flatMap((v) => v.products.map((p) => ({ vendorSlug: v.slug, productSlug: p.slug })));
+}
+
 export interface VendorPublicMeta {
   name: string;
   published: boolean;

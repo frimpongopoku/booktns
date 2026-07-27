@@ -6,10 +6,45 @@ import {
   services,
   products,
   bookings,
-  orders,
   paymentMethods,
   videos,
 } from "../lib/data";
+
+// Order sample data now lives inline here rather than in lib/data.ts — the
+// real /order/[slug] page and dashboard Orders page read live DB rows via
+// app/api/orders, so lib/data.ts no longer needs to export mock orders at
+// all; this seed script is the only place that still wants some.
+const orders = [
+  {
+    slug: "ord_seed0001aa",
+    ref: "ORD-000001",
+    customerName: "Tolu Adesanya",
+    customerPhone: "+2348055000005",
+    notes: "",
+    deliveryPreference: "Pickup" as const,
+    items: [
+      { productId: "p1", name: "Argan Hair Oil", priceSnapshot: 8500, quantity: 2 },
+      { productId: "p2", name: "Curl Defining Cream", priceSnapshot: 6500, quantity: 1 },
+    ],
+    totalPesewas: 23500,
+    status: "new" as const,
+    seenByVendorAt: null,
+    createdAt: "2025-07-15T13:00:00Z",
+  },
+  {
+    slug: "ord_seed0002bb",
+    ref: "ORD-000002",
+    customerName: "Sade Ibrahim",
+    customerPhone: "+2348055000006",
+    notes: "",
+    deliveryPreference: "Pickup" as const,
+    items: [{ productId: "p3", name: "Vitamin C Serum", priceSnapshot: 11000, quantity: 1 }],
+    totalPesewas: 11000,
+    status: "processing" as const,
+    seenByVendorAt: "2025-07-15T14:00:00Z",
+    createdAt: "2025-07-15T12:00:00Z",
+  },
+];
 
 async function main() {
   // Dev-only reset — wipe in reverse dependency order, then reseed from lib/data.ts.
@@ -94,6 +129,7 @@ async function main() {
       data: {
         vendorId: createdVendor.id,
         name: p.name,
+        slug: p.slug,
         priceInPesewas: p.priceInPesewas,
         stockCount: p.stockCount,
         lowStockThreshold: p.lowStockThreshold,
@@ -140,6 +176,8 @@ async function main() {
         ref: order.ref,
         customerName: order.customerName,
         customerPhone: order.customerPhone,
+        notes: order.notes,
+        deliveryPreference: order.deliveryPreference,
         totalPesewas: order.totalPesewas,
         status: order.status,
         seenByVendorAt: order.seenByVendorAt ? new Date(order.seenByVendorAt) : null,

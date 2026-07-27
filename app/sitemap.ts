@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getAllActiveVendorSlugs } from "@/lib/vendors";
+import { getAllActiveVendorSlugs, getAllActiveProductSlugs } from "@/lib/vendors";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -26,6 +26,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
       }
     );
+  }
+
+  const products = await getAllActiveProductSlugs();
+  for (const { vendorSlug, productSlug } of products) {
+    entries.push({
+      url: `${APP_URL}/${vendorSlug}/shop/${productSlug}`,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    });
   }
 
   return entries;

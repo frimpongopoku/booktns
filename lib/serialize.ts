@@ -7,8 +7,10 @@ import type {
   Vendor as PrismaVendor,
   VendorVideo as PrismaVendorVideo,
   PaymentMethod as PrismaPaymentMethod,
+  Order as PrismaOrder,
+  OrderItem as PrismaOrderItem,
 } from "@/lib/generated/prisma/client";
-import type { Service, Product, Staff, Media, Vendor, VendorVideo, PaymentMethod } from "@/types";
+import type { Service, Product, Staff, Media, Vendor, VendorVideo, PaymentMethod, Order, OrderItem } from "@/types";
 
 // Prisma's nullable String? fields come back as `null`; our app types use
 // `?: string` (undefined) at this boundary, matching the convention in lib/vendors.ts.
@@ -79,5 +81,29 @@ export function serializePaymentMethod(pm: PrismaPaymentMethod): PaymentMethod {
     accountNumber: pm.accountNumber ?? undefined,
     bankName: pm.bankName ?? undefined,
     network: pm.network ?? undefined,
+  };
+}
+
+export function serializeOrderItem(item: PrismaOrderItem): OrderItem {
+  return { ...item };
+}
+
+export function serializeOrder(order: PrismaOrder & { items: PrismaOrderItem[]; paymentMethod?: PrismaPaymentMethod | null }): Order {
+  return {
+    id: order.id,
+    slug: order.slug,
+    ref: order.ref,
+    vendorId: order.vendorId,
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    notes: order.notes,
+    deliveryPreference: order.deliveryPreference,
+    paymentMethodId: order.paymentMethodId ?? undefined,
+    paymentMethod: order.paymentMethod ? serializePaymentMethod(order.paymentMethod) : undefined,
+    items: order.items.map(serializeOrderItem),
+    totalPesewas: order.totalPesewas,
+    status: order.status,
+    seenByVendorAt: order.seenByVendorAt ? order.seenByVendorAt.toISOString() : null,
+    createdAt: order.createdAt.toISOString(),
   };
 }

@@ -79,6 +79,7 @@ export interface Product {
   id: string;
   vendorId: string;
   name: string;
+  slug: string;
   priceInPesewas: number;
   stockCount: number;
   lowStockThreshold: number;
@@ -122,8 +123,11 @@ export interface Booking {
   pdfUrl?: string;
 }
 
+export type OrderDeliveryPreference = "Pickup" | "Delivery";
+
 export interface OrderItem {
-  productId: string;
+  id: string;
+  productId: string | null;
   name: string;
   priceSnapshot: number;
   quantity: number;
@@ -136,12 +140,15 @@ export interface Order {
   vendorId: string;
   customerName: string;
   customerPhone: string;
+  notes: string;
+  deliveryPreference: OrderDeliveryPreference;
+  paymentMethodId?: string;
+  paymentMethod?: PaymentMethod;
   items: OrderItem[];
   totalPesewas: number;
   status: OrderStatus;
   seenByVendorAt: string | null;
   createdAt: string;
-  pdfUrl?: string;
 }
 
 export interface PaymentMethod {

@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatPrice, formatDuration } from "@/lib/data";
-import { getStorefrontVendor, getAllActiveVendorSlugs, getStorefrontVendorForPreview } from "@/lib/vendors";
+import { getStorefrontVendor, getAllActiveVendorSlugs, getStorefrontVendorForPreview, getVendorPublicMeta } from "@/lib/vendors";
 import { getSession } from "@/lib/auth";
 import StorefrontNav from "@/components/storefront/StorefrontNav";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import VideoCard from "@/components/storefront/VideoCard";
+import StorefrontUnavailable from "@/components/storefront/StorefrontUnavailable";
 import {
   MapPin,
   Clock,
@@ -52,7 +53,14 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const vendorData = await getStorefrontVendor(slug);
-  if (!vendorData) return {};
+
+  if (!vendorData) {
+    const meta = await getVendorPublicMeta(slug);
+    return {
+      title: meta ? `${meta.name} — Coming soon` : "Shop not found",
+      robots: { index: false, follow: false },
+    };
+  }
 
   const title = `${vendorData.name} — Book Appointments Online`;
   const description =
@@ -96,7 +104,15 @@ export default async function StorefrontPage({ params }: PageProps) {
     }
   }
 
-  if (!vendorData) notFound();
+  if (!vendorData) {
+    const meta = await getVendorPublicMeta(slug);
+    // A genuinely nonexistent slug gets a real 404 (correct HTTP semantics
+    // for crawlers/tools, via app/[slug]/not-found.tsx). A vendor that
+    // exists but hasn't published yet stays 200 — the resource is real,
+    // just not fully available — with noindex handled in generateMetadata.
+    if (!meta) notFound();
+    return <StorefrontUnavailable reason="not-published" vendorName={meta.name} />;
+  }
 
   const businessJsonLd = {
     "@context": "https://schema.org",

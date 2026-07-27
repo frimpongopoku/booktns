@@ -67,3 +67,24 @@ export async function getAllActiveVendorSlugs(): Promise<string[]> {
   });
   return vendors.map((v) => v.slug);
 }
+
+export interface VendorPublicMeta {
+  name: string;
+  published: boolean;
+}
+
+// Lightweight lookup for the "shop not found" vs "shop exists but isn't
+// published yet" distinction on the public storefront's not-found states —
+// deliberately returns only the name, nothing else, since an unpublished
+// vendor's real data (services/products/etc.) shouldn't be exposed to
+// anonymous visitors. An inactive (suspended) vendor is treated the same as
+// nonexistent — surfacing "coming soon" for a disabled account would be
+// misleading.
+export const getVendorPublicMeta = cache(async (slug: string): Promise<VendorPublicMeta | null> => {
+  const vendor = await db.vendor.findUnique({
+    where: { slug, active: true },
+    select: { name: true, storefrontPublished: true },
+  });
+  if (!vendor) return null;
+  return { name: vendor.name, published: vendor.storefrontPublished };
+});

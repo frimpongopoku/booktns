@@ -126,6 +126,7 @@ export function serializeBooking(booking: BookingWithRelations): Booking {
     vendorId: booking.vendorId,
     customerName: booking.customerName,
     customerPhone: booking.customerPhone,
+    customerEmail: booking.customerEmail,
     services: booking.services,
     products: booking.products,
     staffPreferenceId: booking.staffPreferenceId ?? undefined,
@@ -137,11 +138,11 @@ export function serializeBooking(booking: BookingWithRelations): Booking {
     status: booking.status,
     notes: booking.notes,
     depositAmountPesewas: booking.depositAmountPesewas,
+    depositReferenceCode: booking.depositReferenceCode ?? undefined,
     paymentMethodId: booking.paymentMethodId ?? undefined,
     paymentMethod: booking.paymentMethod ? serializePaymentMethod(booking.paymentMethod) : undefined,
     seenByVendorAt: booking.seenByVendorAt ? booking.seenByVendorAt.toISOString() : null,
     createdAt: booking.createdAt.toISOString(),
-    bookingRequestPdfUrl: booking.bookingRequestPdfUrl ?? undefined,
     confirmedPdfUrl: booking.confirmedPdfUrl ?? undefined,
   };
 }

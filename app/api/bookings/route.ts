@@ -4,15 +4,17 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { requireRole } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
-import { generateBookingSlug } from "@/lib/slugs";
+import { generateBookingSlug, generateDepositReferenceCode } from "@/lib/slugs";
 import { getAvailableSlots } from "@/lib/availability";
 import { calculateDepositAmountPesewas } from "@/lib/deposit";
 import { serializeBooking } from "@/lib/serialize";
+import { sendBookingRequestEmail, sendNewBookingNotification } from "@/lib/email";
 
 const createSchema = z.object({
   vendorSlug: z.string().trim().min(1),
   customerName: z.string().trim().min(1, "Name is required"),
   customerPhone: z.string().trim().min(1, "Phone number is required"),
+  customerEmail: z.string().trim().email("Enter a valid email address"),
   serviceIds: z.array(z.string().trim().min(1)).min(1, "Select at least one service"),
   products: z
     .array(z.object({ productId: z.string().trim().min(1), quantity: z.number().int().positive() }))
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
 
   const vendor = await db.vendor.findUnique({
     where: { slug: parsed.data.vendorSlug },
-    select: { id: true, active: true, storefrontPublished: true, depositSetting: true, depositValue: true },
+    select: { id: true, name: true, active: true, storefrontPublished: true, depositSetting: true, depositValue: true, cancellationPolicy: true },
   });
   if (!vendor || !vendor.active || !vendor.storefrontPublished) {
     return NextResponse.json({ error: "Shop not found", code: "not_found" }, { status: 404 });
@@ -46,10 +48,10 @@ export async function POST(request: Request) {
 
   const requestedProducts = parsed.data.products ?? [];
 
-  // None of these four lookups depend on each other's results (each only
+  // None of these five lookups depend on each other's results (each only
   // needs vendor.id + fields already in parsed.data) — fetch concurrently
-  // rather than as four sequential round trips.
-  const [services, products, staffMatch, paymentMethodMatch] = await Promise.all([
+  // rather than as five sequential round trips.
+  const [services, products, staffMatch, paymentMethodMatch, notifyStaff] = await Promise.all([
     db.service.findMany({ where: { id: { in: parsed.data.serviceIds }, vendorId: vendor.id, active: true } }),
     requestedProducts.length > 0
       ? db.product.findMany({ where: { id: { in: requestedProducts.map((p) => p.productId) }, vendorId: vendor.id, active: true } })
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
     parsed.data.paymentMethodId
       ? db.paymentMethod.findFirst({ where: { id: parsed.data.paymentMethodId, vendorId: vendor.id, active: true }, select: { id: true } })
       : Promise.resolve(null),
+    db.staff.findMany({ where: { vendorId: vendor.id, role: { in: ["Owner", "Management"] }, active: true }, select: { email: true } }),
   ]);
 
   if (services.length !== new Set(parsed.data.serviceIds).size) {
@@ -143,11 +146,13 @@ export async function POST(request: Request) {
           slug: generateBookingSlug(),
           customerName: parsed.data.customerName,
           customerPhone: normalizedPhone,
+          customerEmail: parsed.data.customerEmail,
           staffPreferenceId: parsed.data.staffPreferenceId || null,
           startTime,
           endTime,
           notes: parsed.data.notes ?? "",
           depositAmountPesewas,
+          depositReferenceCode: depositAmountPesewas > 0 ? generateDepositReferenceCode() : null,
           paymentMethodId: parsed.data.paymentMethodId || null,
           services: { create: bookingServices },
           products: { create: bookingProducts },
@@ -160,7 +165,17 @@ export async function POST(request: Request) {
           paymentMethod: true,
         },
       });
-      return NextResponse.json({ booking: serializeBooking(booking) }, { status: 201 });
+
+      const serialized = serializeBooking(booking);
+      const vendorInfo = { name: vendor.name, cancellationPolicy: vendor.cancellationPolicy };
+      // Fire-and-forget — a slow or failing email provider must never hold
+      // up the booking response or fail an otherwise-successful booking.
+      sendBookingRequestEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingRequestEmail failed", err));
+      sendNewBookingNotification(serialized, vendorInfo, notifyStaff.map((s) => s.email)).catch((err) =>
+        console.error("sendNewBookingNotification failed", err)
+      );
+
+      return NextResponse.json({ booking: serialized }, { status: 201 });
     } catch (err) {
       const isSlugConflict = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
       if (isSlugConflict && attempt < MAX_SLUG_ATTEMPTS - 1) continue;

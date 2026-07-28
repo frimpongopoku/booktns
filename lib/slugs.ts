@@ -28,6 +28,18 @@ export function generateOrderRef(): string {
   return `ORD-${String(n).padStart(6, "0")}`;
 }
 
+// Short numeric code a customer types into a bank/mobile-money payment
+// description so the vendor can cross-reference a deposit (e.g. "48213").
+// Deliberately unprefixed — a letter prefix in a payment-description field
+// invites transcription errors. Small (5 digits, ~100K combinations), so
+// like generateOrderRef the call site needs to retry on a unique-constraint
+// conflict; uniqueness here is scoped per vendor (see the schema comment on
+// Booking.depositReferenceCode).
+export function generateDepositReferenceCode(): string {
+  const n = randomBytes(4).readUInt32BE(0) % 100_000;
+  return String(n).padStart(5, "0");
+}
+
 // Public, URL-safe booking slug, e.g. "booking_k4p9x2mqrz" — opaque like
 // order slugs (a private receipt, not public catalog content), so no
 // retry-on-conflict needed at the call site, same collision-odds reasoning

@@ -175,6 +175,21 @@ function BookingDrawer({ booking, staff, vendorSlug, onClose, onUpdate }: Bookin
               </div>
             </div>
 
+            {/* Products flagged */}
+            {booking.products.length > 0 && (
+              <div className="p-3 rounded-[var(--r)]" style={{ background: "var(--bg2)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Products flagged</p>
+                <div className="flex flex-col gap-1.5">
+                  {booking.products.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between">
+                      <span className="text-sm" style={{ color: "var(--tx)" }}>{p.name} × {p.quantity}</span>
+                      <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(p.priceAtBooking * p.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Appointment */}
             <div className="p-3 rounded-[var(--r)]" style={{ background: "var(--bg2)" }}>
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Appointment</p>

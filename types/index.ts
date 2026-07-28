@@ -111,6 +111,7 @@ export interface Booking {
   vendorId: string;
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
   services: BookingService[];
   products: BookingProduct[];
   staffPreferenceId?: string;
@@ -122,11 +123,11 @@ export interface Booking {
   status: BookingStatus;
   notes: string;
   depositAmountPesewas: number;
+  depositReferenceCode?: string;
   paymentMethodId?: string;
   paymentMethod?: PaymentMethod;
   seenByVendorAt: string | null;
   createdAt: string;
-  bookingRequestPdfUrl?: string;
   confirmedPdfUrl?: string;
 }
 

@@ -219,6 +219,7 @@ model Booking {
   slug                 String        @unique
   customerName         String
   customerPhone        String
+  customerEmail        String
   staffPreferenceId    String?
   staffPreference      Staff?        @relation("BookingStaffPreference", fields: [staffPreferenceId], references: [id], onDelete: SetNull)
   assignedStaffId      String?
@@ -228,9 +229,13 @@ model Booking {
   status               BookingStatus @default(pending)
   notes                String        @default("")
   depositAmountPesewas Int           @default(0)
+  // Only set when depositAmountPesewas > 0 — a short human-typed reference
+  // for manual bank/mobile-money payments so vendors can cross-reference.
+  // Not a security token; uniqueness is scoped per vendor since that's the
+  // only place two deposits could ever be confused with each other.
+  depositReferenceCode String?
   paymentMethodId      String?
   paymentMethod        PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
-  bookingRequestPdfUrl String?
   confirmedPdfUrl      String?
   seenByVendorAt       DateTime?     @db.Timestamptz(3)
   createdAt            DateTime      @default(now()) @db.Timestamptz(3)
@@ -239,6 +244,7 @@ model Booking {
   products BookingProduct[]
 
   @@index([vendorId])
+  @@unique([vendorId, depositReferenceCode])
 }
 
 model BookingService {

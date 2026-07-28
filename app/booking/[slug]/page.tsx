@@ -5,6 +5,7 @@ import { getBookingBySlug } from "@/lib/bookings";
 import { formatPrice } from "@/lib/data";
 import { bookingStatusBadge } from "@/components/ui/Badge";
 import { CopyButton } from "@/components/ui/CopyButton";
+import BookingConfirmationActions from "@/components/storefront/BookingConfirmationActions";
 import {
   CheckCircle2,
   Clock,
@@ -12,7 +13,6 @@ import {
   User,
   MapPin,
   MessageCircle,
-  CalendarPlus,
 } from "lucide-react";
 
 interface PageProps {
@@ -37,10 +37,33 @@ function formatTime(iso: string): string {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const booking = await getBookingBySlug(slug);
+  if (!booking) {
+    return {
+      title: "Booking Confirmation",
+      alternates: { canonical: `/booking/${slug}` },
+      robots: { index: false, follow: true },
+    };
+  }
+
+  const servicesLabel = booking.services.map((s) => s.name).join(" + ");
+  const description = `${servicesLabel} · ${formatDateTime(booking.startTime)} at ${booking.vendor.name}`;
+
   return {
-    title: "Booking Confirmation",
+    title: `Booking Confirmation — ${booking.vendor.name}`,
+    description,
     alternates: { canonical: `/booking/${slug}` },
     robots: { index: false, follow: true },
+    openGraph: {
+      title: `Booking at ${booking.vendor.name}`,
+      description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `Booking at ${booking.vendor.name}`,
+      description,
+    },
   };
 }
 
@@ -60,11 +83,17 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
 
   const servicesTotal = booking.services.reduce((s, svc) => s + svc.priceAtBooking, 0);
 
-  const calStartDate = new Date(booking.startTime);
-  const calEndDate = new Date(booking.endTime);
+  // Booking times are stored as plain UTC standing in for Ghana wall-clock
+  // time (Africa/Accra is UTC+0 year-round — see lib/availability.ts), same
+  // as every other display on this page. A trailing "Z" would tell Google
+  // Calendar this is a real UTC instant and it would convert to the
+  // viewer's own device timezone, showing the wrong wall-clock time to
+  // anyone not physically in Ghana — so these are passed as floating
+  // (no "Z") local times with an explicit ctz instead.
+  const toGoogleCalendarDateTime = (iso: string): string => iso.replace(/[-:]/g, "").split(".")[0];
   const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
     booking.services.map((s) => s.name).join(" + ")
-  )}&dates=${calStartDate.toISOString().replace(/[-:]/g, "").split(".")[0]}Z/${calEndDate.toISOString().replace(/[-:]/g, "").split(".")[0]}Z&details=Booking+at+${encodeURIComponent(booking.vendor.name)}&location=${encodeURIComponent(booking.vendor.location)}`;
+  )}&dates=${toGoogleCalendarDateTime(booking.startTime)}/${toGoogleCalendarDateTime(booking.endTime)}&details=Booking+at+${encodeURIComponent(booking.vendor.name)}&location=${encodeURIComponent(booking.vendor.location)}&ctz=Africa/Accra`;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -122,6 +151,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--tx)" }}>{booking.customerName}</p>
                   <p className="text-xs" style={{ color: "var(--tx3)" }}>{booking.customerPhone}</p>
+                  <p className="text-xs" style={{ color: "var(--tx3)" }}>{booking.customerEmail}</p>
                 </div>
               </div>
               {booking.notes && (
@@ -218,6 +248,11 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
                   <span className="font-bold">{formatPrice(booking.depositAmountPesewas)}</span>{" "}
                   to confirm your booking.
                 </p>
+                {booking.depositReferenceCode && (
+                  <p className="text-sm mt-1" style={{ color: "var(--amber)" }}>
+                    Include reference <span className="font-bold">{booking.depositReferenceCode}</span> in your payment description.
+                  </p>
+                )}
                 {booking.paymentMethod ? (
                   <div className="mt-3 p-3 rounded-[var(--r)]" style={{ background: "var(--bg)" }}>
                     <div className="flex items-center justify-between">
@@ -243,6 +278,16 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
               </div>
             )}
 
+            {/* Cancellation policy */}
+            {booking.vendor.cancellationPolicy && (
+              <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>
+                  Cancellation policy
+                </p>
+                <p className="text-sm" style={{ color: "var(--tx2)" }}>{booking.vendor.cancellationPolicy}</p>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex flex-col gap-2">
               <a
@@ -255,17 +300,18 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
                 <MessageCircle size={15} />
                 Message vendor on WhatsApp
               </a>
-              <a
-                href={calendarUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"
-                style={{ background: "var(--bg2)", color: "var(--tx2)" }}
-              >
-                <CalendarPlus size={15} />
-                Add to Calendar
-              </a>
             </div>
+
+            <BookingConfirmationActions
+              slug={booking.slug}
+              status={booking.status}
+              vendorName={booking.vendor.name}
+              customerName={booking.customerName}
+              customerPhone={booking.customerPhone}
+              customerEmail={booking.customerEmail}
+              calendarUrl={calendarUrl}
+              confirmedPdfUrl={booking.confirmedPdfUrl}
+            />
           </div>
         </div>
 

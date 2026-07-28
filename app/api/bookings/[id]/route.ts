@@ -4,6 +4,9 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { serializeBooking } from "@/lib/serialize";
 import { getAvailableSlots } from "@/lib/availability";
+import { generateConfirmedBookingPdf } from "@/lib/pdf";
+import { uploadFile } from "@/lib/storage";
+import { sendBookingConfirmedEmail } from "@/lib/email";
 
 const BOOKING_STATUSES = ["pending", "confirmed", "completed", "cancelled", "rescheduled"] as const;
 
@@ -34,7 +37,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   const existing = await db.booking.findFirst({
     where: { id, vendorId: auth.session.vendorId },
-    select: { id: true, staffPreferenceId: true, assignedStaffId: true },
+    select: {
+      id: true,
+      status: true,
+      staffPreferenceId: true,
+      assignedStaffId: true,
+      vendor: { select: { name: true, location: true, logoUrl: true, cancellationPolicy: true } },
+    },
   });
   if (!existing) {
     return NextResponse.json({ error: "Booking not found", code: "not_found" }, { status: 404 });
@@ -93,5 +102,33 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     },
   });
 
-  return NextResponse.json({ booking: serializeBooking(booking) });
+  let serialized = serializeBooking(booking);
+  const vendorInfo = existing.vendor;
+
+  // Confirmed Booking PDF is generated once, only on the transition into
+  // "confirmed" — never regenerated on later edits to the same booking.
+  if (existing.status !== "confirmed" && parsed.data.status === "confirmed") {
+    try {
+      const pdfBuffer = await generateConfirmedBookingPdf(serialized, vendorInfo);
+      const confirmedPdfUrl = await uploadFile(`bookings/${booking.slug}/confirmed.pdf`, pdfBuffer, "application/pdf");
+      const updated = await db.booking.update({
+        where: { id },
+        data: { confirmedPdfUrl },
+        include: {
+          services: true,
+          products: true,
+          staffPreference: { select: { name: true } },
+          assignedStaff: { select: { name: true } },
+          paymentMethod: true,
+        },
+      });
+      serialized = serializeBooking(updated);
+    } catch (err) {
+      console.error("generateConfirmedBookingPdf failed", err);
+    }
+
+    sendBookingConfirmedEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingConfirmedEmail failed", err));
+  }
+
+  return NextResponse.json({ booking: serialized });
 }

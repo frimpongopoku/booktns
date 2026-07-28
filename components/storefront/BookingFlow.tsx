@@ -103,6 +103,7 @@ export default function BookingFlow({
   // Step 5 — Customer Details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState<string | undefined>(undefined);
 
@@ -161,7 +162,7 @@ export default function BookingFlow({
   const canProceed = () => {
     if (step === 0) return selectedServices.length > 0;
     if (step === 2) return selectedDay !== null && selectedTime !== null;
-    if (step === 4) return customerName.trim().length > 0 && customerPhone.trim().length > 0;
+    if (step === 4) return customerName.trim().length > 0 && customerPhone.trim().length > 0 && customerEmail.trim().length > 0;
     return true;
   };
 
@@ -178,6 +179,7 @@ export default function BookingFlow({
           vendorSlug: slug,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
+          customerEmail: customerEmail.trim(),
           serviceIds: selectedServices.map((s) => s.id),
           products: Object.entries(productQtys).map(([productId, quantity]) => ({ productId, quantity })),
           staffPreferenceId: selectedStaffId,
@@ -608,7 +610,14 @@ export default function BookingFlow({
                 placeholder="e.g. 0244 123 456"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
-                hint="We'll send your booking confirmation here"
+              />
+              <Input
+                label="Email address"
+                type="email"
+                placeholder="e.g. amara@email.com"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                hint="We'll email you a link to manage this booking"
               />
               <Textarea
                 label="Notes (optional)"
@@ -641,6 +650,7 @@ export default function BookingFlow({
                   <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Customer</p>
                   <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{customerName}</p>
                   <p className="text-sm" style={{ color: "var(--tx2)" }}>{customerPhone}</p>
+                  <p className="text-sm" style={{ color: "var(--tx2)" }}>{customerEmail}</p>
                   {customerNotes && <p className="text-xs mt-1" style={{ color: "var(--tx3)" }}>{customerNotes}</p>}
                 </div>
 

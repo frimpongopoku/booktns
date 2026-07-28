@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { serializeBooking } from "@/lib/serialize";
-import type { Booking } from "@/types";
+import type { Booking, StorefrontTheme } from "@/types";
 
 export interface BookingWithVendor extends Booking {
   vendor: {
@@ -11,6 +11,8 @@ export interface BookingWithVendor extends Booking {
     location: string;
     whatsapp: string;
     personalWhatsappNumber?: string;
+    cancellationPolicy?: string;
+    storefrontTheme: StorefrontTheme;
   };
 }
 
@@ -40,6 +42,8 @@ export const getBookingBySlug = cache(async (slug: string): Promise<BookingWithV
       location: booking.vendor.location,
       whatsapp: booking.vendor.whatsapp,
       personalWhatsappNumber: booking.vendor.personalWhatsappNumber ?? undefined,
+      cancellationPolicy: booking.vendor.cancellationPolicy ?? undefined,
+      storefrontTheme: booking.vendor.storefrontTheme,
     },
   };
 });

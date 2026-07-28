@@ -27,10 +27,13 @@ export default async function BookPage({ params }: PageProps) {
   return (
     <BookingFlow
       slug={slug}
-      vendorName={vendorData.name}
       services={vendorData.services}
       products={vendorData.products}
       staff={vendorData.staff}
+      depositSetting={vendorData.depositSetting}
+      depositValue={vendorData.depositValue}
+      cancellationPolicy={vendorData.cancellationPolicy}
+      paymentMethods={vendorData.paymentMethods}
     />
   );
 }

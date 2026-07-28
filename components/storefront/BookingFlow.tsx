@@ -1,23 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Check,
   ChevronLeft,
   ChevronRight,
   Clock,
   User,
-  X,
-  CheckCircle2,
   Minus,
   Plus,
 } from "lucide-react";
 import { formatPrice, formatDuration } from "@/lib/data";
-import type { Service, Product, Staff } from "@/types";
+import { calculateDepositAmountPesewas } from "@/lib/deposit";
+import { useAvailableSlots } from "@/hooks/useAvailableSlots";
+import type { Service, Product, Staff, PaymentMethod, DepositSetting } from "@/types";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Input";
+
+interface ApiErrorBody {
+  error: string;
+  code: string;
+}
 
 const STEPS = [
   "Services",
@@ -28,16 +33,6 @@ const STEPS = [
   "Confirm",
 ];
 
-const TIME_SLOTS = [
-  "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM",
-  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
-  "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM",
-  "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
-  "5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM",
-];
-
-const BLOCKED_SLOTS = ["10:00 AM", "10:30 AM", "2:00 PM", "2:30 PM"];
-
 function generateCalendarDays(year: number, month: number): (number | null)[] {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -47,19 +42,42 @@ function generateCalendarDays(year: number, month: number): (number | null)[] {
   return days;
 }
 
-const BLOCKED_DAYS = [3, 7, 14, 21, 22, 28];
+// "14:30" -> "2:30 PM" — the availability API deals in 24h "HH:mm" (so it can
+// be sent straight back at submission time); this is purely for display.
+function formatSlotLabel(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
 
 interface BookingFlowProps {
   slug: string;
-  vendorName: string;
   services: Service[];
   products: Product[];
   staff: Staff[];
+  depositSetting: DepositSetting;
+  depositValue?: number;
+  cancellationPolicy?: string;
+  paymentMethods: PaymentMethod[];
 }
 
-export default function BookingFlow({ slug, vendorName, services, products, staff }: BookingFlowProps) {
+export default function BookingFlow({
+  slug,
+  services,
+  products,
+  staff,
+  depositSetting,
+  depositValue,
+  cancellationPolicy,
+  paymentMethods,
+}: BookingFlowProps) {
+  const router = useRouter();
   const [step, setStep] = useState(0);
-  const [done, setDone] = useState(false);
 
   // Step 1 — Services
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
@@ -67,10 +85,15 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
   // Step 2 — Staff
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 
-  // Step 3 — Date & Time
-  const today = new Date();
-  const [calMonth, setCalMonth] = useState(today.getMonth());
-  const [calYear, setCalYear] = useState(today.getFullYear());
+  // Step 3 — Date & Time. Ghana is UTC+0 (matching the server-side assumption
+  // in lib/availability.ts), so "today" is derived from UTC here rather than
+  // the browser's local timezone — a customer browsing from outside UTC+0
+  // would otherwise see a "today" out of sync with what the server actually
+  // validates availability against.
+  const now = new Date();
+  const todayUTCStr = `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())}`;
+  const [calMonth, setCalMonth] = useState(now.getUTCMonth());
+  const [calYear, setCalYear] = useState(now.getUTCFullYear());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
@@ -81,16 +104,40 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
+  const [paymentMethodId, setPaymentMethodId] = useState<string | undefined>(undefined);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const totalServiceCost = selectedServices.reduce((s, svc) => s + svc.priceInPesewas, 0);
+  const totalDurationMinutes = selectedServices.reduce((s, svc) => s + svc.durationMinutes, 0);
   const totalProductCost = Object.entries(productQtys).reduce((s, [id, qty]) => {
     const p = products.find((x) => x.id === id);
     return s + (p ? p.priceInPesewas * qty : 0);
   }, 0);
   const totalCost = totalServiceCost + totalProductCost;
 
+  const depositAmountPesewas = calculateDepositAmountPesewas(depositSetting, depositValue, totalServiceCost);
+
   const calDays = generateCalendarDays(calYear, calMonth);
   const monthName = new Date(calYear, calMonth, 1).toLocaleString("default", { month: "long" });
+  const selectedDateStr = selectedDay ? `${calYear}-${pad2(calMonth + 1)}-${pad2(selectedDay)}` : null;
+  const isPastDay = (day: number) => {
+    const dayStr = `${calYear}-${pad2(calMonth + 1)}-${pad2(day)}`;
+    return dayStr < todayUTCStr;
+  };
+
+  // Real availability, no more hardcoded blocked days/times — the only
+  // source of truth for open slots.
+  const { slots: availableSlots, loading: loadingSlots } = useAvailableSlots({
+    vendorSlug: slug,
+    date: selectedDateStr,
+    durationMinutes: totalDurationMinutes,
+    staffId: selectedStaffId,
+  });
+  useEffect(() => {
+    setSelectedTime(null);
+  }, [selectedDateStr]);
 
   const toggleService = (svc: Service) => {
     setSelectedServices((prev) =>
@@ -118,73 +165,80 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
     return true;
   };
 
-  const handleConfirm = () => {
-    setDone(true);
+  const handleConfirm = async () => {
+    if (!selectedDateStr || !selectedTime) return;
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorSlug: slug,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          serviceIds: selectedServices.map((s) => s.id),
+          products: Object.entries(productQtys).map(([productId, quantity]) => ({ productId, quantity })),
+          staffPreferenceId: selectedStaffId,
+          date: selectedDateStr,
+          startTime: selectedTime,
+          paymentMethodId: paymentMethodId ?? undefined,
+          notes: customerNotes.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
+        setError(body?.error ?? "Something went wrong. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      const { booking } = (await res.json()) as { booking: { slug: string } };
+      router.push(`/booking/${booking.slug}`);
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
+      setSubmitting(false);
+    }
   };
 
-  if (done) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-16" style={{ background: "var(--bg)" }}>
-        <div className="max-w-md w-full text-center">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
-            style={{ background: "var(--green-bg)" }}
-          >
-            <CheckCircle2 size={32} style={{ color: "var(--green)" }} />
+  const summarySidebar = step < 5 && (selectedServices.length > 0 || selectedDay) && (
+    <div className="hidden md:block md:sticky md:top-24 h-fit">
+      <div className="rounded-[var(--rl)] p-5" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
+          Your booking so far
+        </p>
+        {selectedServices.length > 0 ? (
+          <div className="flex flex-col gap-2 mb-3">
+            {selectedServices.map((svc) => (
+              <div key={svc.id} className="flex items-center justify-between gap-2">
+                <span className="text-sm truncate" style={{ color: "var(--tx)" }}>{svc.name}</span>
+                <span className="text-sm font-medium flex-shrink-0" style={{ color: "var(--tx2)" }}>
+                  {formatPrice(svc.priceInPesewas)}
+                </span>
+              </div>
+            ))}
           </div>
-          <h2
-            className="font-display text-2xl font-medium mb-3"
-            style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
-          >
-            Booking Submitted!
-          </h2>
+        ) : (
+          <p className="text-sm mb-3" style={{ color: "var(--tx3)" }}>No services selected yet</p>
+        )}
+        {selectedDateStr && selectedDay && (
           <p className="text-sm mb-2" style={{ color: "var(--tx2)" }}>
-            Your booking request has been sent to <strong>{vendorName}</strong>.
+            {monthName} {selectedDay} · {selectedTime ? formatSlotLabel(selectedTime) : "no time picked yet"}
           </p>
-          <p className="text-sm mb-8" style={{ color: "var(--tx2)" }}>
-            You&apos;ll receive a WhatsApp message at {customerPhone} once it&apos;s confirmed.
-          </p>
-
-          <div className="rounded-[var(--rl)] p-5 mb-6 text-left" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
-              Booking Reference
-            </p>
-            <p className="font-display text-xl font-medium" style={{ fontFamily: "var(--font-display)", color: "var(--ac)" }}>
-              BKT-00235
-            </p>
-            <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--bds)" }}>
-              <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{customerName}</p>
-              <p className="text-sm" style={{ color: "var(--tx2)" }}>
-                {selectedServices.map((s) => s.name).join(" + ")}
-              </p>
-              {selectedDay && (
-                <p className="text-sm" style={{ color: "var(--tx2)" }}>
-                  {monthName} {selectedDay} · {selectedTime}
-                </p>
-              )}
-            </div>
+        )}
+        {selectedServices.length > 0 && (
+          <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px solid var(--bds)" }}>
+            <span className="text-sm font-semibold" style={{ color: "var(--tx)" }}>Total</span>
+            <span className="font-display text-lg font-medium" style={{ fontFamily: "var(--font-display)", color: "var(--ac)" }}>
+              {formatPrice(totalServiceCost)}
+            </span>
           </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link
-              href={`/booking/bkt-00235`}
-              className="flex-1 px-4 py-2.5 rounded-[var(--r)] text-sm font-medium text-white text-center"
-              style={{ background: "var(--ac)" }}
-            >
-              View Booking
-            </Link>
-            <Link
-              href={`/${slug}`}
-              className="flex-1 px-4 py-2.5 rounded-[var(--r)] text-sm font-medium text-center"
-              style={{ background: "var(--bg3)", color: "var(--tx)" }}
-            >
-              Back to Store
-            </Link>
-          </div>
-        </div>
+        )}
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -193,7 +247,7 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
         className="sticky top-0 z-30 px-4 py-3"
         style={{ background: "var(--bg)", borderBottom: "1px solid var(--bd)" }}
       >
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
           <div className="flex items-center gap-3 mb-3">
             {step > 0 && (
               <button
@@ -227,7 +281,9 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
       </div>
 
       {/* Content */}
-      <div className="max-w-xl mx-auto px-4 py-6">
+      <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto px-4 py-6">
+        <div className={step < 5 ? "md:grid md:grid-cols-[1fr_320px] md:gap-8 md:items-start" : ""}>
+        <div>
         {/* Step 0: Select Services */}
         {step === 0 && (
           <div>
@@ -262,7 +318,7 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
                       {selected && <Check size={12} color="white" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>
+                      <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>
                         {svc.name}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
@@ -290,7 +346,7 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
               Staff preference
             </h2>
             <p className="text-sm mb-4" style={{ color: "var(--tx3)" }}>
-              Choose who you&apos;d like to be served by — or let us assign someone.
+              Choose who you&apos;d like to be served by — or let us assign someone. Your preference will be considered, but final staff assignment is confirmed by the shop.
             </p>
             <div className="flex flex-col gap-2">
               <button
@@ -399,23 +455,22 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
             </div>
 
             {/* Days */}
-            <div className="grid grid-cols-7 gap-1 mb-6">
+            <div className="grid grid-cols-7 gap-1 md:gap-2 mb-6">
               {calDays.map((day, i) => {
                 if (day === null) return <div key={`empty-${i}`} />;
-                const blocked = BLOCKED_DAYS.includes(day);
+                const blocked = isPastDay(day);
                 const selected = selectedDay === day;
                 return (
                   <button
                     key={day}
                     onClick={() => !blocked && setSelectedDay(day)}
-                    className="aspect-square flex items-center justify-center text-sm rounded-[var(--r)] transition-all"
+                    className="aspect-square flex items-center justify-center text-sm md:text-base rounded-[var(--r)] transition-all"
                     disabled={blocked}
                     style={{
                       background: selected ? "var(--ac)" : blocked ? "var(--bg2)" : undefined,
                       color: selected ? "white" : blocked ? "var(--tx3)" : "var(--tx2)",
                       border: !selected && !blocked ? "1px solid var(--bds)" : undefined,
-                      textDecoration: blocked ? "line-through" : undefined,
-                      opacity: blocked ? 0.5 : 1,
+                      opacity: blocked ? 0.4 : 1,
                       cursor: blocked ? "not-allowed" : "pointer",
                     }}
                   >
@@ -431,40 +486,33 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
                 <p className="text-sm font-semibold mb-3" style={{ color: "var(--tx)" }}>
                   Available times on {monthName} {selectedDay}
                 </p>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {TIME_SLOTS.map((slot) => {
-                    const blocked = BLOCKED_SLOTS.includes(slot);
-                    const selected = selectedTime === slot;
-                    return (
-                      <button
-                        key={slot}
-                        onClick={() => !blocked && setSelectedTime(slot)}
-                        disabled={blocked}
-                        className="px-3 py-2 rounded-[var(--r)] text-sm text-center transition-all"
-                        style={{
-                          background: selected
-                            ? "var(--ac-bg)"
-                            : blocked
-                            ? "var(--bg2)"
-                            : "var(--bg2)",
-                          border: selected
-                            ? "1px solid var(--ac)"
-                            : "1px solid var(--bds)",
-                          color: selected
-                            ? "var(--ac)"
-                            : blocked
-                            ? "var(--tx3)"
-                            : "var(--tx2)",
-                          textDecoration: blocked ? "line-through" : undefined,
-                          opacity: blocked ? 0.5 : 1,
-                          cursor: blocked ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {slot}
-                      </button>
-                    );
-                  })}
-                </div>
+                {loadingSlots ? (
+                  <p className="text-sm py-6 text-center" style={{ color: "var(--tx3)" }}>Checking availability…</p>
+                ) : availableSlots.length === 0 ? (
+                  <p className="text-sm py-6 text-center" style={{ color: "var(--tx3)" }}>
+                    No times available this day — try another date.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                    {availableSlots.map((slot) => {
+                      const selected = selectedTime === slot;
+                      return (
+                        <button
+                          key={slot}
+                          onClick={() => setSelectedTime(slot)}
+                          className="px-3 py-2 rounded-[var(--r)] text-sm text-center transition-all"
+                          style={{
+                            background: selected ? "var(--ac-bg)" : "var(--bg2)",
+                            border: selected ? "1px solid var(--ac)" : "1px solid var(--bds)",
+                            color: selected ? "var(--ac)" : "var(--tx2)",
+                          }}
+                        >
+                          {formatSlotLabel(slot)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -496,7 +544,7 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
                       style={{ background: "var(--bg3)" }}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>
+                      <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>
                         {p.name}
                       </p>
                       <p className="text-xs" style={{ color: qty > 0 ? "var(--ac)" : "var(--tx3)" }}>
@@ -557,7 +605,7 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
               <Input
                 label="WhatsApp number"
                 type="tel"
-                placeholder="+234 800 000 0000"
+                placeholder="e.g. 0244 123 456"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 hint="We'll send your booking confirmation here"
@@ -580,70 +628,130 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
               Review & confirm
             </h2>
 
-            <div className="flex flex-col gap-3">
-              {/* Customer */}
-              <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Customer</p>
-                <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{customerName}</p>
-                <p className="text-sm" style={{ color: "var(--tx2)" }}>{customerPhone}</p>
-                {customerNotes && <p className="text-xs mt-1" style={{ color: "var(--tx3)" }}>{customerNotes}</p>}
+            {error && (
+              <div className="px-3 py-2 mb-3 rounded-[var(--r)] text-sm" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
+                {error}
               </div>
+            )}
 
-              {/* Services */}
-              <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Services</p>
-                <div className="flex flex-col gap-1.5">
-                  {selectedServices.map((svc) => (
-                    <div key={svc.id} className="flex items-center justify-between">
-                      <span className="text-sm" style={{ color: "var(--tx)" }}>{svc.name}</span>
-                      <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(svc.priceInPesewas)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Date / Staff */}
-              <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Appointment</p>
-                {selectedDay && <p className="text-sm" style={{ color: "var(--tx)" }}>{monthName} {selectedDay}, {calYear} · {selectedTime}</p>}
-                <p className="text-sm mt-1" style={{ color: "var(--tx2)" }}>
-                  {selectedStaffId
-                    ? staff.find((s) => s.id === selectedStaffId)?.name
-                    : "No preference (auto-assign)"}
-                </p>
-              </div>
-
-              {/* Products */}
-              {Object.keys(productQtys).length > 0 && (
+            <div className="md:grid md:grid-cols-2 md:gap-4">
+              <div className="flex flex-col gap-3">
+                {/* Customer */}
                 <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Products</p>
-                  {Object.entries(productQtys).map(([id, qty]) => {
-                    const p = products.find((x) => x.id === id);
-                    if (!p) return null;
-                    return (
-                      <div key={id} className="flex items-center justify-between">
-                        <span className="text-sm" style={{ color: "var(--tx)" }}>{p.name} × {qty}</span>
-                        <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(p.priceInPesewas * qty)}</span>
-                      </div>
-                    );
-                  })}
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Customer</p>
+                  <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{customerName}</p>
+                  <p className="text-sm" style={{ color: "var(--tx2)" }}>{customerPhone}</p>
+                  {customerNotes && <p className="text-xs mt-1" style={{ color: "var(--tx3)" }}>{customerNotes}</p>}
                 </div>
-              )}
 
-              {/* Payment info */}
-              <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Payment</p>
-                <p className="text-sm" style={{ color: "var(--tx2)" }}>Pay on arrival — no deposit required for this booking.</p>
-                <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid var(--bds)" }}>
-                  <span className="text-sm font-semibold" style={{ color: "var(--tx)" }}>Total</span>
-                  <span className="font-display text-lg font-medium" style={{ fontFamily: "var(--font-display)", color: "var(--ac)" }}>
-                    {formatPrice(totalCost)}
-                  </span>
+                {/* Services */}
+                <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Services</p>
+                  <div className="flex flex-col gap-1.5">
+                    {selectedServices.map((svc) => (
+                      <div key={svc.id} className="flex items-center justify-between">
+                        <span className="text-sm" style={{ color: "var(--tx)" }}>{svc.name}</span>
+                        <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(svc.priceInPesewas)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Date / Staff */}
+                <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Appointment</p>
+                  {selectedDay && (
+                    <p className="text-sm" style={{ color: "var(--tx)" }}>
+                      {monthName} {selectedDay}, {calYear} · {selectedTime ? formatSlotLabel(selectedTime) : ""}
+                    </p>
+                  )}
+                  <p className="text-sm mt-1" style={{ color: "var(--tx2)" }}>
+                    {selectedStaffId
+                      ? staff.find((s) => s.id === selectedStaffId)?.name
+                      : "No preference (auto-assign)"}
+                  </p>
+                </div>
+
+                {/* Products */}
+                {Object.keys(productQtys).length > 0 && (
+                  <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Products</p>
+                    {Object.entries(productQtys).map(([id, qty]) => {
+                      const p = products.find((x) => x.id === id);
+                      if (!p) return null;
+                      return (
+                        <div key={id} className="flex items-center justify-between">
+                          <span className="text-sm" style={{ color: "var(--tx)" }}>{p.name} × {qty}</span>
+                          <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(p.priceInPesewas * qty)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 mt-3 md:mt-0">
+                {/* Payment info */}
+                <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Payment</p>
+                  {depositSetting === "None" ? (
+                    <p className="text-sm" style={{ color: "var(--tx2)" }}>Pay on arrival — no deposit required for this booking.</p>
+                  ) : (
+                    <>
+                      <p className="text-sm mb-3" style={{ color: "var(--tx2)" }}>
+                        A deposit of <strong style={{ color: "var(--tx)" }}>{formatPrice(depositAmountPesewas)}</strong> is required to secure this booking.
+                      </p>
+                      {paymentMethods.length > 0 && (
+                        <div className="flex flex-col gap-2 mb-2">
+                          {paymentMethods.map((pm) => (
+                            <button
+                              key={pm.id}
+                              type="button"
+                              onClick={() => setPaymentMethodId(pm.id)}
+                              className="flex items-center justify-between p-3 rounded-[var(--r)] text-left"
+                              style={{
+                                background: paymentMethodId === pm.id ? "var(--ac-bg)" : "var(--bg3)",
+                                border: `1px solid ${paymentMethodId === pm.id ? "var(--ac)" : "var(--bds)"}`,
+                              }}
+                            >
+                              <div>
+                                <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{pm.label}</p>
+                                <p className="text-xs" style={{ color: "var(--tx3)" }}>{pm.accountName}</p>
+                              </div>
+                              <div
+                                className="w-4 h-4 rounded-full border-2 flex-shrink-0"
+                                style={{
+                                  borderColor: paymentMethodId === pm.id ? "var(--ac)" : "var(--bd)",
+                                  background: paymentMethodId === pm.id ? "var(--ac)" : "transparent",
+                                }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid var(--bds)" }}>
+                    <span className="text-sm font-semibold" style={{ color: "var(--tx)" }}>Total</span>
+                    <span className="font-display text-lg font-medium" style={{ fontFamily: "var(--font-display)", color: "var(--ac)" }}>
+                      {formatPrice(totalCost)}
+                    </span>
+                  </div>
+                </div>
+
+                {cancellationPolicy && (
+                  <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Cancellation policy</p>
+                    <p className="text-sm" style={{ color: "var(--tx2)" }}>{cancellationPolicy}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
+        </div>
+        {summarySidebar}
+        </div>
       </div>
 
       {/* Footer CTA */}
@@ -655,7 +763,7 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
           paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
           {step === 0 && selectedServices.length > 0 && (
             <p className="text-xs text-center mb-2" style={{ color: "var(--tx3)" }}>
               {selectedServices.length} service{selectedServices.length > 1 ? "s" : ""} · Total{" "}
@@ -663,8 +771,9 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
             </p>
           )}
           <Button
-            className="w-full"
+            className="w-full md:w-auto md:mx-auto md:min-w-[280px] md:flex"
             size="lg"
+            loading={submitting}
             onClick={() => {
               if (step === 5) {
                 handleConfirm();
@@ -672,15 +781,9 @@ export default function BookingFlow({ slug, vendorName, services, products, staf
                 setStep((s) => s + 1);
               }
             }}
-            disabled={!canProceed()}
+            disabled={!canProceed() || submitting}
           >
-            {step === 5
-              ? "Confirm Booking"
-              : step === 3
-              ? "Continue"
-              : step === 1
-              ? "Continue"
-              : "Continue"}
+            {step === 5 ? "Confirm Booking" : "Continue"}
             {step < 5 && <ChevronRight size={16} />}
           </Button>
           {step === 3 && (

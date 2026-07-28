@@ -90,14 +90,16 @@ export interface Product {
 }
 
 export interface BookingService {
-  serviceId: string;
+  id: string;
+  serviceId: string | null;
   name: string;
   priceAtBooking: number;
   durationMinutes: number;
 }
 
 export interface BookingProduct {
-  productId: string;
+  id: string;
+  productId: string | null;
   name: string;
   priceAtBooking: number;
   quantity: number;
@@ -111,16 +113,21 @@ export interface Booking {
   customerPhone: string;
   services: BookingService[];
   products: BookingProduct[];
-  staffId: string | null;
-  staffName: string | null;
+  staffPreferenceId?: string;
+  staffPreferenceName?: string;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
   startTime: string;
   endTime: string;
   status: BookingStatus;
   notes: string;
   depositAmountPesewas: number;
+  paymentMethodId?: string;
+  paymentMethod?: PaymentMethod;
   seenByVendorAt: string | null;
   createdAt: string;
-  pdfUrl?: string;
+  bookingRequestPdfUrl?: string;
+  confirmedPdfUrl?: string;
 }
 
 export type OrderDeliveryPreference = "Pickup" | "Delivery";

@@ -192,8 +192,9 @@ model Product {
   active            Boolean @default(true)
   featured          Boolean @default(false)
 
-  images     ProductImage[]
-  orderItems OrderItem[]
+  images          ProductImage[]
+  orderItems      OrderItem[]
+  bookingProducts BookingProduct[]
 
   @@index([vendorId])
   @@unique([vendorId, slug])
@@ -227,12 +228,15 @@ model Booking {
   status               BookingStatus @default(pending)
   notes                String        @default("")
   depositAmountPesewas Int           @default(0)
+  paymentMethodId      String?
+  paymentMethod        PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
   bookingRequestPdfUrl String?
   confirmedPdfUrl      String?
   seenByVendorAt       DateTime?     @db.Timestamptz(3)
   createdAt            DateTime      @default(now()) @db.Timestamptz(3)
 
   services BookingService[]
+  products BookingProduct[]
 
   @@index([vendorId])
 }
@@ -246,6 +250,21 @@ model BookingService {
   name            String
   priceAtBooking  Int
   durationMinutes Int
+
+  @@index([bookingId])
+}
+
+// Mirrors OrderItem's snapshot pattern — products the customer flagged
+// interest in during booking (spec §6.3 step 4), not a real purchase/order.
+model BookingProduct {
+  id             String   @id @default(cuid())
+  bookingId      String
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name           String
+  priceAtBooking Int
+  quantity       Int
 
   @@index([bookingId])
 }
@@ -299,7 +318,8 @@ model PaymentMethod {
   active        Boolean           @default(true)
   displayOrder  Int               @default(0)
 
-  orders Order[]
+  orders   Order[]
+  bookings Booking[]
 
   @@index([vendorId])
 }

@@ -9,8 +9,11 @@ import type {
   PaymentMethod as PrismaPaymentMethod,
   Order as PrismaOrder,
   OrderItem as PrismaOrderItem,
+  Booking as PrismaBooking,
+  BookingService as PrismaBookingService,
+  BookingProduct as PrismaBookingProduct,
 } from "@/lib/generated/prisma/client";
-import type { Service, Product, Staff, Media, Vendor, VendorVideo, PaymentMethod, Order, OrderItem } from "@/types";
+import type { Service, Product, Staff, Media, Vendor, VendorVideo, PaymentMethod, Order, OrderItem, Booking } from "@/types";
 
 // Prisma's nullable String? fields come back as `null`; our app types use
 // `?: string` (undefined) at this boundary, matching the convention in lib/vendors.ts.
@@ -105,5 +108,40 @@ export function serializeOrder(order: PrismaOrder & { items: PrismaOrderItem[]; 
     status: order.status,
     seenByVendorAt: order.seenByVendorAt ? order.seenByVendorAt.toISOString() : null,
     createdAt: order.createdAt.toISOString(),
+  };
+}
+
+interface BookingWithRelations extends PrismaBooking {
+  services: PrismaBookingService[];
+  products: PrismaBookingProduct[];
+  staffPreference?: { name: string } | null;
+  assignedStaff?: { name: string } | null;
+  paymentMethod?: PrismaPaymentMethod | null;
+}
+
+export function serializeBooking(booking: BookingWithRelations): Booking {
+  return {
+    id: booking.id,
+    slug: booking.slug,
+    vendorId: booking.vendorId,
+    customerName: booking.customerName,
+    customerPhone: booking.customerPhone,
+    services: booking.services,
+    products: booking.products,
+    staffPreferenceId: booking.staffPreferenceId ?? undefined,
+    staffPreferenceName: booking.staffPreference?.name ?? undefined,
+    assignedStaffId: booking.assignedStaffId ?? undefined,
+    assignedStaffName: booking.assignedStaff?.name ?? undefined,
+    startTime: booking.startTime.toISOString(),
+    endTime: booking.endTime.toISOString(),
+    status: booking.status,
+    notes: booking.notes,
+    depositAmountPesewas: booking.depositAmountPesewas,
+    paymentMethodId: booking.paymentMethodId ?? undefined,
+    paymentMethod: booking.paymentMethod ? serializePaymentMethod(booking.paymentMethod) : undefined,
+    seenByVendorAt: booking.seenByVendorAt ? booking.seenByVendorAt.toISOString() : null,
+    createdAt: booking.createdAt.toISOString(),
+    bookingRequestPdfUrl: booking.bookingRequestPdfUrl ?? undefined,
+    confirmedPdfUrl: booking.confirmedPdfUrl ?? undefined,
   };
 }

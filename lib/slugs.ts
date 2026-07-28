@@ -28,6 +28,14 @@ export function generateOrderRef(): string {
   return `ORD-${String(n).padStart(6, "0")}`;
 }
 
+// Public, URL-safe booking slug, e.g. "booking_k4p9x2mqrz" — opaque like
+// order slugs (a private receipt, not public catalog content), so no
+// retry-on-conflict needed at the call site, same collision-odds reasoning
+// as generateOrderSlug.
+export function generateBookingSlug(): string {
+  return `booking_${randomSlugSuffix(10)}`;
+}
+
 // Human-readable base slug for a product, e.g. "Argan Hair Oil" -> "argan-hair-oil".
 // Unlike order/booking slugs this is deliberately readable — product pages are
 // public catalog content meant to be found/shared, not private receipts.

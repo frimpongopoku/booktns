@@ -5,15 +5,77 @@ import {
   staff,
   services,
   products,
-  bookings,
   paymentMethods,
   videos,
 } from "../lib/data";
 
-// Order sample data now lives inline here rather than in lib/data.ts — the
-// real /order/[slug] page and dashboard Orders page read live DB rows via
-// app/api/orders, so lib/data.ts no longer needs to export mock orders at
-// all; this seed script is the only place that still wants some.
+// Booking/order sample data lives inline here rather than in lib/data.ts —
+// the real /booking/[slug] and /order/[slug] pages and dashboard pages read
+// live DB rows via app/api/bookings and app/api/orders, so lib/data.ts no
+// longer needs to export these mocks at all; this seed script is the only
+// place that still wants some.
+const bookings = [
+  {
+    slug: "booking_seed0001",
+    customerName: "Amara Johnson",
+    customerPhone: "+2348055000001",
+    services: [
+      { serviceId: "svc1", name: "Knotless Braids", priceAtBooking: 35000, durationMinutes: 270 },
+      { serviceId: "svc2", name: "Gel Manicure", priceAtBooking: 12000, durationMinutes: 90 },
+    ],
+    assignedStaffId: "s3",
+    startTime: "2025-07-16T10:30:00Z",
+    endTime: "2025-07-16T17:00:00Z",
+    status: "confirmed" as const,
+    notes: "Prefers medium-sized braids",
+    depositAmountPesewas: 10000,
+    seenByVendorAt: "2025-07-15T08:00:00Z",
+    createdAt: "2025-07-14T14:32:00Z",
+  },
+  {
+    slug: "booking_seed0002",
+    customerName: "Zara Mohammed",
+    customerPhone: "+2348055000002",
+    services: [{ serviceId: "svc3", name: "Facial Treatment", priceAtBooking: 20000, durationMinutes: 60 }],
+    assignedStaffId: "s2",
+    startTime: "2025-07-16T14:00:00Z",
+    endTime: "2025-07-16T15:00:00Z",
+    status: "pending" as const,
+    notes: "",
+    depositAmountPesewas: 0,
+    seenByVendorAt: null,
+    createdAt: "2025-07-15T09:10:00Z",
+  },
+  {
+    slug: "booking_seed0003",
+    customerName: "Blessing Eze",
+    customerPhone: "+2348055000003",
+    services: [{ serviceId: "svc4", name: "Lash Extensions", priceAtBooking: 15000, durationMinutes: 60 }],
+    assignedStaffId: "s1",
+    startTime: "2025-07-17T11:00:00Z",
+    endTime: "2025-07-17T12:00:00Z",
+    status: "confirmed" as const,
+    notes: "First time client",
+    depositAmountPesewas: 5000,
+    seenByVendorAt: "2025-07-15T11:00:00Z",
+    createdAt: "2025-07-15T10:45:00Z",
+  },
+  {
+    slug: "booking_seed0004",
+    customerName: "Ngozi Obi",
+    customerPhone: "+2348055000004",
+    services: [{ serviceId: "svc5", name: "Pedicure", priceAtBooking: 10000, durationMinutes: 60 }],
+    assignedStaffId: "s4",
+    startTime: "2025-07-18T15:00:00Z",
+    endTime: "2025-07-18T16:00:00Z",
+    status: "pending" as const,
+    notes: "",
+    depositAmountPesewas: 0,
+    seenByVendorAt: null,
+    createdAt: "2025-07-15T16:20:00Z",
+  },
+];
+
 const orders = [
   {
     slug: "ord_seed0001aa",
@@ -147,13 +209,12 @@ async function main() {
         slug: booking.slug,
         customerName: booking.customerName,
         customerPhone: booking.customerPhone,
-        assignedStaffId: booking.staffId ? staffIdByDummyId.get(booking.staffId) : null,
+        assignedStaffId: staffIdByDummyId.get(booking.assignedStaffId),
         startTime: new Date(booking.startTime),
         endTime: new Date(booking.endTime),
         status: booking.status,
         notes: booking.notes,
         depositAmountPesewas: booking.depositAmountPesewas,
-        confirmedPdfUrl: booking.pdfUrl,
         seenByVendorAt: booking.seenByVendorAt ? new Date(booking.seenByVendorAt) : null,
         createdAt: new Date(booking.createdAt),
         services: {

@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { serializeStaff } from "@/lib/serialize";
 import { Prisma } from "@/lib/generated/prisma/client";
+import { SERVICE_CATEGORIES } from "@/types";
 
 const STAFF_ROLES = ["Owner", "Management", "Service"] as const;
-const SERVICE_CATEGORIES = ["Hair", "Nails", "Skin", "Lashes", "Brows", "Other"] as const;
 
 const updateSchema = z.object({
   name: z.string().trim().min(1, "Name is required").optional(),

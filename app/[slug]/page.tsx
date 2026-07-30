@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { formatPrice, formatDuration } from "@/lib/data";
 import { getStorefrontVendor, getAllActiveVendorSlugs, getStorefrontVendorForPreview, getVendorPublicMeta } from "@/lib/vendors";
 import { getSession } from "@/lib/auth";
+import { SITE_URL } from "@/lib/site";
 import StorefrontNav from "@/components/storefront/StorefrontNav";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import VideoCard from "@/components/storefront/VideoCard";
@@ -16,13 +17,16 @@ import {
   Sparkles,
   Hand,
   Eye,
+  Brush,
+  Droplet,
+  Waves,
   ShoppingBag,
   MessageCircle,
   ArrowRight,
   CheckCircle,
   Star,
 } from "lucide-react";
-import type { StorefrontDisplayMode } from "@/types";
+import type { StorefrontDisplayMode, ServiceCategory } from "@/types";
 
 // The home page's "featured" teaser sections respect the vendor's display
 // mode; the full /book and /shop pages always show everything regardless.
@@ -38,11 +42,19 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+// Record<ServiceCategory, ...> rather than Record<string, ...> — TypeScript
+// now errors if a category is ever added without an icon here, instead of
+// silently falling back (as "Brows" previously did before this fix).
+const CATEGORY_ICONS: Record<ServiceCategory, React.ReactNode> = {
   Hair: <Scissors size={15} />,
   Nails: <Hand size={15} />,
   Skin: <Sparkles size={15} />,
   Lashes: <Eye size={15} />,
+  Brows: <Eye size={15} />,
+  Makeup: <Brush size={15} />,
+  Barbering: <Scissors size={15} />,
+  Waxing: <Droplet size={15} />,
+  Massage: <Waves size={15} />,
   Other: <Sparkles size={15} />,
 };
 
@@ -119,10 +131,18 @@ export default async function StorefrontPage({ params }: PageProps) {
     "@context": "https://schema.org",
     "@type": "BeautySalon",
     name: vendorData.name,
-    description: vendorData.description,
-    url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/${slug}`,
+    description:
+      vendorData.description ||
+      `Book beauty appointments and shop products from ${vendorData.name} in ${vendorData.location}.`,
+    url: `${SITE_URL}/${slug}`,
     telephone: vendorData.phone,
+    // `location` is a single free-text field (no separate street/city/country
+    // columns) — schema.org allows Text for `address`, so this stays a plain
+    // string rather than a fabricated PostalAddress split.
     address: vendorData.location,
+    ...(vendorData.logoUrl || vendorData.coverImageUrl
+      ? { image: vendorData.logoUrl ?? vendorData.coverImageUrl }
+      : {}),
   };
 
   const displayedServices = selectStorefrontItems(vendorData.services, vendorData.storefrontDisplayMode);

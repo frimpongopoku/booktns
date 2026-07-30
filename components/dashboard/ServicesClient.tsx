@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { formatPrice, formatDuration } from "@/lib/data";
+import { SERVICE_CATEGORIES } from "@/types";
 import type { Service, ServiceCategory } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { Plus, X, Pencil, Archive, Star, Scissors, Sparkles, Hand, Eye } from "lucide-react";
+import { Plus, X, Pencil, Archive, Star, Scissors, Sparkles, Hand, Eye, Brush, Droplet, Waves } from "lucide-react";
 
 const CATEGORY_ICONS: Record<ServiceCategory, React.ReactNode> = {
   Hair: <Scissors size={14} />,
@@ -16,10 +17,14 @@ const CATEGORY_ICONS: Record<ServiceCategory, React.ReactNode> = {
   Skin: <Sparkles size={14} />,
   Lashes: <Eye size={14} />,
   Brows: <Eye size={14} />,
+  Makeup: <Brush size={14} />,
+  Barbering: <Scissors size={14} />,
+  Waxing: <Droplet size={14} />,
+  Massage: <Waves size={14} />,
   Other: <Sparkles size={14} />,
 };
 
-const CATEGORIES: ServiceCategory[] = ["Hair", "Nails", "Skin", "Lashes", "Brows", "Other"];
+const CATEGORIES: ServiceCategory[] = [...SERVICE_CATEGORIES];
 
 interface ApiErrorBody {
   error: string;

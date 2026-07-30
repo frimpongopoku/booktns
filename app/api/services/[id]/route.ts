@@ -3,8 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { serializeService } from "@/lib/serialize";
-
-const SERVICE_CATEGORIES = ["Hair", "Nails", "Skin", "Lashes", "Brows", "Other"] as const;
+import { SERVICE_CATEGORIES } from "@/types";
 
 const updateSchema = z.object({
   name: z.string().trim().min(1, "Name is required").optional(),

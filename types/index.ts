@@ -1,4 +1,19 @@
-export type ServiceCategory = "Hair" | "Nails" | "Skin" | "Lashes" | "Brows" | "Other";
+// Single source of truth — the four API routes that validate this (services
+// create/update, staff create/update) and every dropdown that lists it all
+// import this instead of hand-duplicating the tuple.
+export const SERVICE_CATEGORIES = [
+  "Hair",
+  "Nails",
+  "Skin",
+  "Lashes",
+  "Brows",
+  "Makeup",
+  "Barbering",
+  "Waxing",
+  "Massage",
+  "Other",
+] as const;
+export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
 
 export type StaffRole = "Owner" | "Management" | "Service";
 

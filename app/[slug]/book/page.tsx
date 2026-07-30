@@ -27,6 +27,8 @@ export default async function BookPage({ params }: PageProps) {
   return (
     <BookingFlow
       slug={slug}
+      vendorName={vendorData.name}
+      vendorLogoUrl={vendorData.logoUrl}
       services={vendorData.services}
       products={vendorData.products}
       staff={vendorData.staff}

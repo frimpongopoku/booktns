@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Check,
   ChevronLeft,
@@ -57,6 +58,8 @@ function pad2(n: number): string {
 
 interface BookingFlowProps {
   slug: string;
+  vendorName: string;
+  vendorLogoUrl?: string;
   services: Service[];
   products: Product[];
   staff: Staff[];
@@ -68,6 +71,8 @@ interface BookingFlowProps {
 
 export default function BookingFlow({
   slug,
+  vendorName,
+  vendorLogoUrl,
   services,
   products,
   staff,
@@ -250,6 +255,28 @@ export default function BookingFlow({
         style={{ background: "var(--bg)", borderBottom: "1px solid var(--bd)" }}
       >
         <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
+          <Link href={`/${slug}`} className="flex items-center gap-2 mb-3 group">
+            {vendorLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={vendorLogoUrl}
+                alt={`${vendorName} logo`}
+                className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <span
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0"
+                style={{ background: "var(--ac)" }}
+              >
+                {vendorName[0]}
+              </span>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate group-hover:underline" style={{ color: "var(--tx)" }}>
+                {vendorName}
+              </p>
+            </div>
+          </Link>
           <div className="flex items-center gap-3 mb-3">
             {step > 0 && (
               <button

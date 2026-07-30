@@ -10,7 +10,12 @@ interface VendorEmailInfo {
   cancellationPolicy?: string | null;
 }
 
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "Booktns <bookings@booktns.com>";
+// Fallback only — the real value should come from EMAIL_FROM and must be on
+// a domain actually verified in Resend (Resend rejects sends from any other
+// domain with a 403, even a subdomain of one you do own). This default
+// matches the subdomain verified for this project; if that ever changes,
+// update EMAIL_FROM in .env rather than relying on this fallback.
+const EMAIL_FROM = process.env.EMAIL_FROM ?? "Booktns <bookings@notifications.booktns.com>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 // Resend throws synchronously if constructed without a key — built lazily

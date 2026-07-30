@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Input";
 import { createVendorFromOnboarding } from "./actions";
+import { SERVICE_CATEGORIES } from "@/types";
 import {
   Check,
   Plus,
@@ -215,7 +216,7 @@ function AddServicesStep({ onNext }: { onNext: (data: ServiceEntry[]) => void })
                   className="px-3 py-2 rounded-[var(--r)] text-sm focus:outline-none"
                   style={{ background: "var(--bg3)", color: "var(--tx)", border: "1px solid var(--bd)" }}
                 >
-                  {["Hair", "Nails", "Skin", "Lashes", "Brows", "Other"].map((c) => (
+                  {SERVICE_CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>

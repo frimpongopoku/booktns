@@ -23,6 +23,10 @@ enum ServiceCategory {
   Skin
   Lashes
   Brows
+  Makeup
+  Barbering
+  Waxing
+  Massage
   Other
 }
 

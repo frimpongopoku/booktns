@@ -31,12 +31,6 @@ interface NavItem {
   badge?: number;
 }
 
-const mainNav: NavItem[] = [
-  { label: "Overview", href: "/dashboard", icon: <LayoutDashboard size={15} /> },
-  { label: "Bookings", href: "/dashboard/bookings", icon: <Calendar size={15} />, badge: 3 },
-  { label: "Orders", href: "/dashboard/orders", icon: <ShoppingBag size={15} />, badge: 2 },
-];
-
 const manageNav: NavItem[] = [
   { label: "Staff", href: "/dashboard/staff", icon: <Users size={15} /> },
   { label: "Services", href: "/dashboard/services", icon: <Scissors size={15} /> },
@@ -78,12 +72,30 @@ interface SidebarProps {
   staffName: string;
   role: StaffRole;
   vendorName: string;
+  bookingBadgeCount: number;
+  orderBadgeCount: number;
 }
 
-export default function Sidebar({ staffName, role, vendorName }: SidebarProps) {
+export default function Sidebar({ staffName, role, vendorName, bookingBadgeCount, orderBadgeCount }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+
+  const mainNav: NavItem[] = [
+    { label: "Overview", href: "/dashboard", icon: <LayoutDashboard size={15} /> },
+    {
+      label: "Bookings",
+      href: "/dashboard/bookings",
+      icon: <Calendar size={15} />,
+      badge: bookingBadgeCount > 0 ? bookingBadgeCount : undefined,
+    },
+    {
+      label: "Orders",
+      href: "/dashboard/orders",
+      icon: <ShoppingBag size={15} />,
+      badge: orderBadgeCount > 0 ? orderBadgeCount : undefined,
+    },
+  ];
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";

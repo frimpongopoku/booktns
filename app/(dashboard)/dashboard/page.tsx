@@ -19,6 +19,10 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
+function formatShortDate(date: Date): string {
+  return date.toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+}
+
 export default async function DashboardOverview() {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -27,29 +31,63 @@ export default async function DashboardOverview() {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfTomorrow = new Date(startOfToday);
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [vendor, activeServiceCount, activeStaffCount, activeProducts, todaysBookings, pendingBookingCount, pendingOrderCount, recentOrders] =
-    await Promise.all([
-      db.vendor.findUnique({ where: { id: session.vendorId }, select: { slug: true } }),
-      db.service.count({ where: { vendorId: session.vendorId, active: true } }),
-      db.staff.count({ where: { vendorId: session.vendorId, active: true } }),
-      db.product.findMany({
-        where: { vendorId: session.vendorId, active: true },
-        select: { stockCount: true, lowStockThreshold: true },
-      }),
-      db.booking.findMany({
-        where: { vendorId: session.vendorId, startTime: { gte: startOfToday, lt: startOfTomorrow } },
-        include: { services: true },
-        orderBy: { startTime: "asc" },
-      }),
-      db.booking.count({ where: { vendorId: session.vendorId, status: "pending" } }),
-      db.order.count({ where: { vendorId: session.vendorId, status: { in: ["new", "processing"] } } }),
-      db.order.findMany({
-        where: { vendorId: session.vendorId },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }),
-    ]);
+  const [
+    vendor,
+    activeServiceCount,
+    activeStaffCount,
+    activeProducts,
+    todaysBookings,
+    upcomingBookings,
+    pendingBookingCount,
+    pendingOrderCount,
+    recentOrders,
+    olderOrders,
+  ] = await Promise.all([
+    db.vendor.findUnique({ where: { id: session.vendorId }, select: { slug: true } }),
+    db.service.count({ where: { vendorId: session.vendorId, active: true } }),
+    db.staff.count({ where: { vendorId: session.vendorId, active: true } }),
+    db.product.findMany({
+      where: { vendorId: session.vendorId, active: true },
+      select: { stockCount: true, lowStockThreshold: true },
+    }),
+    db.booking.findMany({
+      where: { vendorId: session.vendorId, startTime: { gte: startOfToday, lt: startOfTomorrow } },
+      include: { services: true },
+      orderBy: { startTime: "asc" },
+    }),
+    // Fallback when nothing's booked today — next upcoming, not-yet-resolved bookings.
+    db.booking.findMany({
+      where: {
+        vendorId: session.vendorId,
+        startTime: { gte: startOfTomorrow },
+        status: { notIn: ["cancelled", "completed"] },
+      },
+      include: { services: true },
+      orderBy: { startTime: "asc" },
+      take: 5,
+    }),
+    db.booking.count({ where: { vendorId: session.vendorId, status: "pending" } }),
+    db.order.count({ where: { vendorId: session.vendorId, status: { in: ["new", "processing"] } } }),
+    db.order.findMany({
+      where: { vendorId: session.vendorId, createdAt: { gte: sevenDaysAgo } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    // Fallback when there's been no order activity in the last 7 days.
+    db.order.findMany({
+      where: { vendorId: session.vendorId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+  ]);
+
+  const showingUpcomingFallback = todaysBookings.length === 0 && upcomingBookings.length > 0;
+  const bookingsToShow = todaysBookings.length > 0 ? todaysBookings : upcomingBookings;
+
+  const showingOrderHistory = recentOrders.length === 0 && olderOrders.length > 0;
+  const ordersToShow = recentOrders.length > 0 ? recentOrders : olderOrders;
 
   const lowStockCount = activeProducts.filter((p) => p.stockCount > 0 && p.stockCount <= p.lowStockThreshold).length;
 
@@ -166,9 +204,19 @@ export default async function DashboardOverview() {
             className="flex items-center justify-between px-4 py-3"
             style={{ borderBottom: "1px solid var(--bds)" }}
           >
-            <h2 className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
-              Today&apos;s Bookings
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
+                Today&apos;s Bookings
+              </h2>
+              {showingUpcomingFallback && (
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: "var(--bg3)", color: "var(--tx3)" }}
+                >
+                  Upcoming, not today
+                </span>
+              )}
+            </div>
             <Link
               href="/dashboard/bookings"
               className="text-xs font-medium"
@@ -178,42 +226,50 @@ export default async function DashboardOverview() {
             </Link>
           </div>
           <div className="flex flex-col gap-0.5 p-2">
-            {todaysBookings.length === 0 ? (
+            {bookingsToShow.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <p className="text-sm" style={{ color: "var(--tx3)" }}>
-                  No bookings today
+                  No bookings today or upcoming
                 </p>
               </div>
             ) : (
-              todaysBookings.map((booking) => (
-                <Link
-                  key={booking.id}
-                  href="/dashboard/bookings"
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--bg3)] transition-colors"
-                >
-                  <div className="flex-shrink-0 text-xs font-medium w-16 text-right" style={{ color: "var(--tx3)" }}>
-                    {formatTime(booking.startTime)}
-                  </div>
-                  <div
-                    className="w-px h-8 flex-shrink-0"
-                    style={{
-                      background:
-                        booking.status === "confirmed"
-                          ? "var(--ac)"
-                          : "var(--bds)",
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>
-                      {booking.customerName}
-                    </p>
-                    <p className="text-xs truncate" style={{ color: "var(--tx3)" }}>
-                      {booking.services.map((s) => s.name).join(" + ")}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0">{bookingStatusBadge(booking.status)}</div>
-                </Link>
-              ))
+              <>
+                {showingUpcomingFallback && (
+                  <p className="px-3 pt-1 pb-2 text-xs" style={{ color: "var(--tx3)" }}>
+                    Nothing booked for today — here&apos;s what&apos;s next.
+                  </p>
+                )}
+                {bookingsToShow.map((booking) => (
+                  <Link
+                    key={booking.id}
+                    href="/dashboard/bookings"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--bg3)] transition-colors"
+                  >
+                    <div className="flex-shrink-0 text-xs font-medium w-16 text-right" style={{ color: "var(--tx3)" }}>
+                      {showingUpcomingFallback && <div>{formatShortDate(booking.startTime)}</div>}
+                      {formatTime(booking.startTime)}
+                    </div>
+                    <div
+                      className="w-px h-8 flex-shrink-0"
+                      style={{
+                        background:
+                          booking.status === "confirmed"
+                            ? "var(--ac)"
+                            : "var(--bds)",
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>
+                        {booking.customerName}
+                      </p>
+                      <p className="text-xs truncate" style={{ color: "var(--tx3)" }}>
+                        {booking.services.map((s) => s.name).join(" + ")}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">{bookingStatusBadge(booking.status)}</div>
+                  </Link>
+                ))}
+              </>
             )}
           </div>
         </div>
@@ -229,9 +285,19 @@ export default async function DashboardOverview() {
               className="flex items-center justify-between px-4 py-3"
               style={{ borderBottom: "1px solid var(--bds)" }}
             >
-              <h2 className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
-                Recent Orders
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
+                  {showingOrderHistory ? "Order History" : "Recent Orders"}
+                </h2>
+                {showingOrderHistory && (
+                  <span
+                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: "var(--bg3)", color: "var(--tx3)" }}
+                  >
+                    Past activity
+                  </span>
+                )}
+              </div>
               <Link
                 href="/dashboard/orders"
                 className="text-xs font-medium"
@@ -241,35 +307,47 @@ export default async function DashboardOverview() {
               </Link>
             </div>
             <div className="flex flex-col gap-0.5 p-2">
-              {recentOrders.length === 0 ? (
+              {ordersToShow.length === 0 ? (
                 <div className="px-4 py-10 text-center">
                   <p className="text-sm" style={{ color: "var(--tx3)" }}>
                     No orders yet
                   </p>
                 </div>
               ) : (
-                recentOrders.map((order) => (
-                  <Link
-                    key={order.id}
-                    href="/dashboard/orders"
-                    className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[var(--bg3)] transition-colors"
-                  >
-                    <div>
-                      <p className="text-xs font-semibold" style={{ color: "var(--tx)" }}>
-                        {order.ref}
-                      </p>
-                      <p className="text-xs truncate max-w-[140px]" style={{ color: "var(--tx3)" }}>
-                        {order.customerName}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-semibold" style={{ color: "var(--tx)" }}>
-                        {formatPrice(order.totalPesewas)}
-                      </p>
-                      {orderStatusBadge(order.status)}
-                    </div>
-                  </Link>
-                ))
+                <>
+                  {showingOrderHistory && (
+                    <p className="px-3 pt-1 pb-2 text-xs" style={{ color: "var(--tx3)" }}>
+                      No orders in the last 7 days — showing order history.
+                    </p>
+                  )}
+                  {ordersToShow.map((order) => (
+                    <Link
+                      key={order.id}
+                      href="/dashboard/orders"
+                      className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[var(--bg3)] transition-colors"
+                    >
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: "var(--tx)" }}>
+                          {order.ref}
+                        </p>
+                        <p className="text-xs truncate max-w-[140px]" style={{ color: "var(--tx3)" }}>
+                          {order.customerName}
+                        </p>
+                        {showingOrderHistory && (
+                          <p className="text-[10px]" style={{ color: "var(--tx3)" }}>
+                            {formatShortDate(order.createdAt)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-semibold" style={{ color: "var(--tx)" }}>
+                          {formatPrice(order.totalPesewas)}
+                        </p>
+                        {orderStatusBadge(order.status)}
+                      </div>
+                    </Link>
+                  ))}
+                </>
               )}
             </div>
           </div>

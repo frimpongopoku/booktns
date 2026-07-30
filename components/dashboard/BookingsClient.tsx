@@ -16,6 +16,7 @@ import {
   MessageCircle,
   AlignLeft,
   ChevronRight,
+  ChevronLeft,
   Search,
   CheckCircle,
   XCircle,
@@ -43,6 +44,35 @@ const CALENDAR_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = ["9am", "10am", "11am", "12pm", "1pm", "2pm", "3pm", "4pm", "5pm", "6pm"];
 
 const ACTIVE_STATUSES: BookingStatus[] = ["pending", "confirmed", "rescheduled"];
+
+// Booking times are stored with UTC-labelled fields but authored/displayed as
+// plain wall-clock (see formatTime/formatDate above using timeZone: "UTC") —
+// calendar date math stays in UTC throughout to match that convention.
+function hourStringToInt(hour: string): number {
+  const digits = hour.replace("am", "").replace("pm", "");
+  return parseInt(digits, 10) + (hour.includes("pm") && digits !== "12" ? 12 : 0);
+}
+
+function startOfWeekUTC(d: Date): Date {
+  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = monday.getUTCDay();
+  monday.setUTCDate(monday.getUTCDate() + (day === 0 ? -6 : 1 - day));
+  return monday;
+}
+
+function addDaysUTC(d: Date, days: number): Date {
+  const copy = new Date(d);
+  copy.setUTCDate(copy.getUTCDate() + days);
+  return copy;
+}
+
+function toDateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function formatWeekDayLabel(d: Date): string {
+  return d.toLocaleDateString("en-NG", { month: "short", day: "numeric", timeZone: "UTC" });
+}
 
 interface BookingDrawerProps {
   booking: Booking;
@@ -369,20 +399,50 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug }: B
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">("all");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const selectedBooking = bookingList.find((b) => b.id === selectedBookingId) ?? null;
 
-  // Built once per bookingList change rather than re-scanned for every one of
-  // the 60 cells the (decorative, hardcoded-July-2025) calendar tab renders.
-  const calendarBookingByDateHour = useMemo(() => {
-    const map = new Map<string, Booking>();
+  const todayKey = useMemo(() => toDateKey(new Date()), []);
+  const weekStart = useMemo(
+    () => addDaysUTC(startOfWeekUTC(new Date()), weekOffset * 7),
+    [weekOffset]
+  );
+  const weekDates = useMemo(
+    () => CALENDAR_DAYS.map((_, i) => addDaysUTC(weekStart, i)),
+    [weekStart]
+  );
+
+  // Built once per bookingList/week change rather than re-scanned for every
+  // one of the 60 cells the calendar tab renders. Keyed by date + hour, with
+  // an array per cell so multiple same-hour bookings are all shown.
+  const calendarBookingsByDateHour = useMemo(() => {
+    const map = new Map<string, Booking[]>();
     for (const b of bookingList) {
       const bDate = b.startTime.slice(0, 10);
       const bHour = new Date(b.startTime).getUTCHours();
-      map.set(`${bDate}|${bHour}`, b);
+      const key = `${bDate}|${bHour}`;
+      const existing = map.get(key);
+      if (existing) existing.push(b);
+      else map.set(key, [b]);
     }
     return map;
   }, [bookingList]);
+
+  // Bookings that fall within the displayed week but outside the fixed
+  // Mon–Sat / 9am–6pm grid (e.g. a Sunday booking) would otherwise be
+  // silently missing from the calendar with no indication — flag them.
+  const outOfGridCount = useMemo(() => {
+    const fullWeekKeys = new Set(Array.from({ length: 7 }, (_, i) => toDateKey(addDaysUTC(weekStart, i))));
+    const gridDayKeys = new Set(weekDates.map(toDateKey));
+    const gridHours = new Set(HOURS.map(hourStringToInt));
+    return bookingList.filter((b) => {
+      const bDate = b.startTime.slice(0, 10);
+      if (!fullWeekKeys.has(bDate)) return false;
+      const bHour = new Date(b.startTime).getUTCHours();
+      return !(gridDayKeys.has(bDate) && gridHours.has(bHour));
+    }).length;
+  }, [bookingList, weekStart, weekDates]);
 
   const updateBooking = async (id: string, patch: Record<string, unknown>): Promise<Booking | null> => {
     setError(null);
@@ -524,58 +584,113 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug }: B
       )}
 
       {tab === "calendar" && (
-        <div className="overflow-x-auto">
-          <div className="rounded-[var(--rl)] overflow-hidden min-w-[600px]" style={{ border: "1px solid var(--bds)" }}>
-            {/* Calendar header — visual placeholder only, not rebuilt this pass */}
-            <div
-              className="grid text-xs font-semibold uppercase tracking-wide"
-              style={{ gridTemplateColumns: "60px repeat(6, 1fr)", background: "var(--bg2)", borderBottom: "1px solid var(--bds)" }}
-            >
-              <div className="px-2 py-3 text-center" style={{ color: "var(--tx3)" }} />
-              {CALENDAR_DAYS.map((d, i) => (
-                <div key={d} className="px-2 py-3 text-center" style={{ color: i === 0 ? "var(--ac)" : "var(--tx3)" }}>
-                  <span>{d}</span>
-                  <span className="block font-bold text-sm" style={{ color: i === 0 ? "var(--ac)" : "var(--tx)" }}>
-                    {16 + i}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {HOURS.map((hour) => (
-              <div
-                key={hour}
-                className="grid"
-                style={{ gridTemplateColumns: "60px repeat(6, 1fr)", borderBottom: "1px solid var(--bds)", background: "var(--bg)" }}
+        <div>
+          {/* Week navigation */}
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setWeekOffset((w) => w - 1)}
+                className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg2)] transition-colors"
+                style={{ border: "1px solid var(--bds)", color: "var(--tx2)" }}
+                aria-label="Previous week"
               >
-                <div className="px-2 py-3 text-xs text-right pr-3" style={{ color: "var(--tx3)", borderRight: "1px solid var(--bds)" }}>
-                  {hour}
-                </div>
-                {CALENDAR_DAYS.map((_, di) => {
-                  const dayDate = `2025-07-${String(16 + di).padStart(2, "0")}`;
-                  const hourNum = hour.replace("am", "").replace("pm", "");
-                  const hourInt = parseInt(hourNum) + (hour.includes("pm") && hourNum !== "12" ? 12 : 0);
-                  const booking = calendarBookingByDateHour.get(`${dayDate}|${hourInt}`);
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => setWeekOffset((w) => w + 1)}
+                className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg2)] transition-colors"
+                style={{ border: "1px solid var(--bds)", color: "var(--tx2)" }}
+                aria-label="Next week"
+              >
+                <ChevronRight size={16} />
+              </button>
+              {weekOffset !== 0 && (
+                <button
+                  onClick={() => setWeekOffset(0)}
+                  className="text-xs font-medium px-2.5 py-1.5 rounded-[var(--r)]"
+                  style={{ background: "var(--ac-bg)", color: "var(--ac)" }}
+                >
+                  This week
+                </button>
+              )}
+              <p className="text-sm font-medium ml-1" style={{ color: "var(--tx)" }}>
+                {formatWeekDayLabel(weekDates[0])} – {formatWeekDayLabel(weekDates[5])}
+              </p>
+            </div>
+            {outOfGridCount > 0 && (
+              <p className="text-xs" style={{ color: "var(--tx3)" }}>
+                {outOfGridCount} booking{outOfGridCount === 1 ? "" : "s"} this week outside Mon–Sat, 9am–6pm — see List tab
+              </p>
+            )}
+          </div>
 
+          <div className="overflow-x-auto">
+            <div className="rounded-[var(--rl)] overflow-hidden min-w-[600px]" style={{ border: "1px solid var(--bds)" }}>
+              <div
+                className="grid text-xs font-semibold uppercase tracking-wide"
+                style={{ gridTemplateColumns: "60px repeat(6, 1fr)", background: "var(--bg2)", borderBottom: "1px solid var(--bds)" }}
+              >
+                <div className="px-2 py-3 text-center" style={{ color: "var(--tx3)" }} />
+                {weekDates.map((d, i) => {
+                  const isToday = toDateKey(d) === todayKey;
                   return (
-                    <div key={di} className="p-1 min-h-[52px]" style={{ borderRight: di < 5 ? "1px solid var(--bds)" : undefined }}>
-                      {booking && (
-                        <button
-                          onClick={() => setSelectedBookingId(booking.id)}
-                          className="w-full text-left px-2 py-1.5 rounded text-xs font-medium truncate"
-                          style={{
-                            background: booking.status === "confirmed" ? "var(--ac-bg)" : "var(--bds)",
-                            color: booking.status === "confirmed" ? "var(--ac)" : "var(--tx2)",
-                          }}
-                        >
-                          {booking.customerName.split(" ")[0]}
-                        </button>
-                      )}
+                    <div key={toDateKey(d)} className="px-2 py-3 text-center" style={{ color: isToday ? "var(--ac)" : "var(--tx3)" }}>
+                      <span>{CALENDAR_DAYS[i]}</span>
+                      <span className="block font-bold text-sm" style={{ color: isToday ? "var(--ac)" : "var(--tx)" }}>
+                        {d.getUTCDate()}
+                      </span>
                     </div>
                   );
                 })}
               </div>
-            ))}
+
+              {HOURS.map((hour) => (
+                <div
+                  key={hour}
+                  className="grid"
+                  style={{ gridTemplateColumns: "60px repeat(6, 1fr)", borderBottom: "1px solid var(--bds)", background: "var(--bg)" }}
+                >
+                  <div className="px-2 py-3 text-xs text-right pr-3" style={{ color: "var(--tx3)", borderRight: "1px solid var(--bds)" }}>
+                    {hour}
+                  </div>
+                  {weekDates.map((d, di) => {
+                    const dayKey = toDateKey(d);
+                    const hourInt = hourStringToInt(hour);
+                    const cellBookings = calendarBookingsByDateHour.get(`${dayKey}|${hourInt}`) ?? [];
+                    const isToday = dayKey === todayKey;
+
+                    return (
+                      <div
+                        key={dayKey}
+                        className="p-1 min-h-[52px] flex flex-col gap-1"
+                        style={{
+                          borderRight: di < 5 ? "1px solid var(--bds)" : undefined,
+                          background: isToday ? "var(--ac-bg)" : undefined,
+                        }}
+                      >
+                        {cellBookings.map((booking) => (
+                          <button
+                            key={booking.id}
+                            onClick={() => setSelectedBookingId(booking.id)}
+                            className="w-full text-left px-2 py-1.5 rounded text-xs font-medium truncate"
+                            style={{
+                              background: booking.status === "confirmed" ? "var(--ac-bg)" : "var(--bds)",
+                              color: booking.status === "confirmed" ? "var(--ac)" : "var(--tx2)",
+                            }}
+                            title={`${booking.customerName} · ${booking.assignedStaffName ?? "Unassigned"}`}
+                          >
+                            <span className="block truncate">{booking.customerName.split(" ")[0]}</span>
+                            {booking.assignedStaffName && (
+                              <span className="block font-normal opacity-75 truncate">{booking.assignedStaffName}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

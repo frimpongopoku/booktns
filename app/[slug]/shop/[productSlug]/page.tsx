@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStorefrontVendor } from "@/lib/vendors";
+import { getStorefrontVendor, getVendorPublicMeta } from "@/lib/vendors";
 import { formatPrice } from "@/lib/data";
+import { SITE_URL } from "@/lib/site";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import ProductPageClient from "@/components/storefront/ProductPageClient";
 import { ShoppingCart } from "lucide-react";
@@ -15,7 +16,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug, productSlug } = await params;
   const vendorData = await getStorefrontVendor(slug);
   const product = vendorData?.products.find((p) => p.slug === productSlug);
-  if (!vendorData || !product) return {};
+  if (!vendorData || !product) {
+    const meta = await getVendorPublicMeta(slug);
+    return {
+      title: meta ? `Product not found — ${meta.name}` : "Product not found",
+      robots: { index: false, follow: false },
+    };
+  }
 
   const title = `${product.name} — ${vendorData.name}`;
   const description =
@@ -50,16 +57,17 @@ export default async function ProductPage({ params }: PageProps) {
   const product = vendorData.products.find((p) => p.slug === productSlug);
   if (!product) notFound();
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const productUrl = `${SITE_URL}/${slug}/shop/${productSlug}`;
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     description: product.description,
     image: product.images.map((img) => img.url),
-    url: `${appUrl}/${slug}/shop/${productSlug}`,
+    url: productUrl,
     offers: {
       "@type": "Offer",
+      url: productUrl,
       price: (product.priceInPesewas / 100).toFixed(2),
       priceCurrency: "GHS",
       availability:

@@ -11,9 +11,18 @@ interface ProductDetailContentProps {
   // True when rendered inside the quick-view modal — stacked layout instead
   // of the full page's side-by-side gallery/details grid.
   compact?: boolean;
+  // The quick-view modal needs "h2" (the shop page already has its own h1);
+  // the standalone product page needs "h1" — the product name is its primary
+  // heading and was previously always an h2, even there.
+  headingLevel?: "h1" | "h2";
 }
 
-export default function ProductDetailContent({ product, onAddToCart, compact = false }: ProductDetailContentProps) {
+export default function ProductDetailContent({
+  product,
+  onAddToCart,
+  compact = false,
+  headingLevel: HeadingTag = "h2",
+}: ProductDetailContentProps) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -79,12 +88,12 @@ export default function ProductDetailContent({ product, onAddToCart, compact = f
             Out of stock
           </span>
         )}
-        <h2
+        <HeadingTag
           className="font-display text-xl font-medium"
           style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
         >
           {product.name}
-        </h2>
+        </HeadingTag>
         <p className="text-lg font-semibold" style={{ color: "var(--ac)" }}>
           {formatPrice(product.priceInPesewas)}
         </p>

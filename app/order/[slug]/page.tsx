@@ -29,10 +29,32 @@ function PaymentIcon({ type }: { type: string }) {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const order = await getOrderBySlug(slug);
+  if (!order) {
+    return {
+      title: "Order Confirmation",
+      alternates: { canonical: `/order/${slug}` },
+      robots: { index: false, follow: true },
+    };
+  }
+
+  const description = `${order.ref} · ${order.items.length} item${order.items.length === 1 ? "" : "s"} from ${order.vendor.name}`;
+
   return {
-    title: "Order Confirmation",
+    title: `Order Confirmation — ${order.vendor.name}`,
+    description,
     alternates: { canonical: `/order/${slug}` },
     robots: { index: false, follow: true },
+    openGraph: {
+      title: `Order at ${order.vendor.name}`,
+      description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `Order at ${order.vendor.name}`,
+      description,
+    },
   };
 }
 

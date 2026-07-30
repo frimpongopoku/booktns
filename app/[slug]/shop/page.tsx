@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getStorefrontVendor, getAllActiveVendorSlugs } from "@/lib/vendors";
+import { getStorefrontVendor, getAllActiveVendorSlugs, getVendorPublicMeta } from "@/lib/vendors";
+import { SITE_URL } from "@/lib/site";
 import ShopClient from "@/components/storefront/ShopClient";
 
 interface PageProps {
@@ -15,7 +16,13 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const vendorData = await getStorefrontVendor(slug);
-  if (!vendorData) return {};
+  if (!vendorData) {
+    const meta = await getVendorPublicMeta(slug);
+    return {
+      title: meta ? `Shop — ${meta.name}` : "Shop not found",
+      robots: { index: false, follow: false },
+    };
+  }
 
   const title = `Shop — ${vendorData.name}`;
   const description = `Shop hair, skin, and nail products from ${vendorData.name}. Order online, pick up or get it delivered.`;
@@ -44,7 +51,6 @@ export default async function ShopPage({ params }: PageProps) {
   const vendorData = await getStorefrontVendor(slug);
   if (!vendorData) notFound();
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -55,7 +61,8 @@ export default async function ShopPage({ params }: PageProps) {
         "@type": "Product",
         name: product.name,
         description: product.description,
-        url: `${appUrl}/${slug}/shop`,
+        image: product.images.map((img) => img.url),
+        url: `${SITE_URL}/${slug}/shop/${product.slug}`,
         offers: {
           "@type": "Offer",
           price: (product.priceInPesewas / 100).toFixed(2),

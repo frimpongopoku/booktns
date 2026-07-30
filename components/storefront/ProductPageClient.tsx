@@ -17,6 +17,7 @@ export default function ProductPageClient({ product, vendorSlug }: ProductPageCl
     <ProductDetailContent
       product={product}
       onAddToCart={(p, quantity) => addItem(vendorSlug, p, quantity)}
+      headingLevel="h1"
     />
   );
 }

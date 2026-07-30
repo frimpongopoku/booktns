@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 interface GetAvailableSlotsParams {
   vendorId: string;
@@ -9,6 +10,10 @@ interface GetAvailableSlotsParams {
   // since the booking's current (pre-reschedule) row would otherwise always
   // "conflict" with any new slot check performed before it's updated.
   excludeBookingId?: string;
+  // Pass the transaction client when this recheck must be atomic with the
+  // write that follows it (booking create/reschedule) — otherwise defaults
+  // to the regular singleton, same as every read-only caller.
+  client?: Prisma.TransactionClient | typeof db;
 }
 
 // Matches the granularity the storefront's old hardcoded time-slot list used.
@@ -40,6 +45,7 @@ export async function getAvailableSlots({
   durationMinutes,
   staffId,
   excludeBookingId,
+  client = db,
 }: GetAvailableSlotsParams): Promise<string[]> {
   const [year, month, day] = date.split("-").map(Number);
   if (!year || !month || !day) return [];
@@ -54,11 +60,13 @@ export async function getAvailableSlots({
   // round-trip this saves on every open day, the common case, across all
   // three callers of this function.
   const [hours, conflicts] = await Promise.all([
-    db.businessHours.findUnique({ where: { vendorId_dayOfWeek: { vendorId, dayOfWeek } } }),
-    db.booking.findMany({
+    client.businessHours.findUnique({ where: { vendorId_dayOfWeek: { vendorId, dayOfWeek } } }),
+    client.booking.findMany({
       where: {
         vendorId,
-        status: { in: ["pending", "confirmed"] },
+        // "rescheduled" is still an active, unresolved booking occupying its
+        // new time — omitting it here would let its own slot look free again.
+        status: { in: ["pending", "confirmed", "rescheduled"] },
         startTime: { lt: dayEnd },
         endTime: { gt: dayStart },
         ...(excludeBookingId ? { id: { not: excludeBookingId } } : {}),

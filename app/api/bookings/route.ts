@@ -9,6 +9,7 @@ import { getAvailableSlots } from "@/lib/availability";
 import { calculateDepositAmountPesewas } from "@/lib/deposit";
 import { serializeBooking } from "@/lib/serialize";
 import { sendBookingRequestEmail, sendNewBookingNotification } from "@/lib/email";
+import { sendBookingRequestSms, sendNewBookingSms } from "@/lib/sms";
 
 const createSchema = z.object({
   vendorSlug: z.string().trim().min(1),
@@ -27,6 +28,31 @@ const createSchema = z.object({
 });
 
 const MAX_SLUG_ATTEMPTS = 5;
+const MAX_SERIALIZATION_ATTEMPTS = 3;
+
+// Thrown when the authoritative in-transaction recheck finds the slot gone —
+// distinct from a transient write conflict, so the retry loop below knows
+// not to retry it (the slot really is taken, retrying won't change that).
+class SlotUnavailableError extends Error {}
+
+// Runs `fn` inside a Serializable transaction, retrying on P2034 ("Transaction
+// failed due to a write conflict") — Postgres's signal that two overlapping
+// transactions raced and one has to lose. Without this, the availability
+// recheck and the booking insert are two separate statements with a gap
+// between them, and two near-simultaneous submissions for the same slot can
+// both pass the recheck before either commits.
+async function runSerializable<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt < MAX_SERIALIZATION_ATTEMPTS; attempt++) {
+    try {
+      return await db.$transaction(fn, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (err) {
+      const isWriteConflict = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2034";
+      if (isWriteConflict && attempt < MAX_SERIALIZATION_ATTEMPTS - 1) continue;
+      throw err;
+    }
+  }
+  throw new Error("unreachable");
+}
 
 // Public, unauthenticated — guest booking, same trust model as POST /api/orders.
 export async function POST(request: Request) {
@@ -62,7 +88,7 @@ export async function POST(request: Request) {
     parsed.data.paymentMethodId
       ? db.paymentMethod.findFirst({ where: { id: parsed.data.paymentMethodId, vendorId: vendor.id, active: true }, select: { id: true } })
       : Promise.resolve(null),
-    db.staff.findMany({ where: { vendorId: vendor.id, role: { in: ["Owner", "Management"] }, active: true }, select: { email: true } }),
+    db.staff.findMany({ where: { vendorId: vendor.id, role: { in: ["Owner", "Management"] }, active: true }, select: { email: true, phone: true } }),
   ]);
 
   if (services.length !== new Set(parsed.data.serviceIds).size) {
@@ -100,8 +126,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Payment method not found", code: "not_found" }, { status: 400 });
   }
 
-  // Re-check availability at submission time — closes the race window
-  // between two customers being shown the same slot.
+  // Cheap fail-fast check, outside any transaction — catches the common,
+  // non-racing case (slot was simply taken a while ago) before doing the
+  // rest of this request's work. Not the actual correctness guarantee —
+  // that's the recheck inside the transaction below.
   const availableSlots = await getAvailableSlots({
     vendorId: vendor.id,
     date: parsed.data.date,
@@ -138,52 +166,81 @@ export async function POST(request: Request) {
     return { productId: product.id, name: product.name, priceAtBooking: product.priceInPesewas, quantity: item.quantity };
   });
 
-  for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
-    try {
-      const booking = await db.booking.create({
-        data: {
-          vendorId: vendor.id,
-          slug: generateBookingSlug(),
-          customerName: parsed.data.customerName,
-          customerPhone: normalizedPhone,
-          customerEmail: parsed.data.customerEmail,
-          staffPreferenceId: parsed.data.staffPreferenceId || null,
-          startTime,
-          endTime,
-          notes: parsed.data.notes ?? "",
-          depositAmountPesewas,
-          depositReferenceCode: depositAmountPesewas > 0 ? generateDepositReferenceCode() : null,
-          paymentMethodId: parsed.data.paymentMethodId || null,
-          services: { create: bookingServices },
-          products: { create: bookingProducts },
-        },
-        include: {
-          services: true,
-          products: true,
-          staffPreference: { select: { name: true } },
-          assignedStaff: { select: { name: true } },
-          paymentMethod: true,
-        },
+  let booking;
+  try {
+    booking = await runSerializable(async (tx) => {
+      // Authoritative recheck, atomic with the create below — this is what
+      // actually closes the race window between two customers submitting
+      // the same slot at once, not the fail-fast check above.
+      const slots = await getAvailableSlots({
+        vendorId: vendor.id,
+        date: parsed.data.date,
+        durationMinutes: totalDurationMinutes,
+        staffId: parsed.data.staffPreferenceId ?? undefined,
+        client: tx,
       });
+      if (!slots.includes(parsed.data.startTime)) {
+        throw new SlotUnavailableError();
+      }
 
-      const serialized = serializeBooking(booking);
-      const vendorInfo = { name: vendor.name, cancellationPolicy: vendor.cancellationPolicy };
-      // Fire-and-forget — a slow or failing email provider must never hold
-      // up the booking response or fail an otherwise-successful booking.
-      sendBookingRequestEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingRequestEmail failed", err));
-      sendNewBookingNotification(serialized, vendorInfo, notifyStaff.map((s) => s.email)).catch((err) =>
-        console.error("sendNewBookingNotification failed", err)
+      for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+        try {
+          return await tx.booking.create({
+            data: {
+              vendorId: vendor.id,
+              slug: generateBookingSlug(),
+              customerName: parsed.data.customerName,
+              customerPhone: normalizedPhone,
+              customerEmail: parsed.data.customerEmail,
+              staffPreferenceId: parsed.data.staffPreferenceId || null,
+              startTime,
+              endTime,
+              notes: parsed.data.notes ?? "",
+              depositAmountPesewas,
+              depositReferenceCode: depositAmountPesewas > 0 ? generateDepositReferenceCode() : null,
+              paymentMethodId: parsed.data.paymentMethodId || null,
+              services: { create: bookingServices },
+              products: { create: bookingProducts },
+            },
+            include: {
+              services: true,
+              products: true,
+              staffPreference: { select: { name: true } },
+              assignedStaff: { select: { name: true } },
+              paymentMethod: true,
+            },
+          });
+        } catch (err) {
+          const isSlugConflict = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+          if (isSlugConflict && attempt < MAX_SLUG_ATTEMPTS - 1) continue;
+          throw err;
+        }
+      }
+      throw new Error("Could not generate a unique booking slug");
+    });
+  } catch (err) {
+    if (err instanceof SlotUnavailableError) {
+      return NextResponse.json(
+        { error: "That time is no longer available — please pick another slot", code: "slot_unavailable" },
+        { status: 409 }
       );
-
-      return NextResponse.json({ booking: serialized }, { status: 201 });
-    } catch (err) {
-      const isSlugConflict = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
-      if (isSlugConflict && attempt < MAX_SLUG_ATTEMPTS - 1) continue;
-      throw err;
     }
+    throw err;
   }
 
-  return NextResponse.json({ error: "Something went wrong. Please try again.", code: "server_error" }, { status: 500 });
+  const serialized = serializeBooking(booking);
+  const vendorInfo = { name: vendor.name, cancellationPolicy: vendor.cancellationPolicy };
+  const notifyStaffPhones = notifyStaff.map((s) => s.phone).filter((phone): phone is string => Boolean(phone));
+  // Fire-and-forget — a slow or failing email/SMS provider must never hold
+  // up the booking response or fail an otherwise-successful booking.
+  sendBookingRequestEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingRequestEmail failed", err));
+  sendNewBookingNotification(serialized, vendorInfo, notifyStaff.map((s) => s.email)).catch((err) =>
+    console.error("sendNewBookingNotification failed", err)
+  );
+  sendBookingRequestSms(serialized, vendorInfo).catch((err) => console.error("sendBookingRequestSms failed", err));
+  sendNewBookingSms(serialized, notifyStaffPhones).catch((err) => console.error("sendNewBookingSms failed", err));
+
+  return NextResponse.json({ booking: serialized }, { status: 201 });
 }
 
 // Dashboard booking list — vendor-scoped, staff-authenticated.

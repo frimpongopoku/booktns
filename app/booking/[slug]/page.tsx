@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBookingBySlug } from "@/lib/bookings";
 import { formatPrice } from "@/lib/data";
+import { buildGoogleCalendarUrl } from "@/lib/calendar";
 import { bookingStatusBadge } from "@/components/ui/Badge";
 import { CopyButton } from "@/components/ui/CopyButton";
 import BookingConfirmationActions from "@/components/storefront/BookingConfirmationActions";
@@ -83,17 +84,13 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
 
   const servicesTotal = booking.services.reduce((s, svc) => s + svc.priceAtBooking, 0);
 
-  // Booking times are stored as plain UTC standing in for Ghana wall-clock
-  // time (Africa/Accra is UTC+0 year-round — see lib/availability.ts), same
-  // as every other display on this page. A trailing "Z" would tell Google
-  // Calendar this is a real UTC instant and it would convert to the
-  // viewer's own device timezone, showing the wrong wall-clock time to
-  // anyone not physically in Ghana — so these are passed as floating
-  // (no "Z") local times with an explicit ctz instead.
-  const toGoogleCalendarDateTime = (iso: string): string => iso.replace(/[-:]/g, "").split(".")[0];
-  const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-    booking.services.map((s) => s.name).join(" + ")
-  )}&dates=${toGoogleCalendarDateTime(booking.startTime)}/${toGoogleCalendarDateTime(booking.endTime)}&details=Booking+at+${encodeURIComponent(booking.vendor.name)}&location=${encodeURIComponent(booking.vendor.location)}&ctz=Africa/Accra`;
+  const calendarUrl = buildGoogleCalendarUrl({
+    title: booking.services.map((s) => s.name).join(" + "),
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    details: `Booking at ${booking.vendor.name}`,
+    location: booking.vendor.location,
+  });
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>

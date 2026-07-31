@@ -118,6 +118,9 @@ export interface BookingProduct {
   name: string;
   priceAtBooking: number;
   quantity: number;
+  // Undefined when the product was later deleted (productId goes null) — the
+  // snapshot name/price still displays, it just can't link anywhere anymore.
+  productSlug?: string;
 }
 
 export interface Booking {

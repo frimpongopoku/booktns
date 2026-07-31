@@ -3,6 +3,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
 import { serializeBooking } from "@/lib/serialize";
+import { sendBookingCancelledEmail } from "@/lib/email";
+import { sendBookingCancelledSms } from "@/lib/sms";
 
 const updateSchema = z.object({
   customerName: z.string().trim().min(1, "Name is required").optional(),
@@ -61,12 +63,34 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     },
     include: {
       services: true,
-      products: true,
+      products: { include: { product: { select: { slug: true } } } },
       staffPreference: { select: { name: true } },
       assignedStaff: { select: { name: true } },
       paymentMethod: true,
+      vendor: {
+        select: {
+          name: true,
+          slug: true,
+          location: true,
+          logoUrl: true,
+          whatsapp: true,
+          personalWhatsappNumber: true,
+          cancellationPolicy: true,
+        },
+      },
     },
   });
 
-  return NextResponse.json({ booking: serializeBooking(booking) });
+  const serialized = serializeBooking(booking);
+
+  // Only reachable transition here is pending -> cancelled (the guard above
+  // already rejects any request once status isn't "pending", and status can
+  // only ever be the literal "cancelled") — a plain self-service edit
+  // (name/phone/email with no status change) never fires anything.
+  if (parsed.data.status === "cancelled") {
+    sendBookingCancelledEmail(serialized, booking.vendor).catch((err) => console.error("sendBookingCancelledEmail failed", err));
+    sendBookingCancelledSms(serialized, booking.vendor).catch((err) => console.error("sendBookingCancelledSms failed", err));
+  }
+
+  return NextResponse.json({ booking: serialized });
 }

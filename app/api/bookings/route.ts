@@ -66,7 +66,19 @@ export async function POST(request: Request) {
 
   const vendor = await db.vendor.findUnique({
     where: { slug: parsed.data.vendorSlug },
-    select: { id: true, name: true, active: true, storefrontPublished: true, depositSetting: true, depositValue: true, cancellationPolicy: true },
+    select: {
+      id: true,
+      name: true,
+      active: true,
+      storefrontPublished: true,
+      depositSetting: true,
+      depositValue: true,
+      cancellationPolicy: true,
+      logoUrl: true,
+      location: true,
+      whatsapp: true,
+      personalWhatsappNumber: true,
+    },
   });
   if (!vendor || !vendor.active || !vendor.storefrontPublished) {
     return NextResponse.json({ error: "Shop not found", code: "not_found" }, { status: 404 });
@@ -204,7 +216,7 @@ export async function POST(request: Request) {
             },
             include: {
               services: true,
-              products: true,
+              products: { include: { product: { select: { slug: true } } } },
               staffPreference: { select: { name: true } },
               assignedStaff: { select: { name: true } },
               paymentMethod: true,
@@ -229,7 +241,15 @@ export async function POST(request: Request) {
   }
 
   const serialized = serializeBooking(booking);
-  const vendorInfo = { name: vendor.name, cancellationPolicy: vendor.cancellationPolicy };
+  const vendorInfo = {
+    name: vendor.name,
+    slug: parsed.data.vendorSlug,
+    logoUrl: vendor.logoUrl,
+    location: vendor.location,
+    whatsapp: vendor.whatsapp,
+    personalWhatsappNumber: vendor.personalWhatsappNumber,
+    cancellationPolicy: vendor.cancellationPolicy,
+  };
   const notifyStaffPhones = notifyStaff.map((s) => s.phone).filter((phone): phone is string => Boolean(phone));
   // Fire-and-forget — a slow or failing email/SMS provider must never hold
   // up the booking response or fail an otherwise-successful booking.
@@ -252,7 +272,7 @@ export async function GET() {
     where: { vendorId: auth.session.vendorId },
     include: {
       services: true,
-      products: true,
+      products: { include: { product: { select: { slug: true } } } },
       staffPreference: { select: { name: true } },
       assignedStaff: { select: { name: true } },
       paymentMethod: true,

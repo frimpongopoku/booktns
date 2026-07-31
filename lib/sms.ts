@@ -67,6 +67,38 @@ export async function sendBookingConfirmedSms(booking: Booking, vendor: VendorSm
   await sendOrThrowSms(client, { to: booking.customerPhone, message, ...(AT_SENDER_ID ? { from: AT_SENDER_ID } : {}) });
 }
 
+export async function sendBookingCancelledSms(booking: Booking, vendor: VendorSmsInfo): Promise<void> {
+  const client = getSmsClient();
+  if (!client) {
+    console.warn("AFRICAS_TALKING_API_KEY/AFRICAS_TALKING_USERNAME not configured — skipping sendBookingCancelledSms");
+    return;
+  }
+  const bookingUrl = `${APP_URL}/booking/${booking.slug}`;
+  const message = `Booktns: Your booking with ${vendor.name} on ${formatCompactDateTime(booking.startTime)} has been cancelled. ${bookingUrl}`;
+  await sendOrThrowSms(client, { to: booking.customerPhone, message, ...(AT_SENDER_ID ? { from: AT_SENDER_ID } : {}) });
+}
+
+export async function sendBookingCompletedSms(booking: Booking, vendor: VendorSmsInfo): Promise<void> {
+  const client = getSmsClient();
+  if (!client) {
+    console.warn("AFRICAS_TALKING_API_KEY/AFRICAS_TALKING_USERNAME not configured — skipping sendBookingCompletedSms");
+    return;
+  }
+  const message = `Booktns: Thank you for visiting ${vendor.name}! We hope to see you again soon.`;
+  await sendOrThrowSms(client, { to: booking.customerPhone, message, ...(AT_SENDER_ID ? { from: AT_SENDER_ID } : {}) });
+}
+
+export async function sendBookingRescheduledSms(booking: Booking, vendor: VendorSmsInfo): Promise<void> {
+  const client = getSmsClient();
+  if (!client) {
+    console.warn("AFRICAS_TALKING_API_KEY/AFRICAS_TALKING_USERNAME not configured — skipping sendBookingRescheduledSms");
+    return;
+  }
+  const bookingUrl = `${APP_URL}/booking/${booking.slug}`;
+  const message = `Booktns: ${vendor.name} moved your booking to ${formatCompactDateTime(booking.startTime)}. ${bookingUrl}`;
+  await sendOrThrowSms(client, { to: booking.customerPhone, message, ...(AT_SENDER_ID ? { from: AT_SENDER_ID } : {}) });
+}
+
 export async function sendNewBookingSms(booking: Booking, recipientPhones: string[]): Promise<void> {
   if (recipientPhones.length === 0) return;
   const client = getSmsClient();

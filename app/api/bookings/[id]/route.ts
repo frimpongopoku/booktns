@@ -7,8 +7,18 @@ import { serializeBooking } from "@/lib/serialize";
 import { getAvailableSlots } from "@/lib/availability";
 import { generateConfirmedBookingPdf } from "@/lib/pdf";
 import { uploadFile } from "@/lib/storage";
-import { sendBookingConfirmedEmail } from "@/lib/email";
-import { sendBookingConfirmedSms } from "@/lib/sms";
+import {
+  sendBookingConfirmedEmail,
+  sendBookingCancelledEmail,
+  sendBookingCompletedEmail,
+  sendBookingRescheduledEmail,
+} from "@/lib/email";
+import {
+  sendBookingConfirmedSms,
+  sendBookingCancelledSms,
+  sendBookingCompletedSms,
+  sendBookingRescheduledSms,
+} from "@/lib/sms";
 
 const BOOKING_STATUSES = ["pending", "confirmed", "completed", "cancelled", "rescheduled"] as const;
 
@@ -69,7 +79,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       assignedStaffId: true,
       startTime: true,
       endTime: true,
-      vendor: { select: { name: true, location: true, logoUrl: true, cancellationPolicy: true } },
+      vendor: {
+        select: {
+          name: true,
+          slug: true,
+          location: true,
+          logoUrl: true,
+          whatsapp: true,
+          personalWhatsappNumber: true,
+          cancellationPolicy: true,
+        },
+      },
     },
   });
   if (!existing) {
@@ -131,7 +151,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         },
         include: {
           services: true,
-          products: true,
+          products: { include: { product: { select: { slug: true } } } },
           staffPreference: { select: { name: true } },
           assignedStaff: { select: { name: true } },
           paymentMethod: true,
@@ -148,33 +168,44 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     throw err;
   }
 
-  let serialized = serializeBooking(booking);
+  const serialized = serializeBooking(booking);
   const vendorInfo = existing.vendor;
+  const newStatus = parsed.data.status;
 
-  // Confirmed Booking PDF is generated once, only on the transition into
-  // "confirmed" — never regenerated on later edits to the same booking.
-  if (existing.status !== "confirmed" && parsed.data.status === "confirmed") {
-    try {
-      const pdfBuffer = await generateConfirmedBookingPdf(serialized, vendorInfo);
-      const confirmedPdfUrl = await uploadFile(`bookings/${booking.slug}/confirmed.pdf`, pdfBuffer, "application/pdf");
-      const updated = await db.booking.update({
-        where: { id },
-        data: { confirmedPdfUrl },
-        include: {
-          services: true,
-          products: true,
-          staffPreference: { select: { name: true } },
-          assignedStaff: { select: { name: true } },
-          paymentMethod: true,
-        },
-      });
-      serialized = serializeBooking(updated);
-    } catch (err) {
-      console.error("generateConfirmedBookingPdf failed", err);
+  // Every notification below is gated on an actual status transition (the
+  // requested status differs from what it was) — editing notes, assigning
+  // staff, or re-submitting the same status again never fires anything.
+  if (newStatus && existing.status !== newStatus) {
+    if (newStatus === "confirmed") {
+      // The email/SMS only link to /booking/{slug} — neither reads
+      // confirmedPdfUrl — so they don't need to wait on the PDF at all.
+      sendBookingConfirmedEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingConfirmedEmail failed", err));
+      sendBookingConfirmedSms(serialized, vendorInfo).catch((err) => console.error("sendBookingConfirmedSms failed", err));
+
+      // PDF generation (Satori render + resvg rasterize) and the R2 upload
+      // take multiple seconds and nothing in this response depends on the
+      // result — the customer's booking page and the dashboard's booking
+      // drawer both already read confirmedPdfUrl independently whenever it's
+      // set, so this must not block the PATCH response the way it used to.
+      (async () => {
+        try {
+          const pdfBuffer = await generateConfirmedBookingPdf(serialized, vendorInfo);
+          const confirmedPdfUrl = await uploadFile(`bookings/${booking.slug}/confirmed.pdf`, pdfBuffer, "application/pdf");
+          await db.booking.update({ where: { id }, data: { confirmedPdfUrl } });
+        } catch (err) {
+          console.error("generateConfirmedBookingPdf failed", err);
+        }
+      })();
+    } else if (newStatus === "cancelled") {
+      sendBookingCancelledEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingCancelledEmail failed", err));
+      sendBookingCancelledSms(serialized, vendorInfo).catch((err) => console.error("sendBookingCancelledSms failed", err));
+    } else if (newStatus === "completed") {
+      sendBookingCompletedEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingCompletedEmail failed", err));
+      sendBookingCompletedSms(serialized, vendorInfo).catch((err) => console.error("sendBookingCompletedSms failed", err));
+    } else if (newStatus === "rescheduled") {
+      sendBookingRescheduledEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingRescheduledEmail failed", err));
+      sendBookingRescheduledSms(serialized, vendorInfo).catch((err) => console.error("sendBookingRescheduledSms failed", err));
     }
-
-    sendBookingConfirmedEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingConfirmedEmail failed", err));
-    sendBookingConfirmedSms(serialized, vendorInfo).catch((err) => console.error("sendBookingConfirmedSms failed", err));
   }
 
   return NextResponse.json({ booking: serialized });

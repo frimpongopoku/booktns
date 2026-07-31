@@ -23,7 +23,7 @@ export const getBookingBySlug = cache(async (slug: string): Promise<BookingWithV
     where: { slug },
     include: {
       services: true,
-      products: true,
+      products: { include: { product: { select: { slug: true } } } },
       staffPreference: { select: { name: true } },
       assignedStaff: { select: { name: true } },
       paymentMethod: true,

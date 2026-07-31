@@ -34,7 +34,7 @@ export default async function BookingsPage() {
       where: { vendorId: session.vendorId },
       include: {
         services: true,
-        products: true,
+        products: { include: { product: { select: { slug: true } } } },
         staffPreference: { select: { name: true } },
         assignedStaff: { select: { name: true } },
         paymentMethod: true,

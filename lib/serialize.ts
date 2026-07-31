@@ -113,7 +113,7 @@ export function serializeOrder(order: PrismaOrder & { items: PrismaOrderItem[]; 
 
 interface BookingWithRelations extends PrismaBooking {
   services: PrismaBookingService[];
-  products: PrismaBookingProduct[];
+  products: (PrismaBookingProduct & { product?: { slug: string } | null })[];
   staffPreference?: { name: string } | null;
   assignedStaff?: { name: string } | null;
   paymentMethod?: PrismaPaymentMethod | null;
@@ -128,7 +128,14 @@ export function serializeBooking(booking: BookingWithRelations): Booking {
     customerPhone: booking.customerPhone,
     customerEmail: booking.customerEmail,
     services: booking.services,
-    products: booking.products,
+    products: booking.products.map((p) => ({
+      id: p.id,
+      productId: p.productId,
+      name: p.name,
+      priceAtBooking: p.priceAtBooking,
+      quantity: p.quantity,
+      productSlug: p.product?.slug ?? undefined,
+    })),
     staffPreferenceId: booking.staffPreferenceId ?? undefined,
     staffPreferenceName: booking.staffPreference?.name ?? undefined,
     assignedStaffId: booking.assignedStaffId ?? undefined,

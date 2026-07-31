@@ -11,7 +11,8 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Input from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import { CreditCard, Smartphone, Banknote, Check, ImagePlus, ExternalLink, Rocket, X, Plus, Archive } from "lucide-react";
+import { CopyButton } from "@/components/ui/CopyButton";
+import { CreditCard, Smartphone, Banknote, Check, ImagePlus, ExternalLink, Rocket, X, Plus, Archive, CalendarDays } from "lucide-react";
 
 interface ApiErrorBody {
   error: string;
@@ -32,14 +33,34 @@ const HERO_MODE_OPTIONS: { value: HeroCardMode; label: string; desc: string }[] 
 
 const THEME_OPTIONS: StorefrontTheme[] = ["Red", "Emerald", "Indigo", "Orchid"];
 
-type SettingsTab = "storefront" | "payment" | "booking" | "whatsapp" | "billing";
+type SettingsTab = "storefront" | "payment" | "booking" | "calendar" | "whatsapp" | "billing";
 
 const TABS: { key: SettingsTab; label: string }[] = [
   { key: "storefront", label: "Storefront" },
   { key: "payment", label: "Payment" },
   { key: "booking", label: "Booking" },
+  { key: "calendar", label: "Calendar" },
   { key: "whatsapp", label: "WhatsApp" },
   { key: "billing", label: "Billing" },
+];
+
+const CALENDAR_SYNC_BENEFITS = [
+  {
+    title: "Never miss an appointment",
+    desc: "Every booking sits right alongside your personal schedule — not in a separate app you have to remember to open.",
+  },
+  {
+    title: "Get reminders automatically",
+    desc: "Google Calendar's own notifications fire before each appointment, using whatever reminder settings you already have.",
+  },
+  {
+    title: "Avoid double-booking your own time",
+    desc: "See your bookings when planning anything else, so nothing personal collides with a client appointment.",
+  },
+  {
+    title: "Stays up to date on its own",
+    desc: "Add this link once — new bookings, cancellations, and reschedules keep syncing automatically after that.",
+  },
 ];
 
 const BILLING_HISTORY = [
@@ -877,6 +898,68 @@ function BookingTab({ vendor }: BookingTabProps) {
   );
 }
 
+interface CalendarTabProps {
+  calendarFeedUrl: string;
+}
+
+function CalendarTab({ calendarFeedUrl }: CalendarTabProps) {
+  return (
+    <div className="max-w-xl">
+      <div className="flex items-start gap-3 mb-5">
+        <div
+          className="w-9 h-9 rounded-[var(--r)] flex items-center justify-center flex-shrink-0"
+          style={{ background: "var(--ac-bg)" }}
+        >
+          <CalendarDays size={16} style={{ color: "var(--ac)" }} />
+        </div>
+        <p className="text-sm" style={{ color: "var(--tx2)" }}>
+          Subscribe to your bookings from your own Google Calendar (or Apple/Outlook) — this is separate from
+          anything customers see, purely for keeping track of your own schedule.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2.5 mb-6">
+        {CALENDAR_SYNC_BENEFITS.map((item) => (
+          <div key={item.title} className="flex items-start gap-2.5 p-3 rounded-[var(--r)]" style={{ background: "var(--bg2)" }}>
+            <Check size={14} className="mt-0.5 flex-shrink-0" style={{ color: "var(--green)" }} />
+            <div>
+              <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{item.title}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--tx3)" }}>{item.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>
+        Your calendar link
+      </p>
+      <div
+        className="flex items-center gap-2 p-3 rounded-[var(--r)] mb-4"
+        style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
+      >
+        <p className="flex-1 text-xs truncate" style={{ color: "var(--tx2)" }}>{calendarFeedUrl}</p>
+        <CopyButton text={calendarFeedUrl} />
+      </div>
+
+      <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>
+          How to add this to Google Calendar
+        </p>
+        <ol className="text-sm flex flex-col gap-1.5 list-decimal list-inside" style={{ color: "var(--tx2)" }}>
+          <li>Copy the link above</li>
+          <li>Open Google Calendar on desktop</li>
+          <li>Next to &quot;Other calendars,&quot; click + → &quot;From URL&quot;</li>
+          <li>Paste the link and click &quot;Add calendar&quot;</li>
+        </ol>
+        <p className="text-xs mt-3" style={{ color: "var(--tx3)" }}>
+          Keep this link private — anyone who has it can see your upcoming bookings. Google typically refreshes
+          subscribed calendars every few hours, not instantly.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function WhatsAppTab() {
   return (
     <div className="max-w-xl">
@@ -1008,9 +1091,10 @@ interface SettingsClientProps {
   businessHours: BusinessHours[];
   initialPaymentMethods: PaymentMethod[];
   initialVideos: VendorVideo[];
+  calendarFeedUrl: string;
 }
 
-export default function SettingsClient({ vendor, businessHours, initialPaymentMethods, initialVideos }: SettingsClientProps) {
+export default function SettingsClient({ vendor, businessHours, initialPaymentMethods, initialVideos, calendarFeedUrl }: SettingsClientProps) {
   const [tab, setTab] = useState<SettingsTab>("storefront");
 
   return (
@@ -1041,6 +1125,7 @@ export default function SettingsClient({ vendor, businessHours, initialPaymentMe
       {tab === "storefront" && <StorefrontTab vendor={vendor} businessHours={businessHours} initialVideos={initialVideos} />}
       {tab === "payment" && <PaymentTab vendor={vendor} initialPaymentMethods={initialPaymentMethods} />}
       {tab === "booking" && <BookingTab vendor={vendor} />}
+      {tab === "calendar" && <CalendarTab calendarFeedUrl={calendarFeedUrl} />}
       {tab === "whatsapp" && <WhatsAppTab />}
       {tab === "billing" && <BillingTab />}
     </div>

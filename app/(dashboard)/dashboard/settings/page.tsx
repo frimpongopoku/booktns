@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { serializeVendor, serializePaymentMethod, serializeVendorVideo } from "@/lib/serialize";
+import { buildCalendarFeedToken } from "@/lib/calendar-feed";
+import { SITE_URL } from "@/lib/site";
 import SettingsClient from "@/components/dashboard/SettingsClient";
 
 export default async function SettingsPage() {
@@ -40,12 +42,15 @@ export default async function SettingsPage() {
 
   if (!vendor) redirect("/login");
 
+  const calendarFeedUrl = `${SITE_URL}/api/calendar/${buildCalendarFeedToken(vendor.id)}`;
+
   return (
     <SettingsClient
       vendor={serializeVendor(vendor)}
       businessHours={businessHours}
       initialPaymentMethods={paymentMethods.map(serializePaymentMethod)}
       initialVideos={videos.map(serializeVendorVideo)}
+      calendarFeedUrl={calendarFeedUrl}
     />
   );
 }

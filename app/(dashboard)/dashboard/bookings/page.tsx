@@ -29,7 +29,7 @@ export default async function BookingsPage() {
   });
 
   const [vendor, bookings, staffList] = await Promise.all([
-    db.vendor.findUnique({ where: { id: session.vendorId }, select: { slug: true } }),
+    db.vendor.findUnique({ where: { id: session.vendorId }, select: { slug: true, name: true, location: true } }),
     db.booking.findMany({
       where: { vendorId: session.vendorId },
       include: {
@@ -51,6 +51,8 @@ export default async function BookingsPage() {
       initialBookings={bookings.map(serializeBooking)}
       staff={staffList.map(serializeStaff)}
       vendorSlug={vendor.slug}
+      vendorName={vendor.name}
+      vendorLocation={vendor.location}
     />
   );
 }

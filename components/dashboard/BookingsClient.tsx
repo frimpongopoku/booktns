@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatPrice } from "@/lib/data";
+import { buildGoogleCalendarUrl } from "@/lib/calendar";
 import { useAvailableSlots } from "@/hooks/useAvailableSlots";
 import type { Booking, BookingStatus, Staff } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
@@ -78,11 +79,13 @@ interface BookingDrawerProps {
   booking: Booking;
   staff: Staff[];
   vendorSlug: string;
+  vendorName: string;
+  vendorLocation: string;
   onClose: () => void;
   onUpdate: (id: string, patch: Record<string, unknown>) => Promise<Booking | null>;
 }
 
-function BookingDrawer({ booking, staff, vendorSlug, onClose, onUpdate }: BookingDrawerProps) {
+function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation, onClose, onUpdate }: BookingDrawerProps) {
   const [note, setNote] = useState(booking.notes);
   // Only one of these panels is meaningful open at a time — a single field
   // (rather than 3 independent booleans) makes that the only representable
@@ -100,6 +103,13 @@ function BookingDrawer({ booking, staff, vendorSlug, onClose, onUpdate }: Bookin
     (new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / 60_000
   );
   const staffId = booking.assignedStaffId ?? booking.staffPreferenceId;
+  const calendarUrl = buildGoogleCalendarUrl({
+    title: `${booking.customerName} — ${booking.services.map((s) => s.name).join(" + ")}`,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    details: `${vendorName} — Booking ${booking.slug} via Booktns`,
+    location: vendorLocation,
+  });
 
   const { slots: rescheduleSlots, loading: loadingSlots } = useAvailableSlots({
     vendorSlug,
@@ -240,6 +250,16 @@ function BookingDrawer({ booking, staff, vendorSlug, onClose, onUpdate }: Bookin
                     {booking.assignedStaffName ?? (booking.staffPreferenceName ? `${booking.staffPreferenceName} (preferred)` : "Unassigned")}
                   </span>
                 </div>
+                <a
+                  href={calendarUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 mt-1 text-xs font-medium w-fit hover:underline"
+                  style={{ color: "var(--ac)" }}
+                >
+                  <Calendar size={12} />
+                  Add to my calendar
+                </a>
               </div>
             </div>
 
@@ -390,9 +410,11 @@ interface BookingsClientProps {
   initialBookings: Booking[];
   staff: Staff[];
   vendorSlug: string;
+  vendorName: string;
+  vendorLocation: string;
 }
 
-export default function BookingsClient({ initialBookings, staff, vendorSlug }: BookingsClientProps) {
+export default function BookingsClient({ initialBookings, staff, vendorSlug, vendorName, vendorLocation }: BookingsClientProps) {
   const [bookingList, setBookingList] = useState<Booking[]>(initialBookings);
   const [tab, setTab] = useState<"list" | "calendar">("list");
   const [search, setSearch] = useState("");
@@ -700,6 +722,8 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug }: B
           booking={selectedBooking}
           staff={staff}
           vendorSlug={vendorSlug}
+          vendorName={vendorName}
+          vendorLocation={vendorLocation}
           onClose={() => setSelectedBookingId(null)}
           onUpdate={updateBooking}
         />

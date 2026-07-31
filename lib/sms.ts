@@ -29,8 +29,16 @@ function getSmsClient(): AfricasTalkingSms | null {
 // message actually failed to send (bad number, insufficient balance, etc.) —
 // awaiting client.send() directly would silently treat that as success, the
 // same trap lib/email.ts's sendOrThrow guards against for Resend.
+//
+// Note what "Success" here actually means: the API accepted the message for
+// delivery, not that it reached the handset. A Sender ID pending NCA
+// approval, or a number on Ghana's DND registry, can both get silently
+// dropped downstream after this call reports Success — cross-check the
+// messageId below against Africa's Talking's own delivery reports if a
+// message logs as sent but never arrives.
 async function sendOrThrowSms(client: AfricasTalkingSms, options: SMSOptions): Promise<void> {
   const response = await client.send(options);
+  console.log("Africa's Talking SMS response:", JSON.stringify(response.SMSMessageData.Recipients));
   const failed = response.SMSMessageData.Recipients.filter((r) => r.status !== "Success");
   if (failed.length > 0) {
     const detail = failed.map((r) => `${r.number}: ${r.status}`).join(", ");

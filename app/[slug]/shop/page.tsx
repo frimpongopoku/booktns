@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getStorefrontVendor, getAllActiveVendorSlugs, getVendorPublicMeta } from "@/lib/vendors";
+import { isRequestFromCustomDomain } from "@/lib/request-context";
 import { SITE_URL } from "@/lib/site";
 import ShopClient from "@/components/storefront/ShopClient";
+import StorefrontFooter from "@/components/storefront/StorefrontFooter";
+import TrackView from "@/components/storefront/TrackView";
+import { ANALYTICS_EVENTS } from "@/lib/analytics";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -48,6 +52,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ShopPage({ params }: PageProps) {
   const { slug } = await params;
+  const isCustomDomain = await isRequestFromCustomDomain();
   const vendorData = await getStorefrontVendor(slug);
   if (!vendorData) notFound();
 
@@ -82,7 +87,27 @@ export default async function ShopPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
       />
-      <ShopClient slug={slug} vendorName={vendorData.name} products={vendorData.products} paymentMethods={vendorData.paymentMethods} />
+      <TrackView
+        event={ANALYTICS_EVENTS.shopViewed}
+        properties={{ product_count: vendorData.products.length }}
+      />
+      <ShopClient
+        slug={slug}
+        vendorName={vendorData.name}
+        vendorLogoUrl={vendorData.logoUrl}
+        products={vendorData.products}
+        paymentMethods={vendorData.paymentMethods}
+        isCustomDomain={isCustomDomain}
+        footer={
+          <StorefrontFooter
+            vendorName={vendorData.name}
+            verified={vendorData.verificationStatus === "VERIFIED"}
+            ownerName={vendorData.ownerName}
+            ownerPhone={vendorData.ownerPhone}
+            ownerEmail={vendorData.ownerEmail}
+          />
+        }
+      />
     </>
   );
 }

@@ -1,6 +1,9 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
-const client = new S3Client({
+// Exported so the private-document store (lib/private-storage.ts) and the
+// health checks can reuse one configured client — same R2 account and
+// credentials, different buckets.
+export const r2Client = new S3Client({
   region: "auto",
   endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
   credentials: {
@@ -15,7 +18,7 @@ function publicUrlFor(key: string): string {
 }
 
 export async function uploadFile(key: string, body: Buffer, contentType: string): Promise<string> {
-  await client.send(
+  await r2Client.send(
     new PutObjectCommand({
       Bucket: process.env.CLOUDFLARE_R2_BUCKET,
       Key: key,
@@ -27,7 +30,7 @@ export async function uploadFile(key: string, body: Buffer, contentType: string)
 }
 
 export async function deleteFile(key: string): Promise<void> {
-  await client.send(
+  await r2Client.send(
     new DeleteObjectCommand({
       Bucket: process.env.CLOUDFLARE_R2_BUCKET,
       Key: key,

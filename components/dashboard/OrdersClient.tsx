@@ -6,7 +6,7 @@ import type { Order, OrderStatus } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
 import { orderStatusBadge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
-import { X, ChevronRight, Calendar, Hash, Copy } from "lucide-react";
+import { X, ChevronRight, Calendar, Hash, Copy, Download } from "lucide-react";
 
 interface ApiErrorBody {
   error: string;
@@ -201,18 +201,31 @@ function OrderDrawer({ order, onClose, onStatusChange, updatingStatus }: OrderDr
 
         {/* Footer actions */}
         <div
-          className="flex-shrink-0 p-4"
+          className="flex-shrink-0 p-4 flex gap-2"
           style={{ borderTop: "1px solid var(--bd)" }}
         >
           <Button
             variant="secondary"
             size="sm"
-            className="w-full gap-1.5"
+            className="flex-1 gap-1.5"
             onClick={() => { if (typeof navigator !== "undefined") navigator.clipboard.writeText(order.ref); }}
           >
             <Copy size={13} />
             Copy ref
           </Button>
+          {/* Same public route the customer's confirmation page links to —
+              it builds the PDF on first request, so the vendor can pull a
+              copy even if the customer never downloaded theirs. */}
+          <a
+            href={`/api/orders/by-slug/${order.slug}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center gap-1.5 h-8 px-3 text-xs font-medium rounded-[var(--r)]"
+            style={{ background: "var(--bg2)", color: "var(--tx2)", border: "1px solid var(--bds)" }}
+          >
+            <Download size={13} />
+            Receipt PDF
+          </a>
         </div>
       </div>
     </div>

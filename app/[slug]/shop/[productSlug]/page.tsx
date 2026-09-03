@@ -3,8 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getStorefrontVendor, getVendorPublicMeta } from "@/lib/vendors";
 import { formatPrice } from "@/lib/data";
+import { isRequestFromCustomDomain } from "@/lib/request-context";
+import { storefrontHref } from "@/lib/storefront-links";
 import { SITE_URL } from "@/lib/site";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
+import VendorWordmark from "@/components/storefront/VendorWordmark";
+import StorefrontFooter from "@/components/storefront/StorefrontFooter";
+import TrackView from "@/components/storefront/TrackView";
+import { ANALYTICS_EVENTS } from "@/lib/analytics";
 import ProductPageClient from "@/components/storefront/ProductPageClient";
 import { ShoppingCart } from "lucide-react";
 
@@ -51,6 +57,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductPage({ params }: PageProps) {
   const { slug, productSlug } = await params;
+  const isCustomDomain = await isRequestFromCustomDomain();
   const vendorData = await getStorefrontVendor(slug);
   if (!vendorData) notFound();
 
@@ -76,10 +83,18 @@ export default async function ProductPage({ params }: PageProps) {
   };
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col pb-24 md:pb-0" style={{ background: "var(--bg)" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <TrackView
+        event={ANALYTICS_EVENTS.productViewed}
+        properties={{
+          product_slug: product.slug,
+          price_pesewas: product.priceInPesewas,
+          in_stock: product.stockCount > 0,
+        }}
       />
 
       {/* Header */}
@@ -87,15 +102,13 @@ export default async function ProductPage({ params }: PageProps) {
         className="flex items-center justify-between px-4 md:px-8 py-4 sticky top-0 z-30"
         style={{ background: "var(--bg)", borderBottom: "1px solid var(--bd)" }}
       >
+        <VendorWordmark
+          name={vendorData.name}
+          href={storefrontHref(slug, isCustomDomain)}
+          logoUrl={vendorData.logoUrl}
+        />
         <Link
-          href={`/${slug}`}
-          className="font-display text-lg font-medium"
-          style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
-        >
-          {vendorData.name}
-        </Link>
-        <Link
-          href={`/${slug}/shop`}
+          href={storefrontHref(slug, isCustomDomain, "/shop")}
           className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--r)] text-sm font-medium"
           style={{ background: "var(--bg2)", color: "var(--tx)" }}
         >
@@ -106,7 +119,7 @@ export default async function ProductPage({ params }: PageProps) {
 
       <div className="px-4 md:px-8 py-6 max-w-4xl mx-auto">
         <nav className="text-xs mb-6" style={{ color: "var(--tx3)" }}>
-          <Link href={`/${slug}/shop`} className="hover:underline">Shop</Link>
+          <Link href={storefrontHref(slug, isCustomDomain, "/shop")} className="hover:underline">Shop</Link>
           <span className="mx-1.5">/</span>
           <span style={{ color: "var(--tx2)" }}>{product.name}</span>
         </nav>
@@ -114,7 +127,15 @@ export default async function ProductPage({ params }: PageProps) {
         <ProductPageClient product={product} vendorSlug={slug} />
       </div>
 
-      <MobileStorefrontNav slug={slug} />
+      <StorefrontFooter
+        vendorName={vendorData.name}
+        verified={vendorData.verificationStatus === "VERIFIED"}
+        ownerName={vendorData.ownerName}
+        ownerPhone={vendorData.ownerPhone}
+        ownerEmail={vendorData.ownerEmail}
+      />
+
+      <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} />
     </div>
   );
 }

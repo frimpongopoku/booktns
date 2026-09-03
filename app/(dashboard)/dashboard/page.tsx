@@ -62,7 +62,7 @@ export default async function DashboardOverview() {
       where: {
         vendorId: session.vendorId,
         startTime: { gte: startOfTomorrow },
-        status: { notIn: ["cancelled", "completed"] },
+        status: { notIn: ["cancelled", "completed", "no_show"] },
       },
       include: { services: true },
       orderBy: { startTime: "asc" },

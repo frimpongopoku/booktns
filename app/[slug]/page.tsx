@@ -4,12 +4,20 @@ import { notFound } from "next/navigation";
 import { formatPrice, formatDuration } from "@/lib/data";
 import { getStorefrontVendor, getAllActiveVendorSlugs, getStorefrontVendorForPreview, getVendorPublicMeta } from "@/lib/vendors";
 import { getSession } from "@/lib/auth";
+import { isRequestFromCustomDomain } from "@/lib/request-context";
+import { storefrontHref } from "@/lib/storefront-links";
 import { SITE_URL } from "@/lib/site";
 import StorefrontNav from "@/components/storefront/StorefrontNav";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
-import VideoCard from "@/components/storefront/VideoCard";
+import VideoSection from "@/components/storefront/VideoSection";
 import HeroCard from "@/components/storefront/HeroCard";
 import StorefrontUnavailable from "@/components/storefront/StorefrontUnavailable";
+import StorefrontFooter from "@/components/storefront/StorefrontFooter";
+import VendorContactCard from "@/components/storefront/VendorContactCard";
+import VendorWordmark from "@/components/storefront/VendorWordmark";
+import TrackView from "@/components/storefront/TrackView";
+import type { VendorContactInfo } from "@/lib/vendor-contact";
+import { ANALYTICS_EVENTS } from "@/lib/analytics";
 import {
   MapPin,
   Clock,
@@ -63,6 +71,8 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
+const SCHEMA_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const vendorData = await getStorefrontVendor(slug);
@@ -101,6 +111,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function StorefrontPage({ params }: PageProps) {
   const { slug } = await params;
+  const isCustomDomain = await isRequestFromCustomDomain();
   let vendorData = await getStorefrontVendor(slug);
   let isPreview = false;
 
@@ -124,8 +135,15 @@ export default async function StorefrontPage({ params }: PageProps) {
     // exists but hasn't published yet stays 200 — the resource is real,
     // just not fully available — with noindex handled in generateMetadata.
     if (!meta) notFound();
+    if (meta.suspended) return <StorefrontUnavailable reason="suspended" vendorName={meta.name} />;
     return <StorefrontUnavailable reason="not-published" vendorName={meta.name} />;
   }
+
+  // Search engines get the shop's actual offering, not just its name: every
+  // active service with its real price and duration, the week's opening
+  // hours, and the price range. This is what lets a result show services and
+  // hours rather than a bare title and URL.
+  const servicePrices = vendorData.services.map((service) => service.priceInPesewas);
 
   const businessJsonLd = {
     "@context": "https://schema.org",
@@ -140,8 +158,53 @@ export default async function StorefrontPage({ params }: PageProps) {
     // columns) — schema.org allows Text for `address`, so this stays a plain
     // string rather than a fabricated PostalAddress split.
     address: vendorData.location,
+    ...(vendorData.logoUrl ? { logo: vendorData.logoUrl } : {}),
     ...(vendorData.logoUrl || vendorData.coverImageUrl
-      ? { image: vendorData.logoUrl ?? vendorData.coverImageUrl }
+      ? { image: [vendorData.coverImageUrl, vendorData.logoUrl].filter(Boolean) }
+      : {}),
+    currenciesAccepted: "GHS",
+    ...(servicePrices.length > 0
+      ? {
+          priceRange: `${formatPrice(Math.min(...servicePrices))} – ${formatPrice(Math.max(...servicePrices))}`,
+        }
+      : {}),
+    // Days the vendor has explicitly marked closed are omitted entirely —
+    // schema.org expresses "closed" as the absence of a specification for
+    // that day, not as an entry with null times.
+    ...(vendorData.businessHours.length > 0
+      ? {
+          openingHoursSpecification: vendorData.businessHours
+            .filter((hours) => !hours.isClosed && hours.openTime && hours.closeTime)
+            .map((hours) => ({
+              "@type": "OpeningHoursSpecification",
+              dayOfWeek: `https://schema.org/${SCHEMA_DAYS[hours.dayOfWeek]}`,
+              opens: hours.openTime,
+              closes: hours.closeTime,
+            })),
+        }
+      : {}),
+    ...(vendorData.services.length > 0
+      ? {
+          hasOfferCatalog: {
+            "@type": "OfferCatalog",
+            name: `Services at ${vendorData.name}`,
+            itemListElement: vendorData.services.map((service) => ({
+              "@type": "Offer",
+              // The booking deep link, so a search result for a service can
+              // send someone straight to booking that service.
+              url: `${SITE_URL}/${slug}/book?service=${service.id}`,
+              price: (service.priceInPesewas / 100).toFixed(2),
+              priceCurrency: "GHS",
+              itemOffered: {
+                "@type": "Service",
+                name: service.name,
+                ...(service.description ? { description: service.description } : {}),
+                category: service.category,
+                provider: { "@type": "BeautySalon", name: vendorData.name },
+              },
+            })),
+          },
+        }
       : {}),
   };
 
@@ -150,13 +213,44 @@ export default async function StorefrontPage({ params }: PageProps) {
   const showFeaturedBadge = vendorData.storefrontDisplayMode === "AllWithFeaturedHighlighted";
   const vendorVideos = vendorData.videos;
 
+  // owner* fields are already redacted by lib/vendors.ts against the
+  // vendor's show* flags — anything still set here is published on purpose.
+  const contact: VendorContactInfo = {
+    name: vendorData.name,
+    slug,
+    location: vendorData.location,
+    hours: vendorData.hours,
+    phone: vendorData.phone,
+    whatsapp: vendorData.whatsapp,
+    personalWhatsappNumber: vendorData.personalWhatsappNumber,
+    ownerPhone: vendorData.ownerPhone,
+    ownerEmail: vendorData.ownerEmail,
+  };
+
   return (
-    <div className="min-h-screen pb-16 md:pb-0" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col pb-16 md:pb-0" style={{ background: "var(--bg)" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
       />
-      <StorefrontNav slug={slug} vendorName={vendorData.name} />
+      <TrackView
+        event={ANALYTICS_EVENTS.storefrontViewed}
+        properties={{
+          service_count: vendorData.services.length,
+          product_count: vendorData.products.length,
+          video_count: vendorVideos.length,
+          is_preview: isPreview,
+          on_custom_domain: isCustomDomain,
+        }}
+      />
+      <StorefrontNav
+        verified={vendorData.verificationStatus === "VERIFIED"}
+        slug={slug}
+        vendorName={vendorData.name}
+        vendorLogoUrl={vendorData.logoUrl}
+        isCustomDomain={isCustomDomain}
+        showVideos={vendorData.showVideoSection && vendorVideos.length > 0}
+      />
 
       {isPreview && (
         <div
@@ -173,11 +267,14 @@ export default async function StorefrontPage({ params }: PageProps) {
         className="md:hidden flex items-center justify-between px-4 py-3.5"
         style={{ borderBottom: "1px solid var(--bd)" }}
       >
-        <p className="text-base font-semibold" style={{ color: "var(--tx)", letterSpacing: "-0.02em" }}>
-          {vendorData.name}
-        </p>
+        <VendorWordmark
+          name={vendorData.name}
+          href={storefrontHref(slug, isCustomDomain)}
+          logoUrl={vendorData.logoUrl}
+          className="!text-base"
+        />
         <Link
-          href={`/${slug}/book`}
+          href={storefrontHref(slug, isCustomDomain, "/book")}
           className="px-3.5 py-2 rounded-[var(--r)] text-sm font-medium text-white"
           style={{
             background: "var(--ac)",
@@ -235,7 +332,7 @@ export default async function StorefrontPage({ params }: PageProps) {
             </div>
             <div className="flex gap-3">
               <Link
-                href={`/${slug}/book`}
+                href={storefrontHref(slug, isCustomDomain, "/book")}
                 className="px-6 py-2.5 rounded-[var(--r)] text-white font-medium text-sm inline-flex items-center gap-2"
                 style={{
                   background: "var(--ac)",
@@ -246,7 +343,7 @@ export default async function StorefrontPage({ params }: PageProps) {
                 <ArrowRight size={14} />
               </Link>
               <Link
-                href={`/${slug}/shop`}
+                href={storefrontHref(slug, isCustomDomain, "/shop")}
                 className="px-6 py-2.5 rounded-[var(--r)] font-medium text-sm inline-flex items-center gap-2"
                 style={{
                   background: "var(--bg3)",
@@ -285,7 +382,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               Services
             </h2>
             <Link
-              href={`/${slug}/book`}
+              href={storefrontHref(slug, isCustomDomain, "/book")}
               className="text-sm font-medium inline-flex items-center gap-1"
               style={{ color: "var(--ac)" }}
             >
@@ -298,7 +395,7 @@ export default async function StorefrontPage({ params }: PageProps) {
                 {displayedServices.map((svc) => (
                   <Link
                     key={svc.id}
-                    href={`/${slug}/book`}
+                    href={storefrontHref(slug, isCustomDomain, "/book")}
                     className="relative flex items-center gap-3.5 p-4 rounded-[var(--rl)] transition-all duration-150 hover:translate-y-[-1px]"
                     style={{
                       background: "var(--bg)",
@@ -347,7 +444,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               </div>
               <div className="mt-5 text-center">
                 <Link
-                  href={`/${slug}/book`}
+                  href={storefrontHref(slug, isCustomDomain, "/book")}
                   className="text-sm font-medium inline-flex items-center gap-1.5"
                   style={{ color: "var(--ac)" }}
                 >
@@ -376,7 +473,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               Shop
             </h2>
             <Link
-              href={`/${slug}/shop`}
+              href={storefrontHref(slug, isCustomDomain, "/shop")}
               className="text-sm font-medium inline-flex items-center gap-1"
               style={{ color: "var(--ac)" }}
             >
@@ -388,7 +485,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               {displayedProducts.map((p) => (
                 <Link
                   key={p.id}
-                  href={`/${slug}/shop`}
+                  href={storefrontHref(slug, isCustomDomain, "/shop")}
                   className="relative rounded-[var(--rl)] overflow-hidden transition-all duration-150 hover:translate-y-[-2px]"
                   style={{ boxShadow: "var(--shadow-sm)" }}
                 >
@@ -436,30 +533,14 @@ export default async function StorefrontPage({ params }: PageProps) {
         </div>
       </section>
 
-      {/* Videos — only if vendor has them */}
-      {vendorVideos.length > 0 && (
-        <section
-          className="px-4 md:px-8 py-12"
-          style={{ background: "var(--bg2)", borderTop: "1px solid var(--bds)" }}
-        >
-          <div className="max-w-5xl mx-auto">
-            <div className="flex items-center justify-between mb-7">
-              <div>
-                <h2 className="text-xl font-semibold" style={{ color: "var(--tx)" }}>
-                  See us in action
-                </h2>
-                <p className="text-sm mt-1" style={{ color: "var(--tx3)" }}>
-                  Watch how we work
-                </p>
-              </div>
-            </div>
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {vendorVideos.map((video) => (
-                <VideoCard key={video.id} video={video} />
-              ))}
-            </div>
-          </div>
-        </section>
+      {/* Videos — the vendor can switch this section off without having
+          to delete the videos themselves. */}
+      {vendorData.showVideoSection && (
+        <VideoSection
+          videos={vendorVideos}
+          title={vendorData.videoSectionTitle}
+          subtitle={vendorData.videoSectionSubtitle}
+        />
       )}
 
       {/* Why book with us */}
@@ -513,6 +594,29 @@ export default async function StorefrontPage({ params }: PageProps) {
         </div>
       </section>
 
+      {/* Contact — the anchor every booking/order email points at when it
+          says "reach out to them directly". There are no customer accounts,
+          so this is the one durable place a customer can always find every
+          way of reaching this shop. */}
+      <section
+        id="contact"
+        className="px-4 md:px-8 py-12 scroll-mt-20"
+        style={{ borderTop: "1px solid var(--bds)" }}
+      >
+        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6 md:gap-10 md:items-center">
+          <div>
+            <h2 className="text-xl font-semibold mb-2" style={{ color: "var(--tx)" }}>
+              Get in touch
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--tx2)" }}>
+              Questions about a service, a booking, or an order you&apos;ve already placed?
+              Message {vendorData.name} directly — we usually reply the same day.
+            </p>
+          </div>
+          <VendorContactCard contact={contact} />
+        </div>
+      </section>
+
       {/* Book CTA banner */}
       <section className="px-4 md:px-8 py-10">
         <div className="max-w-5xl mx-auto">
@@ -542,7 +646,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               </p>
             </div>
             <Link
-              href={`/${slug}/book`}
+              href={storefrontHref(slug, isCustomDomain, "/book")}
               className="relative flex-shrink-0 px-6 py-3 rounded-[var(--r)] font-semibold text-sm inline-flex items-center gap-2"
               style={{
                 background: "white",
@@ -558,22 +662,15 @@ export default async function StorefrontPage({ params }: PageProps) {
       </section>
 
       {/* Footer */}
-      <footer
-        className="px-4 md:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3"
-        style={{ borderTop: "1px solid var(--bd)" }}
-      >
-        <p className="text-xs" style={{ color: "var(--tx3)" }}>
-          © 2025 {vendorData.name}
-        </p>
-        <Link href="/" className="text-xs" style={{ color: "var(--tx3)" }}>
-          Powered by{" "}
-          <span className="font-semibold" style={{ color: "var(--ac)" }}>
-            booktns
-          </span>
-        </Link>
-      </footer>
+      <StorefrontFooter
+        vendorName={vendorData.name}
+        verified={vendorData.verificationStatus === "VERIFIED"}
+        ownerName={vendorData.ownerName}
+        ownerPhone={vendorData.ownerPhone}
+        ownerEmail={vendorData.ownerEmail}
+      />
 
-      <MobileStorefrontNav slug={slug} />
+      <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} />
     </div>
   );
 }

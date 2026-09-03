@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { db } from "../lib/db";
+import { FIRST_SUPERADMIN_EMAIL } from "./first-superadmin";
 import {
   vendor,
   staff,
@@ -125,6 +126,20 @@ async function main() {
   await db.service.deleteMany();
   await db.staff.deleteMany();
   await db.vendor.deleteMany();
+
+  // The founding superadmin, ensured here purely so a freshly seeded dev
+  // database can sign in to /superadmin without a second command.
+  //
+  // Note this is an UPSERT and sits *after* the deleteMany block above on
+  // purpose: nothing in this seed ever deletes a SuperAdmin row, so running
+  // the seed cannot revoke platform access. prisma/bootstrap-superadmin.ts
+  // remains the production path — this seed wipes every vendor, booking, and
+  // order and must never run against production.
+  await db.superAdmin.upsert({
+    where: { email: FIRST_SUPERADMIN_EMAIL },
+    update: {},
+    create: { email: FIRST_SUPERADMIN_EMAIL },
+  });
 
   const createdVendor = await db.vendor.create({
     data: {

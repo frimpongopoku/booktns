@@ -2,17 +2,32 @@
 
 import { useState } from "react";
 import { formatVideoDuration } from "@/lib/data";
-import { getHoverEmbedUrl } from "@/lib/video-embed";
+import { getHoverEmbedUrl, detectVideoPlatform, type VideoPlatform } from "@/lib/video-embed";
 import type { VendorVideo } from "@/types";
 import { Play } from "lucide-react";
+import { captureEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
+
+// Platform names as each one writes its own — a badge that says "Tiktok"
+// reads as careless on a page a vendor is using to sell.
+const PLATFORM_LABELS: Record<VideoPlatform, string | null> = {
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  instagram: "Instagram",
+  vimeo: "Vimeo",
+  other: null,
+};
 
 interface VideoCardProps {
   video: VendorVideo;
+  // The first video in a dedicated section is rendered larger; everything
+  // else keeps the compact treatment used elsewhere on the page.
+  featured?: boolean;
 }
 
-export default function VideoCard({ video }: VideoCardProps) {
+export default function VideoCard({ video, featured = false }: VideoCardProps) {
   const [previewing, setPreviewing] = useState(false);
   const hoverEmbedUrl = getHoverEmbedUrl(video.url);
+  const platformLabel = PLATFORM_LABELS[detectVideoPlatform(video.url)];
 
   return (
     <a
@@ -23,6 +38,12 @@ export default function VideoCard({ video }: VideoCardProps) {
       style={{ boxShadow: "var(--shadow-sm)" }}
       onMouseEnter={() => hoverEmbedUrl && setPreviewing(true)}
       onMouseLeave={() => setPreviewing(false)}
+      onClick={() =>
+        captureEvent(ANALYTICS_EVENTS.videoOpened, {
+          platform: detectVideoPlatform(video.url),
+          featured,
+        })
+      }
     >
       {/* Thumbnail */}
       <div
@@ -73,6 +94,17 @@ export default function VideoCard({ video }: VideoCardProps) {
           </div>
         )}
 
+        {/* Platform badge — tells the customer where the video will open
+            before they tap, which matters most on mobile. */}
+        {!previewing && platformLabel && (
+          <div
+            className="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
+            style={{ background: "rgba(0,0,0,0.55)", color: "white" }}
+          >
+            {platformLabel}
+          </div>
+        )}
+
         {/* Duration badge */}
         {!previewing && video.durationSeconds !== undefined && (
           <div
@@ -101,7 +133,7 @@ export default function VideoCard({ video }: VideoCardProps) {
       {/* Info */}
       <div className="p-3.5" style={{ background: "var(--bg2)" }}>
         <p
-          className="text-sm font-semibold leading-snug"
+          className={featured ? "text-base font-semibold leading-snug" : "text-sm font-semibold leading-snug"}
           style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
         >
           {video.title}

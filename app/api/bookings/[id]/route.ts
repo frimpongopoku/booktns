@@ -3,6 +3,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { requireRole } from "@/lib/auth";
+import { canTransition } from "@/lib/bookingStatus";
+import { logger } from "@/lib/logger";
 import { serializeBooking } from "@/lib/serialize";
 import { getAvailableSlots } from "@/lib/availability";
 import { generateConfirmedBookingPdf } from "@/lib/pdf";
@@ -20,7 +22,7 @@ import {
   sendBookingRescheduledSms,
 } from "@/lib/sms";
 
-const BOOKING_STATUSES = ["pending", "confirmed", "completed", "cancelled", "rescheduled"] as const;
+const BOOKING_STATUSES = ["pending", "confirmed", "completed", "cancelled", "rescheduled", "no_show"] as const;
 
 const MAX_SERIALIZATION_ATTEMPTS = 3;
 
@@ -85,15 +87,35 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           slug: true,
           location: true,
           logoUrl: true,
+          phone: true,
           whatsapp: true,
           personalWhatsappNumber: true,
           cancellationPolicy: true,
+          // Branding + owner credit printed on the confirmed-booking PDF.
+          storefrontTheme: true,
+          ownerName: true,
+          showOwnerName: true,
+          ownerEmail: true,
+          showOwnerEmail: true,
         },
       },
     },
   });
   if (!existing) {
     return NextResponse.json({ error: "Booking not found", code: "not_found" }, { status: 404 });
+  }
+
+  if (parsed.data.status && !canTransition(existing.status, parsed.data.status)) {
+    return NextResponse.json(
+      { error: "That status change isn't allowed from the current state", code: "invalid_transition" },
+      { status: 409 }
+    );
+  }
+  if (parsed.data.status === "no_show" && existing.startTime > new Date()) {
+    return NextResponse.json(
+      { error: "Can't mark no-show before the appointment time", code: "not_yet_due" },
+      { status: 400 }
+    );
   }
 
   if (parsed.data.assignedStaffId) {
@@ -169,7 +191,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 
   const serialized = serializeBooking(booking);
-  const vendorInfo = existing.vendor;
+  // ownerEmail is only ever handed on to a customer-facing email when the
+  // vendor has chosen to publish it — the same gate lib/vendors.ts applies
+  // to the storefront.
+  const vendorInfo = {
+    ...existing.vendor,
+    ownerEmail: existing.vendor.showOwnerEmail ? existing.vendor.ownerEmail : null,
+  };
   const newStatus = parsed.data.status;
 
   // Every notification below is gated on an actual status transition (the
@@ -179,8 +207,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (newStatus === "confirmed") {
       // The email/SMS only link to /booking/{slug} — neither reads
       // confirmedPdfUrl — so they don't need to wait on the PDF at all.
-      sendBookingConfirmedEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingConfirmedEmail failed", err));
-      sendBookingConfirmedSms(serialized, vendorInfo).catch((err) => console.error("sendBookingConfirmedSms failed", err));
+      sendBookingConfirmedEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingConfirmedEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+      sendBookingConfirmedSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingConfirmedSms failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
 
       // PDF generation (Satori render + resvg rasterize) and the R2 upload
       // take multiple seconds and nothing in this response depends on the
@@ -193,18 +221,21 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           const confirmedPdfUrl = await uploadFile(`bookings/${booking.slug}/confirmed.pdf`, pdfBuffer, "application/pdf");
           await db.booking.update({ where: { id }, data: { confirmedPdfUrl } });
         } catch (err) {
-          console.error("generateConfirmedBookingPdf failed", err);
+          logger.error("generateConfirmedBookingPdf failed", { bookingId: id, vendorId: auth.session.vendorId, err });
         }
       })();
     } else if (newStatus === "cancelled") {
-      sendBookingCancelledEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingCancelledEmail failed", err));
-      sendBookingCancelledSms(serialized, vendorInfo).catch((err) => console.error("sendBookingCancelledSms failed", err));
+      sendBookingCancelledEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingCancelledEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+      sendBookingCancelledSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingCancelledSms failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
     } else if (newStatus === "completed") {
-      sendBookingCompletedEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingCompletedEmail failed", err));
-      sendBookingCompletedSms(serialized, vendorInfo).catch((err) => console.error("sendBookingCompletedSms failed", err));
+      sendBookingCompletedEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingCompletedEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+      sendBookingCompletedSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingCompletedSms failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
     } else if (newStatus === "rescheduled") {
-      sendBookingRescheduledEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingRescheduledEmail failed", err));
-      sendBookingRescheduledSms(serialized, vendorInfo).catch((err) => console.error("sendBookingRescheduledSms failed", err));
+      sendBookingRescheduledEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingRescheduledEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+      sendBookingRescheduledSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingRescheduledSms failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+    } else if (newStatus === "no_show") {
+      // Deliberately silent — no-show is a vendor-internal record, not
+      // something we tell the customer about after the fact.
     }
   }
 

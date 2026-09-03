@@ -5,15 +5,17 @@ import Link from "next/link";
 import type { Product } from "@/types";
 import { X } from "lucide-react";
 import ProductDetailContent from "@/components/storefront/ProductDetailContent";
+import { storefrontHref } from "@/lib/storefront-links";
 
 interface ProductQuickViewModalProps {
   product: Product;
   vendorSlug: string;
+  isCustomDomain: boolean;
   onClose: () => void;
   onAddToCart: (product: Product, quantity: number) => void;
 }
 
-export default function ProductQuickViewModal({ product, vendorSlug, onClose, onAddToCart }: ProductQuickViewModalProps) {
+export default function ProductQuickViewModal({ product, vendorSlug, isCustomDomain, onClose, onAddToCart }: ProductQuickViewModalProps) {
   const [isExiting, setIsExiting] = useState(false);
   const close = () => {
     setIsExiting(true);
@@ -44,7 +46,7 @@ export default function ProductQuickViewModal({ product, vendorSlug, onClose, on
 
         <div className="p-5 flex-shrink-0" style={{ borderTop: "1px solid var(--bd)" }}>
           <Link
-            href={`/${vendorSlug}/shop/${product.slug}`}
+            href={storefrontHref(vendorSlug, isCustomDomain, `/shop/${product.slug}`)}
             className="w-full block text-center py-2.5 rounded-[var(--r)] text-sm font-medium"
             style={{ background: "var(--bg2)", color: "var(--tx)" }}
             onClick={close}

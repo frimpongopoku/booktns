@@ -10,6 +10,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 1,
     },
+    {
+      url: `${APP_URL}/privacy`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${APP_URL}/terms`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
   ];
 
   const slugs = await getAllActiveVendorSlugs();

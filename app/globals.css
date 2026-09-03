@@ -107,11 +107,19 @@ html[data-theme="dark"] [data-storefront-theme="Orchid"] {
   --bg:       #FAFAFA;
   --bg2:      #F4F4F5;
   --bg3:      #E4E4E7;
+  /* Text hierarchy. Each step is one zinc stop darker than it used to be:
+     the old --tx3 (#A1A1AA) measured 2.5:1 against --bg, well under WCAG
+     AA's 4.5:1, and it carries most of the small print in this app (10-12px
+     uppercase labels, meta rows, empty states). Present values against
+     --bg: tx 16.9:1, tx2 10.0:1, tx3 7.4:1 — three clearly separated,
+     readable steps rather than two readable ones and a grey suggestion. */
   --tx:       #18181B;
-  --tx2:      #52525B;
-  --tx3:      #A1A1AA;
-  --bd:       rgba(0, 0, 0, 0.08);
-  --bds:      rgba(0, 0, 0, 0.05);
+  --tx2:      #3F3F46;
+  --tx3:      #52525B;
+  /* Borders were faint enough to disappear on a bright screen, which is
+     what made panels read as floating text. Still subtle, now visible. */
+  --bd:       rgba(0, 0, 0, 0.12);
+  --bds:      rgba(0, 0, 0, 0.08);
   --green:    #16A34A;
   --green-bg: rgba(22, 163, 74, 0.08);
   --amber:    #B45309;
@@ -138,11 +146,14 @@ html[data-theme="dark"] {
   --bg:       #09090B;
   --bg2:      #18181B;
   --bg3:      #27272A;
+  /* Same one-step lift as light mode, mirrored: the old --tx3 (#52525B)
+     measured 2.3:1 on --bg2 — effectively unreadable. Against --bg now:
+     tx 19.1:1, tx2 12.0:1, tx3 6.9:1. */
   --tx:       #FAFAFA;
-  --tx2:      #A1A1AA;
-  --tx3:      #52525B;
-  --bd:       rgba(255, 255, 255, 0.10);
-  --bds:      rgba(255, 255, 255, 0.06);
+  --tx2:      #D4D4D8;
+  --tx3:      #A1A1AA;
+  --bd:       rgba(255, 255, 255, 0.14);
+  --bds:      rgba(255, 255, 255, 0.09);
   --green:    #4ADE80;
   --green-bg: rgba(74, 222, 128, 0.08);
   --amber:    #FBBF24;
@@ -160,11 +171,14 @@ html[data-theme="dark"] {
     --bg:       #09090B;
     --bg2:      #18181B;
     --bg3:      #27272A;
+    /* Same one-step lift as light mode, mirrored: the old --tx3 (#52525B)
+       measured 2.3:1 on --bg2 — effectively unreadable. Against --bg now:
+       tx 19.1:1, tx2 12.0:1, tx3 6.9:1. */
     --tx:       #FAFAFA;
-    --tx2:      #A1A1AA;
-    --tx3:      #52525B;
-    --bd:       rgba(255, 255, 255, 0.10);
-    --bds:      rgba(255, 255, 255, 0.06);
+    --tx2:      #D4D4D8;
+    --tx3:      #A1A1AA;
+    --bd:       rgba(255, 255, 255, 0.14);
+    --bds:      rgba(255, 255, 255, 0.09);
     --green:    #4ADE80;
     --green-bg: rgba(74, 222, 128, 0.08);
     --amber:    #FBBF24;
@@ -289,3 +303,43 @@ input, textarea, select, button {
 .anim-d3 { animation-delay: 180ms; }
 .anim-d4 { animation-delay: 240ms; }
 .anim-d5 { animation-delay: 300ms; }
+
+/* ─────────────────────────────────────────────────────────
+   SUPERADMIN CONSOLE SCOPE
+   A deliberately different-looking product. A platform admin with both
+   consoles open must never be confused about which one they're acting in —
+   a mis-click here affects every vendor, not one shop.
+
+   Always dark violet regardless of the viewer's theme preference: this is
+   the one surface where "looks like the vendor dashboard" is a hazard, so
+   it does not follow [data-theme]. Declared after the dark-mode blocks
+   above so it wins at equal specificity.
+
+   Note the semantic status colours are explicitly re-stated rather than
+   inherited: green = ok/verified, amber = pending, red = rejected/error is
+   fixed across the whole product, and must not drift toward the violet
+   chrome just because the surrounding theme changed.
+   ───────────────────────────────────────────────────────── */
+.superadmin-scope {
+  --ac:       #7C6BF0;
+  --ac2:      #A79BF7;
+  --ac-bg:    rgba(124, 107, 240, 0.12);
+  --bg:       #0B0B12;
+  --bg2:      #141420;
+  --bg3:      #1E1E2E;
+  /* The console the user called out specifically. Old --tx3 (#6B6B85) was
+     3.5:1 on --bg2 — the whole console is small print, so this was the
+     worst offender in the app. Now tx 17.6:1, tx2 11.9:1, tx3 7.6:1. */
+  --tx:       #F4F4FA;
+  --tx2:      #CFCFE0;
+  --tx3:      #A5A5C0;
+  --bd:       rgba(255, 255, 255, 0.14);
+  --bds:      rgba(255, 255, 255, 0.09);
+  --green:    #4ADE80;
+  --green-bg: rgba(74, 222, 128, 0.10);
+  --amber:    #FBBF24;
+  --amber-bg: rgba(251, 191, 36, 0.10);
+  --red:      #F87171;
+  --red-bg:   rgba(248, 113, 113, 0.10);
+  color-scheme: dark;
+}

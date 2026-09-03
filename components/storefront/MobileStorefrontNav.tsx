@@ -3,19 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Scissors, ShoppingBag, CreditCard } from "lucide-react";
+import { storefrontHref } from "@/lib/storefront-links";
 
 interface MobileStorefrontNavProps {
   slug: string;
+  isCustomDomain: boolean;
 }
 
-export default function MobileStorefrontNav({ slug }: MobileStorefrontNavProps) {
+export default function MobileStorefrontNav({ slug, isCustomDomain }: MobileStorefrontNavProps) {
   const pathname = usePathname();
 
   const items = [
-    { label: "Home", href: `/${slug}`, icon: Home },
-    { label: "Services", href: `/${slug}#services`, icon: Scissors },
-    { label: "Shop", href: `/${slug}/shop`, icon: ShoppingBag },
-    { label: "Pay", href: `/${slug}/pay`, icon: CreditCard },
+    { label: "Home", href: storefrontHref(slug, isCustomDomain, ""), icon: Home },
+    { label: "Services", href: storefrontHref(slug, isCustomDomain, "#services"), icon: Scissors },
+    { label: "Shop", href: storefrontHref(slug, isCustomDomain, "/shop"), icon: ShoppingBag },
+    { label: "Pay", href: storefrontHref(slug, isCustomDomain, "/pay"), icon: CreditCard },
   ];
 
   return (

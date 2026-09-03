@@ -24,6 +24,7 @@ import {
   RotateCcw,
   UserPlus,
   CheckCheck,
+  UserX,
 } from "lucide-react";
 
 interface ApiErrorBody {
@@ -78,6 +79,12 @@ function formatWeekDayLabel(d: Date): string {
 interface BookingDrawerProps {
   booking: Booking;
   staff: Staff[];
+  // Service staff can see the bookings assigned to them but not act on
+  // them (spec §7.4: "view own bookings" yes, "manage bookings" no). The
+  // API enforces this independently — every booking mutation route is
+  // requireRole(["Owner", "Management"]) — so this only stops us offering
+  // buttons that would come back 403.
+  readOnly?: boolean;
   vendorSlug: string;
   vendorName: string;
   vendorLocation: string;
@@ -85,7 +92,7 @@ interface BookingDrawerProps {
   onUpdate: (id: string, patch: Record<string, unknown>) => Promise<Booking | null>;
 }
 
-function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation, onClose, onUpdate }: BookingDrawerProps) {
+function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation, readOnly = false, onClose, onUpdate }: BookingDrawerProps) {
   const [note, setNote] = useState(booking.notes);
   // Only one of these panels is meaningful open at a time — a single field
   // (rather than 3 independent booleans) makes that the only representable
@@ -94,11 +101,13 @@ function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation,
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState<string | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [confirmingNoShow, setConfirmingNoShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const close = () => { setIsExiting(true); setTimeout(onClose, 260); };
 
   const isActive = ACTIVE_STATUSES.includes(booking.status);
+  const isPastAppointment = new Date(booking.startTime) <= new Date();
   const durationMinutes = Math.round(
     (new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / 60_000
   );
@@ -354,6 +363,14 @@ function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation,
         </div>
 
         {/* Actions */}
+        {readOnly ? (
+          <div className="flex-shrink-0 p-4" style={{ borderTop: "1px solid var(--bd)" }}>
+            <p className="text-xs text-center" style={{ color: "var(--tx3)" }}>
+              You&apos;re seeing this because it&apos;s assigned to you. Ask an owner or manager to
+              confirm, reschedule or cancel it.
+            </p>
+          </div>
+        ) : (
         <div className="flex-shrink-0 p-4 grid grid-cols-2 gap-2" style={{ borderTop: "1px solid var(--bd)" }}>
           {booking.status === "pending" && (
             <Button variant="primary" size="sm" className="col-span-2" loading={busy} onClick={() => runAction({ status: "confirmed" })}>
@@ -383,6 +400,12 @@ function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation,
             <AlignLeft size={14} />
             Add Note
           </Button>
+          {isActive && booking.status !== "pending" && isPastAppointment && (
+            <Button variant="secondary" size="sm" className="col-span-2" loading={busy} onClick={() => setConfirmingNoShow(true)}>
+              <UserX size={14} />
+              Mark No-Show
+            </Button>
+          )}
           {isActive && (
             <Button variant="danger" size="sm" className="col-span-2" onClick={() => setConfirmingCancel(true)}>
               <XCircle size={14} />
@@ -390,6 +413,7 @@ function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation,
             </Button>
           )}
         </div>
+        )}
       </div>
 
       {confirmingCancel && (
@@ -402,6 +426,17 @@ function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation,
           onCancel={() => setConfirmingCancel(false)}
         />
       )}
+
+      {confirmingNoShow && (
+        <ConfirmDialog
+          title="Mark as no-show"
+          message={`Mark ${booking.customerName} as a no-show? The customer won't be notified — this is just for your records.`}
+          confirmLabel="Mark no-show"
+          danger
+          onConfirm={async () => { await runAction({ status: "no_show" }); setConfirmingNoShow(false); }}
+          onCancel={() => setConfirmingNoShow(false)}
+        />
+      )}
     </div>
   );
 }
@@ -412,9 +447,12 @@ interface BookingsClientProps {
   vendorSlug: string;
   vendorName: string;
   vendorLocation: string;
+  // True for Service staff, who receive only their own bookings and can't
+  // change them. See app/(dashboard)/dashboard/bookings/page.tsx.
+  readOnly?: boolean;
 }
 
-export default function BookingsClient({ initialBookings, staff, vendorSlug, vendorName, vendorLocation }: BookingsClientProps) {
+export default function BookingsClient({ initialBookings, staff, vendorSlug, vendorName, vendorLocation, readOnly = false }: BookingsClientProps) {
   const [bookingList, setBookingList] = useState<Booking[]>(initialBookings);
   const [tab, setTab] = useState<"list" | "calendar">("list");
   const [search, setSearch] = useState("");
@@ -554,6 +592,7 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug, ven
               <option value="rescheduled">Rescheduled</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
+              <option value="no_show">No-show</option>
             </select>
           </div>
 
@@ -724,6 +763,7 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug, ven
           vendorSlug={vendorSlug}
           vendorName={vendorName}
           vendorLocation={vendorLocation}
+          readOnly={readOnly}
           onClose={() => setSelectedBookingId(null)}
           onUpdate={updateBooking}
         />

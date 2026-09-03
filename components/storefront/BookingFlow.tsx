@@ -19,6 +19,9 @@ import type { Service, Product, Staff, PaymentMethod, DepositSetting } from "@/t
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Input";
+import { storefrontHref } from "@/lib/storefront-links";
+import { captureEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
+import StorefrontFooter from "@/components/storefront/StorefrontFooter";
 
 interface ApiErrorBody {
   error: string;
@@ -52,6 +55,9 @@ function formatSlotLabel(time: string): string {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+// Named so a funnel in PostHog reads as steps rather than as integers.
+const BOOKING_STEP_NAMES = ["services", "staff", "date_time", "products", "details", "review"];
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -67,6 +73,16 @@ interface BookingFlowProps {
   depositValue?: number;
   cancellationPolicy?: string;
   paymentMethods: PaymentMethod[];
+  isCustomDomain: boolean;
+  // Services named by a shared booking link, already validated against this
+  // vendor on the server (app/[slug]/book/page.tsx).
+  initialServices: Service[];
+  // For the footer — already redacted by lib/vendors.ts, so a field that
+  // arrives undefined is one the vendor chose not to publish.
+  ownerName?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
+  verified?: boolean;
 }
 
 export default function BookingFlow({
@@ -80,12 +96,22 @@ export default function BookingFlow({
   depositValue,
   cancellationPolicy,
   paymentMethods,
+  isCustomDomain,
+  initialServices,
+  ownerName,
+  ownerPhone,
+  ownerEmail,
+  verified = false,
 }: BookingFlowProps) {
   const router = useRouter();
-  const [step, setStep] = useState(0);
+
+  // A link that already names the service skips the service picker — that's
+  // the whole point of sharing one. The Back button still returns to it, and
+  // the summary sidebar shows what was chosen, so nothing is hidden.
+  const [step, setStep] = useState(initialServices.length > 0 ? 1 : 0);
 
   // Step 1 — Services
-  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [selectedServices, setSelectedServices] = useState<Service[]>(initialServices);
 
   // Step 2 — Staff
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -203,6 +229,18 @@ export default function BookingFlow({
       }
 
       const { booking } = (await res.json()) as { booking: { slug: string } };
+
+      // Shape of the booking only — no name, phone, email, or notes. See
+      // the warning on captureEvent in lib/analytics.ts.
+      captureEvent(ANALYTICS_EVENTS.bookingSubmitted, {
+        vendor_slug: slug,
+        service_count: selectedServices.length,
+        product_count: Object.keys(productQtys).length,
+        total_pesewas: totalServiceCost + totalProductCost,
+        has_staff_preference: selectedStaffId !== null,
+        deep_linked: initialServices.length > 0,
+      });
+
       router.push(`/booking/${booking.slug}`);
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
@@ -248,14 +286,14 @@ export default function BookingFlow({
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Progress Header */}
       <div
         className="sticky top-0 z-30 px-4 py-3"
         style={{ background: "var(--bg)", borderBottom: "1px solid var(--bd)" }}
       >
         <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
-          <Link href={`/${slug}`} className="flex items-center gap-2 mb-3 group">
+          <Link href={storefrontHref(slug, isCustomDomain)} className="flex items-center gap-2 mb-3 group">
             {vendorLogoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -815,6 +853,11 @@ export default function BookingFlow({
               if (step === 5) {
                 handleConfirm();
               } else {
+                captureEvent(ANALYTICS_EVENTS.bookingStepCompleted, {
+                  vendor_slug: slug,
+                  step_index: step,
+                  step_name: BOOKING_STEP_NAMES[step],
+                });
                 setStep((s) => s + 1);
               }
             }}
@@ -834,6 +877,16 @@ export default function BookingFlow({
           )}
         </div>
       </div>
+
+      {/* Sits after the sticky action bar, so it appears at the true bottom
+          of the flow without ever competing with the Continue button. */}
+      <StorefrontFooter
+        vendorName={vendorName}
+        verified={verified}
+        ownerName={ownerName}
+        ownerPhone={ownerPhone}
+        ownerEmail={ownerEmail}
+      />
     </div>
   );
 }

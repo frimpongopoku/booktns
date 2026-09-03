@@ -7,6 +7,7 @@ type BadgeVariant =
   | "completed"
   | "cancelled"
   | "rescheduled"
+  | "no_show"
   | "new"
   | "processing"
   | "ready"
@@ -45,6 +46,10 @@ const variantStyles: Record<BadgeVariant, React.CSSProperties> = {
   rescheduled: {
     background: "rgba(37,99,235,0.08)",
     color: "#2563EB",
+  },
+  no_show: {
+    background: "var(--bds)",
+    color: "var(--tx3)",
   },
   new: {
     background: "var(--amber-bg)",
@@ -113,6 +118,7 @@ export function bookingStatusBadge(status: BookingStatus) {
     completed: "completed",
     cancelled: "cancelled",
     rescheduled: "rescheduled",
+    no_show: "no_show",
   };
   const labels: Record<BookingStatus, string> = {
     confirmed: "Confirmed",
@@ -120,6 +126,7 @@ export function bookingStatusBadge(status: BookingStatus) {
     completed: "Completed",
     cancelled: "Cancelled",
     rescheduled: "Rescheduled",
+    no_show: "No-show",
   };
   return <Badge variant={map[status]}>{labels[status]}</Badge>;
 }

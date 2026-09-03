@@ -5,6 +5,7 @@ import { normalizePhone } from "@/lib/phone";
 import { serializeBooking } from "@/lib/serialize";
 import { sendBookingCancelledEmail } from "@/lib/email";
 import { sendBookingCancelledSms } from "@/lib/sms";
+import { logger } from "@/lib/logger";
 
 const updateSchema = z.object({
   customerName: z.string().trim().min(1, "Name is required").optional(),
@@ -73,9 +74,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           slug: true,
           location: true,
           logoUrl: true,
+          phone: true,
           whatsapp: true,
           personalWhatsappNumber: true,
           cancellationPolicy: true,
+          ownerEmail: true,
+          showOwnerEmail: true,
         },
       },
     },
@@ -88,8 +92,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   // only ever be the literal "cancelled") — a plain self-service edit
   // (name/phone/email with no status change) never fires anything.
   if (parsed.data.status === "cancelled") {
-    sendBookingCancelledEmail(serialized, booking.vendor).catch((err) => console.error("sendBookingCancelledEmail failed", err));
-    sendBookingCancelledSms(serialized, booking.vendor).catch((err) => console.error("sendBookingCancelledSms failed", err));
+    sendBookingCancelledEmail(
+      serialized,
+      // Same show-flag gate the storefront applies to the owner's address.
+      { ...booking.vendor, ownerEmail: booking.vendor.showOwnerEmail ? booking.vendor.ownerEmail : null }
+    ).catch((err) => logger.error("sendBookingCancelledEmail failed", { bookingId: booking.id, vendorId: booking.vendorId, err }));
+    sendBookingCancelledSms(serialized, booking.vendor).catch((err) => logger.error("sendBookingCancelledSms failed", { bookingId: booking.id, vendorId: booking.vendorId, err }));
   }
 
   return NextResponse.json({ booking: serialized });

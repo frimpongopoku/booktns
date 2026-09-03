@@ -3,6 +3,8 @@ import type { CreateEmailOptions } from "resend";
 import type { Booking } from "@/types";
 import { formatPrice } from "@/lib/data";
 import { buildGoogleCalendarUrl } from "@/lib/calendar";
+import { whatsappLink } from "@/lib/vendor-contact";
+import { getFeedbackInboxEmail } from "@/lib/feedback";
 
 // Only what these templates actually reference — avoids requiring a full
 // Vendor row (with every settings field) just to send an email. Expanded
@@ -17,6 +19,12 @@ interface VendorEmailInfo {
   whatsapp: string;
   personalWhatsappNumber?: string | null;
   cancellationPolicy?: string | null;
+  // Optional so a caller that hasn't been updated still sends a valid email
+  // — these only ever add a row to the contact block. `phone` is the shop's
+  // published line; `ownerEmail` must already have been checked against the
+  // vendor's showOwnerEmail flag by the caller.
+  phone?: string | null;
+  ownerEmail?: string | null;
 }
 
 // Fallback only — the real value should come from EMAIL_FROM and must be on
@@ -68,7 +76,14 @@ function formatTime(iso: string): string {
 // (sendNewBookingNotification) — "Message {yourself}" would just look broken.
 function emailShell(vendor: VendorEmailInfo, bodyHtml: string, showContact = true): string {
   const storefrontUrl = `${APP_URL}/${vendor.slug}`;
-  const whatsappNumber = (vendor.personalWhatsappNumber ?? vendor.whatsapp).replace("+", "");
+
+  // Phone and email are rendered as their actual values rather than as a
+  // "Contact us" label — an email client's plain-text fallback, a forwarded
+  // screenshot, or a printed copy all still carry the number that way.
+  const extraChannels = [
+    vendor.phone ? `<a href="tel:${vendor.phone}" style="color: #C0283A; text-decoration: none;">${vendor.phone}</a>` : "",
+    vendor.ownerEmail ? `<a href="mailto:${vendor.ownerEmail}" style="color: #C0283A; text-decoration: none;">${vendor.ownerEmail}</a>` : "",
+  ].filter(Boolean).join('<span style="color: #D4D4D8;"> &middot; </span>');
 
   return `
     <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #18181B;">
@@ -88,11 +103,12 @@ function emailShell(vendor: VendorEmailInfo, bodyHtml: string, showContact = tru
           ? `
       <div style="padding: 14px 16px; margin-top: 8px; background: #FAFAFA; border-radius: 8px; text-align: center;">
         <p style="margin: 0 0 6px; font-size: 13px; color: #52525B;">${vendor.location}</p>
-        <p style="margin: 0; font-size: 13px;">
-          <a href="https://wa.me/${whatsappNumber}" style="color: #C0283A; text-decoration: none; font-weight: 500;">Message ${vendor.name}</a>
+        <p style="margin: 0 0 6px; font-size: 13px;">
+          <a href="${whatsappLink(vendor)}" style="color: #C0283A; text-decoration: none; font-weight: 500;">Message ${vendor.name}</a>
           <span style="color: #D4D4D8;"> &middot; </span>
           <a href="${storefrontUrl}" style="color: #C0283A; text-decoration: none; font-weight: 500;">Visit storefront</a>
         </p>
+        ${extraChannels ? `<p style="margin: 0; font-size: 13px;">${extraChannels}</p>` : ""}
       </div>`
           : ""
       }
@@ -176,6 +192,14 @@ function addToCalendarButtonHtml(booking: Booking, vendor: VendorEmailInfo): str
   `;
 }
 
+// "Reach out to them directly" is useless on its own — a customer has no
+// account and nowhere to look the vendor up. Every one of those sentences
+// links to the #contact block on the customer's own booking/order page,
+// which lists WhatsApp, phone, email, address and hours.
+function contactLinkHtml(vendor: VendorEmailInfo, recordUrl: string, label?: string): string {
+  return `<a href="${recordUrl}#contact" style="color: #C0283A; font-weight: 500;">${label ?? `reach out to ${vendor.name}`}</a>`;
+}
+
 function cancellationPolicyHtml(vendor: VendorEmailInfo): string {
   if (!vendor.cancellationPolicy) return "";
   return `
@@ -206,7 +230,7 @@ export async function sendBookingRequestEmail(booking: Booking, vendor: VendorEm
     ${depositBlockHtml(booking, vendor)}
     ${cancellationPolicyHtml(vendor)}
     <p style="font-size: 13px; color: #71717A; margin-top: 16px;">
-      You can cancel or edit your details from that page until ${vendor.name} confirms — after that, please reach out to them directly.
+      You can cancel or edit your details from that page until ${vendor.name} confirms — after that, please ${contactLinkHtml(vendor, bookingUrl, "get in touch with them")}.
     </p>
   `;
 
@@ -242,7 +266,7 @@ export async function sendBookingConfirmedEmail(booking: Booking, vendor: Vendor
     ${depositBlockHtml(booking, vendor)}
     ${cancellationPolicyHtml(vendor)}
     <p style="font-size: 13px; color: #71717A; margin-top: 16px;">
-      Need to change or cancel? Reach out to ${vendor.name} directly — confirmed bookings can no longer be edited from this page.
+      Need to change or cancel? ${contactLinkHtml(vendor, bookingUrl, `Get in touch with ${vendor.name}`)} — confirmed bookings can no longer be edited from this page.
     </p>
   `;
 
@@ -276,7 +300,7 @@ export async function sendBookingCancelledEmail(booking: Booking, vendor: Vendor
       </a>
     </p>
     <p style="font-size: 13px; color: #71717A;">
-      Questions about this cancellation? <a href="${bookingUrl}" style="color: #C0283A;">View the booking</a> or reach out to ${vendor.name} directly.
+      Questions about this cancellation? <a href="${bookingUrl}" style="color: #C0283A;">View the booking</a> or ${contactLinkHtml(vendor, bookingUrl)}.
     </p>
   `;
 
@@ -342,7 +366,7 @@ export async function sendBookingRescheduledEmail(booking: Booking, vendor: Vend
     </div>
     ${depositBlockHtml(booking, vendor)}
     <p style="font-size: 13px; color: #71717A; margin-top: 16px;">
-      This time doesn't work? Reach out to ${vendor.name} directly to find another slot.
+      This time doesn't work? ${contactLinkHtml(vendor, bookingUrl, `Get in touch with ${vendor.name}`)} to find another slot.
     </p>
   `;
 
@@ -387,5 +411,195 @@ export async function sendNewBookingNotification(booking: Booking, vendor: Vendo
     to: recipientEmails,
     subject: `New booking request from ${booking.customerName}`,
     html: emailShell(vendor, body, /* showContact */ false),
+  });
+}
+
+// A vendor's staff reaching the Booktns platform team, not a customer-facing
+// send — deliberately doesn't use emailShell (that's vendor-branded).
+export async function sendSupportMessageNotification(params: {
+  vendorName: string;
+  staffName: string;
+  staffEmail: string;
+  subject: string;
+  message: string;
+}): Promise<void> {
+  // Shares the feedback button's fallback: a vendor writing in for help
+  // should reach a human whether or not SUPPORT_INBOX_EMAIL is configured.
+  // This used to return early and silently drop the message.
+  const supportInboxEmail = getFeedbackInboxEmail();
+
+  const html = `
+    <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #18181B;">
+      <h1 style="font-size: 18px; margin: 0 0 12px;">Support request from ${params.vendorName}</h1>
+      <p style="font-size: 14px; color: #52525B; margin: 0 0 16px;">
+        From ${params.staffName} (${params.staffEmail})
+      </p>
+      <p style="font-size: 14px; font-weight: 600; margin: 0 0 4px;">${params.subject}</p>
+      <p style="font-size: 14px; white-space: pre-wrap;">${params.message}</p>
+    </div>
+  `;
+
+  const client = getResendClient();
+  if (!client) {
+    console.warn("RESEND_API_KEY not configured — skipping sendSupportMessageNotification");
+    return;
+  }
+  await sendOrThrow(client, {
+    from: EMAIL_FROM,
+    to: supportInboxEmail,
+    replyTo: params.staffEmail,
+    subject: `[Support] ${params.vendorName}: ${params.subject}`,
+    html,
+  });
+}
+
+// --- Verification -----------------------------------------------------------
+//
+// These go to a vendor about their own platform account rather than about a
+// booking, so they use a plain shell rather than the vendor-branded one — the
+// sender here is Booktns, not the vendor's own business.
+
+function platformShell(bodyHtml: string): string {
+  return `
+    <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #18181B;">
+      ${bodyHtml}
+      <p style="font-size: 12px; color: #A1A1AA; margin-top: 28px; border-top: 1px solid #E4E4E7; padding-top: 16px;">
+        Booktns · Made for shops across Ghana · Built by the Biibisoft Team
+      </p>
+    </div>
+  `;
+}
+
+export async function sendVerificationApprovedEmail(params: {
+  to: string;
+  legalName: string;
+  vendorNames: string[];
+}): Promise<void> {
+  const client = getResendClient();
+  if (!client) {
+    console.warn("RESEND_API_KEY not configured — skipping sendVerificationApprovedEmail");
+    return;
+  }
+
+  // Lists every shop that just became verified — a vendor running several
+  // needs to know the badge applies to all of them, not just the one they
+  // happened to apply from.
+  const shopList = params.vendorNames.map((name) => `<li style="margin-bottom:4px;">${name}</li>`).join("");
+
+  await sendOrThrow(client, {
+    from: EMAIL_FROM,
+    to: params.to,
+    subject: "You're verified on Booktns",
+    html: platformShell(`
+      <h1 style="font-size: 20px; margin: 0 0 12px;">You're verified</h1>
+      <p style="font-size: 14px; color: #52525B; margin: 0 0 16px;">
+        Hi ${params.legalName}, we've checked your ID and your Booktns account is now verified.
+        A Verified badge now shows on:
+      </p>
+      <ul style="font-size: 14px; color: #18181B; padding-left: 20px; margin: 0 0 16px;">${shopList}</ul>
+      <p style="font-size: 14px; color: #52525B; margin: 0;">
+        Customers see this badge on your storefront and on your payment page, where it replaces the
+        warning we otherwise show about paying an unverified vendor.
+      </p>
+    `),
+  });
+}
+
+export async function sendVerificationRejectedEmail(params: {
+  to: string;
+  legalName: string;
+  reason: string;
+}): Promise<void> {
+  const client = getResendClient();
+  if (!client) {
+    console.warn("RESEND_API_KEY not configured — skipping sendVerificationRejectedEmail");
+    return;
+  }
+
+  await sendOrThrow(client, {
+    from: EMAIL_FROM,
+    to: params.to,
+    subject: "We couldn't verify your Booktns account yet",
+    html: platformShell(`
+      <h1 style="font-size: 20px; margin: 0 0 12px;">We couldn't verify your account yet</h1>
+      <p style="font-size: 14px; color: #52525B; margin: 0 0 16px;">
+        Hi ${params.legalName}, we reviewed your verification and couldn't approve it this time.
+      </p>
+      <p style="font-size: 14px; font-weight: 600; margin: 0 0 4px;">Why</p>
+      <p style="font-size: 14px; color: #18181B; margin: 0 0 20px; white-space: pre-wrap;">${params.reason}</p>
+      <p style="font-size: 14px; color: #52525B; margin: 0;">
+        You can fix this and submit again any time from Settings → Verification in your dashboard.
+        Nothing else about your account has changed.
+      </p>
+    `),
+  });
+}
+
+export async function sendSuperAdminInviteEmail(params: { to: string; invitedBy: string }): Promise<void> {
+  const client = getResendClient();
+  if (!client) {
+    console.warn("RESEND_API_KEY not configured — skipping sendSuperAdminInviteEmail");
+    return;
+  }
+
+  await sendOrThrow(client, {
+    from: EMAIL_FROM,
+    to: params.to,
+    subject: "You've been given Booktns platform admin access",
+    html: platformShell(`
+      <h1 style="font-size: 20px; margin: 0 0 12px;">Platform admin access</h1>
+      <p style="font-size: 14px; color: #52525B; margin: 0 0 16px;">
+        ${params.invitedBy} has given this email address administrator access to the Booktns platform console.
+      </p>
+      <p style="font-size: 14px; color: #52525B; margin: 0 0 16px;">
+        Sign in at <a href="${APP_URL}/superadmin/login" style="color:#C0283A;">${APP_URL}/superadmin/login</a>
+        using this exact Google account. There's no password and no sign-up — access is tied to this address.
+      </p>
+      <p style="font-size: 14px; color: #52525B; margin: 0;">
+        If you weren't expecting this, you can ignore it and no account will be created for you.
+      </p>
+    `),
+  });
+}
+
+// Product feedback from anyone — vendor staff, a shopper on a storefront, a
+// visitor to the landing page. Plain platform shell rather than the
+// vendor-branded one: the recipient is us, not a customer.
+export async function sendFeedbackNotification(params: {
+  to: string;
+  message: string;
+  source: string;
+  path?: string;
+  replyTo?: string;
+  staffName?: string;
+  vendorName?: string;
+}): Promise<void> {
+  const client = getResendClient();
+  if (!client) {
+    console.warn("RESEND_API_KEY not configured — skipping sendFeedbackNotification");
+    return;
+  }
+
+  const senderLine = params.staffName
+    ? `${params.staffName}${params.vendorName ? ` at ${params.vendorName}` : ""}${params.replyTo ? ` (${params.replyTo})` : ""}`
+    : params.replyTo
+      ? params.replyTo
+      : "Anonymous visitor";
+
+  await sendOrThrow(client, {
+    from: EMAIL_FROM,
+    to: params.to,
+    // Only set when we actually have an address — Resend rejects an empty
+    // replyTo, which would turn a working send into a thrown error.
+    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
+    subject: `[Feedback · ${params.source}] ${params.message.slice(0, 60)}${params.message.length > 60 ? "…" : ""}`,
+    html: platformShell(`
+      <h1 style="font-size: 18px; margin: 0 0 12px;">New feedback</h1>
+      <p style="font-size: 13px; color: #71717A; margin: 0 0 4px;">From ${senderLine}</p>
+      <p style="font-size: 13px; color: #71717A; margin: 0 0 16px;">
+        Sent from the ${params.source}${params.path ? ` · <code>${params.path}</code>` : ""}
+      </p>
+      <p style="font-size: 14px; white-space: pre-wrap; margin: 0;">${params.message}</p>
+    `),
   });
 }

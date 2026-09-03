@@ -8,8 +8,17 @@ export interface OrderWithVendor extends Order {
     id: string;
     name: string;
     slug: string;
+    location: string;
+    hours: string;
+    phone: string;
     whatsapp: string;
     personalWhatsappNumber?: string;
+    logoUrl?: string;
+    // Owner contact, already gated on the vendor's show* flags — the same
+    // redaction lib/vendors.ts applies to the storefront. This page is
+    // public and unauthenticated, so a hidden field must never reach it.
+    ownerPhone?: string;
+    ownerEmail?: string;
   };
 }
 
@@ -29,8 +38,14 @@ export const getOrderBySlug = cache(async (slug: string): Promise<OrderWithVendo
       id: order.vendor.id,
       name: order.vendor.name,
       slug: order.vendor.slug,
+      location: order.vendor.location,
+      hours: order.vendor.hours,
+      phone: order.vendor.phone,
       whatsapp: order.vendor.whatsapp,
       personalWhatsappNumber: order.vendor.personalWhatsappNumber ?? undefined,
+      logoUrl: order.vendor.logoUrl ?? undefined,
+      ownerPhone: order.vendor.showOwnerPhone ? order.vendor.ownerPhone ?? undefined : undefined,
+      ownerEmail: order.vendor.showOwnerEmail ? order.vendor.ownerEmail ?? undefined : undefined,
     },
   };
 });

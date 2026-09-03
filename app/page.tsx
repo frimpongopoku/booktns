@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/shared/Logo";
+import PlatformCredit from "@/components/shared/PlatformCredit";
+import FeedbackButton from "@/components/shared/FeedbackButton";
+import { getFeedbackInboxEmail } from "@/lib/feedback";
 import { SITE_URL } from "@/lib/site";
 import {
   ArrowRight,
@@ -423,11 +426,12 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="px-6 md:px-12 py-5 flex items-center justify-between" style={{ borderTop: "1px solid var(--bd)" }}>
+      <footer className="mt-auto px-6 md:px-12 py-5 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--bd)" }}>
         <Logo size="sm" />
-        <p className="text-xs" style={{ color: "var(--tx3)" }}>
-          © {new Date().getFullYear()} Booktns
-        </p>
+        <div className="flex flex-col sm:flex-row items-center gap-x-4 gap-y-2">
+          <PlatformCredit />
+          <FeedbackButton source="landing" supportEmail={getFeedbackInboxEmail()} />
+        </div>
       </footer>
     </div>
   );

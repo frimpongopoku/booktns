@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import NextTopLoader from "nextjs-toploader";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
+import AnalyticsProvider from "@/components/shared/AnalyticsProvider";
 import "./globals.css";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -62,8 +63,10 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col" style={{ background: "var(--bg)", color: "var(--tx)" }}>
         <ThemeProvider>
-          <NextTopLoader color="var(--tx)" height={2} showSpinner={false} />
-          {children}
+          <AnalyticsProvider>
+            <NextTopLoader color="var(--tx)" height={2} showSpinner={false} />
+            {children}
+          </AnalyticsProvider>
         </ThemeProvider>
       </body>
     </html>

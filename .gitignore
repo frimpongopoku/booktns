@@ -42,3 +42,9 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+
+# Identity documents written by the local fallback in lib/private-storage.ts.
+# Never commit these.
+.private-uploads/
+prod.env
+.prod.env

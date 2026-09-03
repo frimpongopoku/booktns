@@ -3,7 +3,10 @@ import Logo from "@/components/shared/Logo";
 import { Store, Search } from "lucide-react";
 
 interface StorefrontUnavailableProps {
-  reason: "not-found" | "not-published";
+  // "suspended" renders deliberately neutral copy. The vendor's
+  // suspendedReason is an internal note — it goes to the vendor in their own
+  // dashboard, never to a shopper standing on their storefront.
+  reason: "not-found" | "not-published" | "suspended";
   vendorName?: string;
 }
 
@@ -31,13 +34,19 @@ export default function StorefrontUnavailable({ reason, vendorName }: Storefront
         className="font-display text-2xl md:text-3xl font-medium mb-3"
         style={{ fontFamily: "var(--font-display)", color: "var(--tx)", letterSpacing: "-0.02em" }}
       >
-        {isNotPublished ? `${vendorName} is getting ready` : "We couldn't find that shop"}
+        {isNotPublished
+          ? `${vendorName} is getting ready`
+          : reason === "suspended"
+            ? "This shop is unavailable"
+            : "We couldn't find that shop"}
       </h1>
 
       <p className="text-sm max-w-sm mb-8 leading-relaxed" style={{ color: "var(--tx2)" }}>
         {isNotPublished
           ? "This storefront isn't open to the public yet — the owner is still setting things up. Check back soon."
-          : "The link you followed might be broken, or this shop may no longer be available."}
+          : reason === "suspended"
+            ? "This storefront isn't available right now. If you were in the middle of an order, contact the vendor directly."
+            : "The link you followed might be broken, or this shop may no longer be available."}
       </p>
 
       <Link

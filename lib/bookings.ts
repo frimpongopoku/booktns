@@ -9,10 +9,18 @@ export interface BookingWithVendor extends Booking {
     name: string;
     slug: string;
     location: string;
+    hours: string;
+    phone: string;
     whatsapp: string;
     personalWhatsappNumber?: string;
+    logoUrl?: string;
     cancellationPolicy?: string;
     storefrontTheme: StorefrontTheme;
+    // Owner contact, already gated on the vendor's show* flags — the same
+    // redaction lib/vendors.ts applies to the storefront. This page is
+    // public and unauthenticated, so a hidden field must never reach it.
+    ownerPhone?: string;
+    ownerEmail?: string;
   };
 }
 
@@ -40,10 +48,15 @@ export const getBookingBySlug = cache(async (slug: string): Promise<BookingWithV
       name: booking.vendor.name,
       slug: booking.vendor.slug,
       location: booking.vendor.location,
+      hours: booking.vendor.hours,
+      phone: booking.vendor.phone,
       whatsapp: booking.vendor.whatsapp,
       personalWhatsappNumber: booking.vendor.personalWhatsappNumber ?? undefined,
+      logoUrl: booking.vendor.logoUrl ?? undefined,
       cancellationPolicy: booking.vendor.cancellationPolicy ?? undefined,
       storefrontTheme: booking.vendor.storefrontTheme,
+      ownerPhone: booking.vendor.showOwnerPhone ? booking.vendor.ownerPhone ?? undefined : undefined,
+      ownerEmail: booking.vendor.showOwnerEmail ? booking.vendor.ownerEmail ?? undefined : undefined,
     },
   };
 });

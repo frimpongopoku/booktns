@@ -2,9 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getStorefrontVendor } from "@/lib/vendors";
+import { isRequestFromCustomDomain } from "@/lib/request-context";
+import { storefrontHref } from "@/lib/storefront-links";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
+import VendorWordmark from "@/components/storefront/VendorWordmark";
+import StorefrontFooter from "@/components/storefront/StorefrontFooter";
+import TrackView from "@/components/storefront/TrackView";
+import VerifiedBadge from "@/components/shared/VerifiedBadge";
+import { ANALYTICS_EVENTS } from "@/lib/analytics";
 import { CopyButton } from "@/components/ui/CopyButton";
-import { Smartphone, CreditCard, Banknote, MapPin } from "lucide-react";
+import { Smartphone, CreditCard, Banknote, MapPin, BadgeCheck, ShieldAlert } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -30,24 +37,30 @@ function PaymentIcon({ type }: { type: string }) {
 
 export default async function PayPage({ params }: PageProps) {
   const { slug } = await params;
+  const isCustomDomain = await isRequestFromCustomDomain();
   const vendorData = await getStorefrontVendor(slug);
   if (!vendorData) notFound();
 
+  const isVerified = vendorData.verificationStatus === "VERIFIED";
+
   return (
-    <div className="min-h-screen pb-20 md:pb-0" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col pb-20 md:pb-0" style={{ background: "var(--bg)" }}>
+      <TrackView
+        event={ANALYTICS_EVENTS.payPageViewed}
+        properties={{ payment_method_count: vendorData.paymentMethods.length }}
+      />
+
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 md:px-8 py-4"
         style={{ background: "var(--bg)", borderBottom: "1px solid var(--bd)" }}
       >
-        <Link
-          href={`/${slug}`}
-          className="font-display text-lg font-medium"
-          style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
-        >
-          {vendorData.name}
-        </Link>
-        <Link href={`/${slug}/book`} className="text-sm font-medium" style={{ color: "var(--ac)" }}>
+        <VendorWordmark
+          name={vendorData.name}
+          href={storefrontHref(slug, isCustomDomain)}
+          logoUrl={vendorData.logoUrl}
+        />
+        <Link href={storefrontHref(slug, isCustomDomain, "/book")} className="text-sm font-medium" style={{ color: "var(--ac)" }}>
           Book Now
         </Link>
       </div>
@@ -56,16 +69,22 @@ export default async function PayPage({ params }: PageProps) {
         {/* Vendor avatar */}
         <div className="text-center mb-8">
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-semibold text-white mx-auto mb-4"
+            className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center text-2xl font-semibold text-white mx-auto mb-4"
             style={{ background: "var(--ac)" }}
           >
-            {vendorData.name[0]}
+            {vendorData.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={vendorData.logoUrl} alt={`${vendorData.name} logo`} className="w-full h-full object-cover" />
+            ) : (
+              vendorData.name[0]
+            )}
           </div>
           <h1
-            className="font-display text-2xl font-medium mb-1"
+            className="font-display text-2xl font-medium mb-1 inline-flex items-center gap-2"
             style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
           >
             {vendorData.name}
+            {isVerified && <VerifiedBadge size={18} />}
           </h1>
           <div className="flex items-center justify-center gap-1.5">
             <MapPin size={12} style={{ color: "var(--tx3)" }} />
@@ -74,6 +93,45 @@ export default async function PayPage({ params }: PageProps) {
             </p>
           </div>
         </div>
+
+        {/* The single most consequential place the badge appears. A verified
+            vendor's panel REPLACES the caution notice rather than sitting
+            alongside it — this is the moment a customer is about to send
+            money to a stranger, and the two messages would undercut each
+            other. */}
+        {isVerified ? (
+          <div
+            className="flex items-start gap-3 p-4 rounded-[var(--rl)] mb-8"
+            style={{ background: "var(--green-bg)", border: "1px solid var(--green)" }}
+          >
+            <BadgeCheck size={18} className="mt-0.5 flex-shrink-0" style={{ color: "var(--green)" }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--green)" }}>
+                Verified vendor
+              </p>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--tx2)" }}>
+                Booktns has checked the identity of the person who runs {vendorData.name} against a
+                government ID.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="flex items-start gap-3 p-4 rounded-[var(--rl)] mb-8"
+            style={{ background: "var(--amber-bg)", border: "1px solid var(--amber)" }}
+          >
+            <ShieldAlert size={18} className="mt-0.5 flex-shrink-0" style={{ color: "var(--amber)" }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--amber)" }}>
+                Before you pay
+              </p>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--tx2)" }}>
+                Booktns hasn&apos;t verified this vendor&apos;s identity, and does not handle or refund
+                payments. Money you send goes directly to them. Make sure you know who you&apos;re paying.
+              </p>
+            </div>
+          </div>
+        )}
 
         <p className="text-xs font-semibold uppercase tracking-widest mb-4 text-center" style={{ color: "var(--tx3)" }}>
           Payment Details
@@ -158,15 +216,15 @@ export default async function PayPage({ params }: PageProps) {
         </p>
       </div>
 
-      {/* Footer */}
-      <div className="text-center py-6" style={{ borderTop: "1px solid var(--bds)" }}>
-        <Link href="/" className="text-xs" style={{ color: "var(--tx3)" }}>
-          Powered by{" "}
-          <span className="font-medium" style={{ color: "var(--ac)" }}>Booktns</span>
-        </Link>
-      </div>
+      <StorefrontFooter
+        vendorName={vendorData.name}
+        verified={vendorData.verificationStatus === "VERIFIED"}
+        ownerName={vendorData.ownerName}
+        ownerPhone={vendorData.ownerPhone}
+        ownerEmail={vendorData.ownerEmail}
+      />
 
-      <MobileStorefrontNav slug={slug} />
+      <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} />
     </div>
   );
 }

@@ -8,30 +8,36 @@ export default async function BookingsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  if (session.role === "Service") {
-    return (
-      <div
-        className="flex flex-col items-center justify-center gap-2 py-16 rounded-[var(--rl)] text-center"
-        style={{ background: "var(--bg2)", border: "1px dashed var(--bds)" }}
-      >
-        <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>You don&apos;t have access to this page</p>
-        <p className="text-xs max-w-xs" style={{ color: "var(--tx3)" }}>
-          Bookings management is limited to owners and management staff.
-        </p>
-      </div>
-    );
-  }
+  // Spec §7.4's role table draws two different lines here: "view all
+  // bookings" is Owner/Management only, but "view own bookings" is granted
+  // to Service staff too. A stylist needs to know what their day looks
+  // like. So rather than walling the page off, the query is narrowed to the
+  // bookings actually assigned to them, and the write actions are hidden.
+  const isServiceStaff = session.role === "Service";
 
   // First view of a new booking marks it seen — see CLAUDE.md data rules.
-  await db.booking.updateMany({
-    where: { vendorId: session.vendorId, seenByVendorAt: null },
-    data: { seenByVendorAt: new Date() },
-  });
+  // Service staff never trip this: they can't act on the notification, so
+  // clearing the badge for the whole vendor off their view would hide new
+  // bookings from the people who can.
+  if (!isServiceStaff) {
+    await db.booking.updateMany({
+      where: { vendorId: session.vendorId, seenByVendorAt: null },
+      data: { seenByVendorAt: new Date() },
+    });
+  }
 
   const [vendor, bookings, staffList] = await Promise.all([
     db.vendor.findUnique({ where: { id: session.vendorId }, select: { slug: true, name: true, location: true } }),
     db.booking.findMany({
-      where: { vendorId: session.vendorId },
+      // Scoped in the query, not filtered after the fetch — an RSC payload
+      // ships every row it loads to the browser whether it's rendered or
+      // not, so "fetch all and hide" would leak the whole shop's book.
+      where: {
+        vendorId: session.vendorId,
+        ...(isServiceStaff
+          ? { OR: [{ assignedStaffId: session.staffId }, { staffPreferenceId: session.staffId }] }
+          : {}),
+      },
       include: {
         services: true,
         products: { include: { product: { select: { slug: true } } } },
@@ -53,6 +59,7 @@ export default async function BookingsPage() {
       vendorSlug={vendor.slug}
       vendorName={vendor.name}
       vendorLocation={vendor.location}
+      readOnly={isServiceStaff}
     />
   );
 }

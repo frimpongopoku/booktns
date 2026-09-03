@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import PlatformCredit from "@/components/shared/PlatformCredit";
 import { notFound } from "next/navigation";
 import { getBookingBySlug } from "@/lib/bookings";
 import { formatPrice } from "@/lib/data";
@@ -7,13 +8,16 @@ import { buildGoogleCalendarUrl } from "@/lib/calendar";
 import { bookingStatusBadge } from "@/components/ui/Badge";
 import { CopyButton } from "@/components/ui/CopyButton";
 import BookingConfirmationActions from "@/components/storefront/BookingConfirmationActions";
+import VendorContactCard from "@/components/storefront/VendorContactCard";
+import VendorWordmark from "@/components/storefront/VendorWordmark";
+import StartYourOwnShopLink from "@/components/shared/StartYourOwnShopLink";
+import type { VendorContactInfo } from "@/lib/vendor-contact";
 import {
   CheckCircle2,
   Clock,
   Calendar,
   User,
   MapPin,
-  MessageCircle,
 } from "lucide-react";
 
 interface PageProps {
@@ -76,11 +80,20 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
 
   const isPending = booking.status === "pending";
   const staffName = booking.assignedStaffName ?? booking.staffPreferenceName;
-  const whatsappNumber = booking.vendor.personalWhatsappNumber ?? booking.vendor.whatsapp;
 
-  const whatsappMsg = encodeURIComponent(
-    `Hi ${booking.vendor.name}, I'd like to confirm my booking reference ${booking.slug}. Customer: ${booking.customerName}.`
-  );
+  const contact: VendorContactInfo = {
+    name: booking.vendor.name,
+    slug: booking.vendor.slug,
+    location: booking.vendor.location,
+    hours: booking.vendor.hours,
+    phone: booking.vendor.phone,
+    whatsapp: booking.vendor.whatsapp,
+    personalWhatsappNumber: booking.vendor.personalWhatsappNumber,
+    ownerPhone: booking.vendor.ownerPhone,
+    ownerEmail: booking.vendor.ownerEmail,
+  };
+
+  const whatsappMessage = `Hi ${booking.vendor.name}, I'd like to confirm my booking reference ${booking.slug}. Customer: ${booking.customerName}.`;
 
   const servicesTotal = booking.services.reduce((s, svc) => s + svc.priceAtBooking, 0);
 
@@ -93,19 +106,19 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
   });
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Header */}
+      {/* The vendor's own identity, not the Booktns wordmark — this page is
+          the customer's record of a booking with *them*. */}
       <div
         className="px-4 py-4 flex items-center justify-center"
         style={{ borderBottom: "1px solid var(--bd)" }}
       >
-        <Link
-          href="/"
-          className="font-display text-lg font-medium"
-          style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
-        >
-          <span style={{ color: "var(--ac)" }}>Book</span>tns
-        </Link>
+        <VendorWordmark
+          name={booking.vendor.name}
+          href={`/${booking.vendor.slug}`}
+          logoUrl={booking.vendor.logoUrl}
+        />
       </div>
 
       <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-8">
@@ -285,19 +298,11 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex flex-col gap-2">
-              <a
-                href={`https://wa.me/${whatsappNumber.replace("+", "")}?text=${whatsappMsg}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"
-                style={{ background: "var(--green-bg)", color: "var(--green)" }}
-              >
-                <MessageCircle size={15} />
-                Message vendor on WhatsApp
-              </a>
-            </div>
+            {/* Every way of reaching the vendor, anchored at #contact so the
+                booking emails' "reach out to them directly" can link
+                straight here — the customer has no account, so this page and
+                that email are the only things they keep. */}
+            <VendorContactCard id="contact" contact={contact} whatsappMessage={whatsappMessage} />
 
             <BookingConfirmationActions
               slug={booking.slug}
@@ -323,11 +328,16 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
         </div>
       </div>
 
-      <footer className="text-center py-6" style={{ borderTop: "1px solid var(--bds)" }}>
+      <footer
+        className="mt-auto px-4 py-6 flex flex-col items-center gap-3 text-center"
+        style={{ borderTop: "1px solid var(--bds)" }}
+      >
+        <StartYourOwnShopLink variant="card" className="w-full max-w-sm" />
         <Link href="/" className="text-xs" style={{ color: "var(--tx3)" }}>
           Powered by{" "}
           <span className="font-medium" style={{ color: "var(--ac)" }}>Booktns</span>
         </Link>
+        <PlatformCredit className="justify-center" />
       </footer>
     </div>
   );

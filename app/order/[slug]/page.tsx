@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import PlatformCredit from "@/components/shared/PlatformCredit";
 import { notFound } from "next/navigation";
 import { getOrderBySlug } from "@/lib/orders";
 import { formatPrice } from "@/lib/data";
 import { CopyButton } from "@/components/ui/CopyButton";
+import VendorContactCard from "@/components/storefront/VendorContactCard";
+import VendorWordmark from "@/components/storefront/VendorWordmark";
+import StartYourOwnShopLink from "@/components/shared/StartYourOwnShopLink";
+import type { VendorContactInfo } from "@/lib/vendor-contact";
 import {
   PackageCheck,
-  MessageCircle,
+  Download,
   Smartphone,
   CreditCard,
   Banknote,
@@ -64,27 +69,36 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
   const order = await getOrderBySlug(slug);
   if (!order) notFound();
 
-  const whatsappNumber = order.vendor.personalWhatsappNumber ?? order.vendor.whatsapp;
-  const whatsappMsg = encodeURIComponent(
-    `Hi ${order.vendor.name}, I placed order ${order.ref}. Customer: ${order.customerName}.`
-  );
+  const contact: VendorContactInfo = {
+    name: order.vendor.name,
+    slug: order.vendor.slug,
+    location: order.vendor.location,
+    hours: order.vendor.hours,
+    phone: order.vendor.phone,
+    whatsapp: order.vendor.whatsapp,
+    personalWhatsappNumber: order.vendor.personalWhatsappNumber,
+    ownerPhone: order.vendor.ownerPhone,
+    ownerEmail: order.vendor.ownerEmail,
+  };
+
+  const whatsappMessage = `Hi ${order.vendor.name}, I placed order ${order.ref}. Customer: ${order.customerName}.`;
 
   const subtotal = order.items.reduce((s, item) => s + item.priceSnapshot * item.quantity, 0);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Header */}
       <div
         className="px-4 py-4 flex items-center justify-center"
         style={{ borderBottom: "1px solid var(--bd)" }}
       >
-        <Link
-          href="/"
-          className="font-display text-lg font-medium"
-          style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
-        >
-          <span style={{ color: "var(--ac)" }}>Book</span>tns
-        </Link>
+        {/* The vendor's own identity, not the Booktns wordmark — this page is
+            the customer's record of an order placed with *them*. */}
+        <VendorWordmark
+          name={order.vendor.name}
+          href={`/${order.vendor.slug}`}
+          logoUrl={order.vendor.logoUrl}
+        />
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-8">
@@ -242,17 +256,26 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
             )}
           </div>
 
+          {/* Every way of reaching the vendor, anchored at #contact so an
+              order email's "reach out to them directly" can link straight
+              here — the customer has no account, so this page is their
+              record. */}
+          <VendorContactCard id="contact" contact={contact} whatsappMessage={whatsappMessage} className="mt-2" />
+
           {/* Actions */}
           <div className="flex flex-col gap-2 mt-2">
+            {/* Plain link, not a fetch — the route builds the PDF on first
+                request then redirects to it on R2, so this works on the very
+                first click without the page having to poll for it. */}
             <a
-              href={`https://wa.me/${whatsappNumber.replace("+", "")}?text=${whatsappMsg}`}
+              href={`/api/orders/by-slug/${order.slug}/pdf`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"
-              style={{ background: "var(--green-bg)", color: "var(--green)" }}
+              style={{ background: "var(--bg2)", color: "var(--tx2)" }}
             >
-              <MessageCircle size={15} />
-              Message vendor on WhatsApp
+              <Download size={15} />
+              Download receipt (PDF)
             </a>
           </div>
 
@@ -264,11 +287,16 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
         </div>
       </div>
 
-      <footer className="text-center py-6" style={{ borderTop: "1px solid var(--bds)" }}>
+      <footer
+        className="mt-auto px-4 py-6 flex flex-col items-center gap-3 text-center"
+        style={{ borderTop: "1px solid var(--bds)" }}
+      >
+        <StartYourOwnShopLink variant="card" className="w-full max-w-sm" />
         <Link href="/" className="text-xs" style={{ color: "var(--tx3)" }}>
           Powered by{" "}
           <span className="font-medium" style={{ color: "var(--ac)" }}>Booktns</span>
         </Link>
+        <PlatformCredit className="justify-center" />
       </footer>
     </div>
   );

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { serializeVendorVideo } from "@/lib/serialize";
+import { serializeVendorVideo, serializeVendor } from "@/lib/serialize";
 import VideosClient from "@/components/dashboard/VideosClient";
 
 export default async function VideosPage() {
@@ -22,10 +22,15 @@ export default async function VideosPage() {
     );
   }
 
-  const videos = await db.vendorVideo.findMany({
-    where: { vendorId: session.vendorId },
-    orderBy: { displayOrder: "asc" },
-  });
+  const [videos, vendor] = await Promise.all([
+    db.vendorVideo.findMany({
+      where: { vendorId: session.vendorId },
+      orderBy: { displayOrder: "asc" },
+    }),
+    db.vendor.findUnique({ where: { id: session.vendorId } }),
+  ]);
 
-  return <VideosClient initialVideos={videos.map(serializeVendorVideo)} />;
+  if (!vendor) redirect("/login");
+
+  return <VideosClient initialVideos={videos.map(serializeVendorVideo)} vendor={serializeVendor(vendor)} canEditSection={session.role === "Owner"} />;
 }

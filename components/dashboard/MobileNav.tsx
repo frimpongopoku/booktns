@@ -9,22 +9,27 @@ import {
   Package,
   Settings,
 } from "lucide-react";
-import clsx from "clsx";
+import type { StaffRole } from "@/types";
 
 interface MobileNavProps {
   bookingBadgeCount?: number;
   orderBadgeCount?: number;
+  role: StaffRole;
 }
 
-export default function MobileNav({ bookingBadgeCount = 0, orderBadgeCount = 0 }: MobileNavProps) {
+export default function MobileNav({ bookingBadgeCount = 0, orderBadgeCount = 0, role }: MobileNavProps) {
   const pathname = usePathname();
 
+  // Same role gating as the desktop sidebar — a Service stylist gets
+  // Overview and their own Bookings, and none of the pages that would
+  // just wall them. Kept in this file rather than shared because the two
+  // navs carry different entries at different depths.
   const navItems = [
-    { label: "Overview", href: "/dashboard", icon: LayoutDashboard, badge: 0 },
-    { label: "Bookings", href: "/dashboard/bookings", icon: Calendar, badge: bookingBadgeCount },
-    { label: "Orders", href: "/dashboard/orders", icon: ShoppingBag, badge: orderBadgeCount },
-    { label: "Products", href: "/dashboard/products", icon: Package, badge: 0 },
-    { label: "Settings", href: "/dashboard/settings", icon: Settings, badge: 0 },
+    { label: "Overview", href: "/dashboard", icon: LayoutDashboard, badge: 0, roles: ["Owner", "Management", "Service"] },
+    { label: "Bookings", href: "/dashboard/bookings", icon: Calendar, badge: bookingBadgeCount, roles: ["Owner", "Management", "Service"] },
+    { label: "Orders", href: "/dashboard/orders", icon: ShoppingBag, badge: orderBadgeCount, roles: ["Owner", "Management"] },
+    { label: "Products", href: "/dashboard/products", icon: Package, badge: 0, roles: ["Owner", "Management"] },
+    { label: "Settings", href: "/dashboard/settings", icon: Settings, badge: 0, roles: ["Owner"] },
   ];
 
   const isActive = (href: string) => {
@@ -41,7 +46,7 @@ export default function MobileNav({ bookingBadgeCount = 0, orderBadgeCount = 0 }
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {navItems.map((item) => {
+      {navItems.filter((item) => item.roles.includes(role)).map((item) => {
         const active = isActive(item.href);
         const Icon = item.icon;
         return (

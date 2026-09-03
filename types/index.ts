@@ -17,7 +17,7 @@ export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
 
 export type StaffRole = "Owner" | "Management" | "Service";
 
-export type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled" | "rescheduled";
+export type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled" | "rescheduled" | "no_show";
 
 export type OrderStatus = "new" | "processing" | "ready" | "completed" | "cancelled";
 
@@ -30,6 +30,8 @@ export type DepositSetting = "None" | "Fixed" | "Percentage";
 export type HeroCardMode = "CoverImage" | "Gallery" | "Video";
 
 export type StorefrontTheme = "Red" | "Emerald" | "Indigo" | "Orchid";
+
+export type VerificationStatus = "NONE" | "PENDING" | "VERIFIED" | "REJECTED";
 
 export interface Vendor {
   id: string;
@@ -44,6 +46,20 @@ export interface Vendor {
   logoUrl?: string;
   coverImageUrl?: string;
   personalWhatsappNumber?: string;
+  ownerName?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
+  showOwnerName: boolean;
+  showOwnerPhone: boolean;
+  showOwnerEmail: boolean;
+  showVideoSection: boolean;
+  verificationStatus: VerificationStatus;
+  suspended: boolean;
+  // Internal note from the platform, shown to the vendor in their own
+  // dashboard. Never rendered on the storefront.
+  suspendedReason?: string;
+  videoSectionTitle?: string;
+  videoSectionSubtitle?: string;
   depositSetting: DepositSetting;
   depositValue?: number;
   cancellationPolicy?: string;
@@ -173,6 +189,7 @@ export interface Order {
   items: OrderItem[];
   totalPesewas: number;
   status: OrderStatus;
+  confirmationPdfUrl?: string;
   seenByVendorAt: string | null;
   createdAt: string;
 }

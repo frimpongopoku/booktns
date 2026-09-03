@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { normalizePhone } from "@/lib/phone";
 import { serializeVendor } from "@/lib/serialize";
 
 const DISPLAY_MODES = ["All", "FeaturedOnly", "AllWithFeaturedHighlighted"] as const;
@@ -22,6 +23,17 @@ const updateSchema = z
     logoUrl: z.string().trim().url().nullable().optional(),
     coverImageUrl: z.string().trim().url().nullable().optional(),
     personalWhatsappNumber: z.string().trim().nullable().optional(),
+    ownerName: z.string().trim().max(80, "Keep the owner name under 80 characters").nullable().optional(),
+    // Normalised to E.164 below rather than in the schema, so a number that
+    // can't be parsed reports a phone-specific message instead of a regex one.
+    ownerPhone: z.string().trim().nullable().optional(),
+    ownerEmail: z.string().trim().email("Enter a valid email address").nullable().optional(),
+    showOwnerName: z.boolean().optional(),
+    showOwnerPhone: z.boolean().optional(),
+    showOwnerEmail: z.boolean().optional(),
+    showVideoSection: z.boolean().optional(),
+    videoSectionTitle: z.string().trim().max(60, "Keep the title under 60 characters").nullable().optional(),
+    videoSectionSubtitle: z.string().trim().max(120, "Keep the subtitle under 120 characters").nullable().optional(),
     depositSetting: z.enum(DEPOSIT_SETTINGS).optional(),
     depositValue: z.number().int().nonnegative().nullable().optional(),
     cancellationPolicy: z.string().trim().nullable().optional(),
@@ -71,9 +83,25 @@ export async function PATCH(request: Request) {
     }
   }
 
+  // Phone numbers are always stored E.164 (CLAUDE.md § Data Rules). An
+  // empty string clears the field; anything unparseable is a 400 rather
+  // than a silently mangled number.
+  const data = { ...parsed.data };
+  if (data.ownerPhone !== undefined) {
+    if (!data.ownerPhone) {
+      data.ownerPhone = null;
+    } else {
+      const normalized = normalizePhone(data.ownerPhone);
+      if (!normalized) {
+        return NextResponse.json({ error: "Enter a valid phone number", code: "invalid_request" }, { status: 400 });
+      }
+      data.ownerPhone = normalized;
+    }
+  }
+
   const vendor = await db.vendor.update({
     where: { id: auth.session.vendorId },
-    data: parsed.data,
+    data,
   });
 
   return NextResponse.json({ vendor: serializeVendor(vendor) });

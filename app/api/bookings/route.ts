@@ -10,6 +10,7 @@ import { calculateDepositAmountPesewas } from "@/lib/deposit";
 import { serializeBooking } from "@/lib/serialize";
 import { sendBookingRequestEmail, sendNewBookingNotification } from "@/lib/email";
 import { sendBookingRequestSms, sendNewBookingSms } from "@/lib/sms";
+import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
   vendorSlug: z.string().trim().min(1),
@@ -76,8 +77,11 @@ export async function POST(request: Request) {
       cancellationPolicy: true,
       logoUrl: true,
       location: true,
+      phone: true,
       whatsapp: true,
       personalWhatsappNumber: true,
+      ownerEmail: true,
+      showOwnerEmail: true,
     },
   });
   if (!vendor || !vendor.active || !vendor.storefrontPublished) {
@@ -246,19 +250,22 @@ export async function POST(request: Request) {
     slug: parsed.data.vendorSlug,
     logoUrl: vendor.logoUrl,
     location: vendor.location,
+    phone: vendor.phone,
     whatsapp: vendor.whatsapp,
     personalWhatsappNumber: vendor.personalWhatsappNumber,
     cancellationPolicy: vendor.cancellationPolicy,
+    // Only if the vendor publishes it — same gate the storefront applies.
+    ownerEmail: vendor.showOwnerEmail ? vendor.ownerEmail : null,
   };
   const notifyStaffPhones = notifyStaff.map((s) => s.phone).filter((phone): phone is string => Boolean(phone));
   // Fire-and-forget — a slow or failing email/SMS provider must never hold
   // up the booking response or fail an otherwise-successful booking.
-  sendBookingRequestEmail(serialized, vendorInfo).catch((err) => console.error("sendBookingRequestEmail failed", err));
+  sendBookingRequestEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingRequestEmail failed", { bookingId: serialized.id, vendorId: vendor.id, err }));
   sendNewBookingNotification(serialized, vendorInfo, notifyStaff.map((s) => s.email)).catch((err) =>
-    console.error("sendNewBookingNotification failed", err)
+    logger.error("sendNewBookingNotification failed", { bookingId: serialized.id, vendorId: vendor.id, err })
   );
-  sendBookingRequestSms(serialized, vendorInfo).catch((err) => console.error("sendBookingRequestSms failed", err));
-  sendNewBookingSms(serialized, notifyStaffPhones).catch((err) => console.error("sendNewBookingSms failed", err));
+  sendBookingRequestSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingRequestSms failed", { bookingId: serialized.id, vendorId: vendor.id, err }));
+  sendNewBookingSms(serialized, notifyStaffPhones).catch((err) => logger.error("sendNewBookingSms failed", { bookingId: serialized.id, vendorId: vendor.id, err }));
 
   return NextResponse.json({ booking: serialized }, { status: 201 });
 }

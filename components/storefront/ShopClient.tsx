@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatPrice } from "@/lib/data";
 import { getCart, setCart as persistCart, clearCart } from "@/lib/cart";
+import { captureEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
 import type { Product, CartItem, PaymentMethod, OrderDeliveryPreference } from "@/types";
 import { ShoppingBag, Plus, Minus, X, ShoppingCart, ArrowLeft } from "lucide-react";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
+import VendorWordmark from "@/components/storefront/VendorWordmark";
 import ProductQuickViewModal from "@/components/storefront/ProductQuickViewModal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Input";
+import { storefrontHref } from "@/lib/storefront-links";
 
 interface ApiErrorBody {
   error: string;
@@ -21,8 +24,14 @@ interface ApiErrorBody {
 interface ShopClientProps {
   slug: string;
   vendorName: string;
+  vendorLogoUrl?: string;
   products: Product[];
   paymentMethods: PaymentMethod[];
+  isCustomDomain: boolean;
+  // Passed as a node rather than as vendor props so the footer stays a
+  // Server Component — this page's client bundle has no reason to carry the
+  // vendor's owner details or the markup that renders them.
+  footer: ReactNode;
 }
 
 const FILTERS = ["All", "Hair", "Skin", "Nails"] as const;
@@ -30,7 +39,7 @@ type Filter = (typeof FILTERS)[number];
 
 type DrawerView = "cart" | "checkout";
 
-export default function ShopClient({ slug, vendorName, products, paymentMethods }: ShopClientProps) {
+export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, paymentMethods, isCustomDomain, footer }: ShopClientProps) {
   const router = useRouter();
 
   const [filter, setFilter] = useState<Filter>("All");
@@ -73,6 +82,12 @@ export default function ShopClient({ slug, vendorName, products, paymentMethods 
   });
 
   const addToCart = (product: Product, quantity = 1) => {
+    captureEvent(ANALYTICS_EVENTS.addedToCart, {
+      vendor_slug: slug,
+      product_slug: product.slug,
+      quantity,
+      price_pesewas: product.priceInPesewas,
+    });
     setCart((prev) => {
       const existing = prev.find((c) => c.productId === product.id);
       if (existing) {
@@ -104,6 +119,12 @@ export default function ShopClient({ slug, vendorName, products, paymentMethods 
   const getQty = (productId: string) => cart.find((c) => c.productId === productId)?.quantity ?? 0;
 
   const openCheckout = () => {
+    captureEvent(ANALYTICS_EVENTS.checkoutStarted, {
+      vendor_slug: slug,
+      item_count: cartCount,
+      distinct_products: cart.length,
+      total_pesewas: cartTotal,
+    });
     setError(null);
     setView("checkout");
   };
@@ -136,6 +157,16 @@ export default function ShopClient({ slug, vendorName, products, paymentMethods 
       }
 
       const { order } = (await res.json()) as { order: { slug: string } };
+
+      // Cart shape only — never the customer's name or phone number.
+      captureEvent(ANALYTICS_EVENTS.orderSubmitted, {
+        vendor_slug: slug,
+        item_count: cart.reduce((n, item) => n + item.quantity, 0),
+        distinct_products: cart.length,
+        total_pesewas: cartTotal,
+        delivery_preference: deliveryPreference,
+      });
+
       clearCart(slug);
       setCart([]);
       router.push(`/order/${order.slug}`);
@@ -146,21 +177,15 @@ export default function ShopClient({ slug, vendorName, products, paymentMethods 
   };
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col pb-24 md:pb-0" style={{ background: "var(--bg)" }}>
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 md:px-8 py-4 sticky top-0 z-30"
         style={{ background: "var(--bg)", borderBottom: "1px solid var(--bd)" }}
       >
-        <Link
-          href={`/${slug}`}
-          className="font-display text-lg font-medium"
-          style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
-        >
-          {vendorName}
-        </Link>
+        <VendorWordmark name={vendorName} href={storefrontHref(slug, isCustomDomain)} logoUrl={vendorLogoUrl} />
         <div className="flex items-center gap-3">
-          <Link href={`/${slug}/book`} className="text-sm font-medium hidden md:block" style={{ color: "var(--tx2)" }}>
+          <Link href={storefrontHref(slug, isCustomDomain, "/book")} className="text-sm font-medium hidden md:block" style={{ color: "var(--tx2)" }}>
             Book
           </Link>
           <button
@@ -482,12 +507,15 @@ export default function ShopClient({ slug, vendorName, products, paymentMethods 
         </div>
       )}
 
-      <MobileStorefrontNav slug={slug} />
+      {footer}
+
+      <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} />
 
       {quickViewProduct && (
         <ProductQuickViewModal
           product={quickViewProduct}
           vendorSlug={slug}
+          isCustomDomain={isCustomDomain}
           onClose={() => setQuickViewProduct(null)}
           onAddToCart={(product, quantity) => addToCart(product, quantity)}
         />

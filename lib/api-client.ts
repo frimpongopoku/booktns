@@ -12,7 +12,7 @@ import { readSessionToken, readSuperAdminToken } from "@/lib/session-cookie";
 // Public storefront reads are the exception and go browser → API directly.
 // They carry no credentials at all, which is exactly why the API's CORS can
 // be permissive-origin: there is no cookie for a hostile origin to ride.
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:2666";
 
 export interface ApiErrorBody {
   error: string;

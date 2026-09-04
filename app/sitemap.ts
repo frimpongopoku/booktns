@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getAllActiveVendorSlugs, getAllActiveProductSlugs } from "@/lib/vendors";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [

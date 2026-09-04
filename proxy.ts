@@ -10,7 +10,7 @@ export const config = {
   matcher: ["/((?!_next/static|_next/image).*)"],
 };
 
-const platformHostname = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").hostname;
+const platformHostname = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665").hostname;
 const KNOWN_PLATFORM_HOSTS = new Set([platformHostname, "localhost", "127.0.0.1"]);
 
 // Routes that are already global/unprefixed on every host — never

@@ -38,5 +38,5 @@ COPY --from=builder /app/src/generated ./src/generated
 # Don't run as root.
 USER node
 
-EXPOSE 4000
+EXPOSE 2666
 CMD ["node", "dist/main.js"]

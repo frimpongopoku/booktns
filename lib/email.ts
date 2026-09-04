@@ -33,7 +33,7 @@ interface VendorEmailInfo {
 // matches the subdomain verified for this project; if that ever changes,
 // update EMAIL_FROM in .env rather than relying on this fallback.
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Booktns <bookings@notifications.booktns.com>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665";
 
 // Resend throws synchronously if constructed without a key — built lazily
 // (and only once RESEND_API_KEY is actually needed) so importing this module

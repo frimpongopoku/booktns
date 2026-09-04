@@ -4,7 +4,7 @@ import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import AnalyticsProvider from "@/components/shared/AnalyticsProvider";
 import "./globals.css";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665";
 const SITE_NAME = "Booktns";
 const SITE_DESCRIPTION =
   "The all-in-one booking and order management platform for beauty service vendors.";

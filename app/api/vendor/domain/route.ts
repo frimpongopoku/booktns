@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { getDomainProvider } from "@/lib/domains/factory";
 
 const DOMAIN_REGEX = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63})+$/i;
-const platformHostname = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").hostname;
+const platformHostname = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665").hostname;
 
 const addSchema = z.object({
   domain: z

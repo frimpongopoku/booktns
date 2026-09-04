@@ -12,7 +12,7 @@ function optional(name: string): string | undefined {
 }
 
 export const config = {
-  port: Number(process.env.PORT ?? 4000),
+  port: Number(process.env.PORT ?? 2666),
   nodeEnv: process.env.NODE_ENV ?? "development",
   get isProduction(): boolean {
     return this.nodeEnv === "production";
@@ -34,5 +34,5 @@ export const config = {
     privateKey: optional("FIREBASE_ADMIN_PRIVATE_KEY"),
   },
 
-  appUrl: process.env.PUBLIC_APP_URL ?? "http://localhost:3000",
+  appUrl: process.env.PUBLIC_APP_URL ?? "http://localhost:2665",
 } as const;

@@ -1,6 +1,6 @@
 {
   "name": "booktns-app",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 2665",
@@ -28,6 +28,7 @@
     "nextjs-toploader": "^3.9.17",
     "pdf-lib": "^1.17.1",
     "posthog-js": "^1.424.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "resend": "^6.18.0",
@@ -39,6 +40,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/africastalking": "^0.8.0",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",

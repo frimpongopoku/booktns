@@ -16,6 +16,7 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { AutoSaveBadge, ManualSaveBadge, UnsavedChangesBar } from "@/components/dashboard/SaveState";
 import PlatformCredit from "@/components/shared/PlatformCredit";
 import VerificationTab, { type VerificationApplication } from "@/components/dashboard/VerificationTab";
+import QrCodeCard from "@/components/dashboard/QrCodeCard";
 import { CreditCard, Smartphone, Banknote, Check, ImagePlus, ExternalLink, Rocket, X, Plus, Archive, CalendarDays, Globe, ShieldCheck, AlertTriangle, Share2, MessageCircle } from "lucide-react";
 
 interface ApiErrorBody {
@@ -1196,6 +1197,12 @@ function ShareTab({ vendor, storefrontOrigin, services }: ShareTabProps) {
       </p>
       <div className="mb-6">
         <ShareRow label="Book any service" sublabel="Opens the full booking flow" url={bookingUrl} vendorName={vendor.name} />
+      </div>
+
+      {/* The same link, in the form you hand to someone standing in front of
+          you rather than paste into a chat. */}
+      <div className="mb-6">
+        <QrCodeCard slug={vendor.slug} vendorName={vendor.name} published={vendor.storefrontPublished} />
       </div>
 
       <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--tx3)" }}>

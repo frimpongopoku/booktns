@@ -27,6 +27,7 @@ app behaves exactly as before.
 | Booking by slug | `GET /api/storefront/booking/:slug` | **new** |
 | Order by slug | `GET /api/storefront/order/:slug` | **new** |
 | Feedback | `POST /api/feedback` | ported |
+| Landing page | `GET /` | **new** — human-readable, outside the /api prefix |
 | Liveness | `GET /api/ping` | ported |
 | Health | `GET /api/health` | ported |
 

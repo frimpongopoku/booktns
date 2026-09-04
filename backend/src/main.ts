@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { Logger } from "@nestjs/common";
+import { Logger, RequestMethod } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { config } from "./common/config";
@@ -28,7 +28,9 @@ async function bootstrap(): Promise<void> {
   // No global ValidationPipe: validation is Zod, applied per handler via
   // ZodValidationPipe. Nest's ValidationPipe pulls in class-validator and
   // would sit inert in front of DTOs that carry no decorators.
-  app.setGlobalPrefix("api");
+  // Everything lives under /api except the root landing page, which has to
+  // sit at "/" for anyone who pastes the bare hostname into a browser.
+  app.setGlobalPrefix("api", { exclude: [{ path: "/", method: RequestMethod.GET }] });
 
   await app.listen(config.port, "0.0.0.0");
   new Logger("Bootstrap").log(`API listening on :${config.port}`);

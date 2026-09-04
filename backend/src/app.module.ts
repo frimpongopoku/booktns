@@ -7,13 +7,14 @@ import { BookingsModule } from "./modules/bookings/bookings.module";
 import { StorefrontModule } from "./modules/storefront/storefront.module";
 import { HealthModule } from "./modules/health/health.module";
 import { FeedbackModule } from "./modules/feedback/feedback.module";
+import { RootModule } from "./modules/root/root.module";
 
 // Migrated so far. The Next.js API routes for everything NOT listed here are
 // still live and still serving the dashboard — this is a strangler migration,
 // not a big-bang cutover, so the app keeps working throughout. See
 // MIGRATION.md for the remaining route inventory and the porting recipe.
 @Module({
-  imports: [PrismaModule, AuthModule, BookingsModule, StorefrontModule, HealthModule, FeedbackModule],
+  imports: [PrismaModule, RootModule, AuthModule, BookingsModule, StorefrontModule, HealthModule, FeedbackModule],
   providers: [
     // Global: every route is authenticated unless it opts out with
     // @Public(). That inverts the Next.js arrangement, where a route was open

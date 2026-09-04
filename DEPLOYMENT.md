@@ -1,184 +1,229 @@
 # Deploying Booktns
 
-**Vercel runs the app. Railway runs Postgres. That's the whole split.**
+Three services:
 
-There is no separate backend to deploy. Booktns is one Next.js App Router
-application: the API routes under `app/api/*` and the server components that
-query Prisma directly both run inside the same deployment. Railway is only a
-database host here — it needs no GitHub connection.
+| Service | Platform | What it is |
+|---|---|---|
+| **Frontend** | Vercel | The Next.js app — storefronts, dashboard, superadmin console |
+| **API** | Railway | The NestJS backend in `backend/` |
+| **Database** | Railway | Postgres |
+
+Both Railway services live in **one Railway project** so the database can be
+reached over the private network.
+
+> **The migration is partial and that is fine.** Most of the app still uses
+> the Next.js API routes and queries Prisma directly from server components.
+> The NestJS API runs alongside them. Deploying it changes nothing about how
+> the app behaves today — see `backend/MIGRATION.md`. The frontend needs a
+> live database of its own regardless.
 
 ---
 
 ## Order of operations
 
-Do these in order. Steps 3 and 5 are the ones that break things if skipped.
+Steps 3, 6 and 7 are the ones that break things if skipped.
 
-### 1. Railway — create the database
+### 1. Railway — Postgres
 
-1. New project → **Deploy Postgres**. Nothing else; no GitHub connection.
-2. Pick a region **close to your Vercel region** (see step 2). Every page
-   render makes several queries, so a transatlantic hop between the two is
-   felt on every request, not just occasionally.
-3. Postgres service → **Variables** → copy `DATABASE_URL`.
+1. **New Project → Deploy Postgres.** Nothing else yet.
+2. Pick a region close to your Vercel region (`vercel.json` pins `lhr1`,
+   London — the closest to Ghana). Every page render makes several queries;
+   a transatlantic hop is felt on every request.
+3. Postgres service → **Variables** → copy both `DATABASE_URL` values. There
+   are two, and the difference matters:
+   - the **private** one (`*.railway.internal`) — for the API service, which
+     lives inside Railway
+   - the **public** one — for Vercel and your laptop, which don't
 
-> **Copy the public URL, not the internal one.** Railway also shows a
-> `*.railway.internal` host. That only resolves inside Railway's private
-> network — Vercel is outside it and will fail to connect. The public URL is
-> the one with a real hostname and port.
+### 2. Railway — the API
 
-### 2. Vercel — import the repo
+1. In the **same project** → **New → GitHub Repo** → `frimpongopoku/booktns`.
+2. **Settings → Root Directory: `backend`.** Without this Railway builds the
+   Next.js frontend instead.
+3. It picks up `backend/railway.toml` and builds the Dockerfile. Healthcheck
+   is already `/api/ping`.
+4. Set the variables from `backend/.env.example`:
 
-1. **Add New → Project → Import** `frimpongopoku/booktns`.
-2. Framework preset: **Next.js** (auto-detected).
-3. Leave the build command alone — `vercel.json` and `package.json` already
-   set it correctly.
-4. Region: `vercel.json` pins **`lhr1` (London)**, the closest Vercel region
-   to Ghana. If you change it, change Railway's region to match.
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | Railway's **private** URL |
+   | `JWT_SECRET` | generate once (below) — must match Vercel exactly |
+   | `SUPERADMIN_JWT_SECRET` | generate a **second, different** one |
+   | `PUBLIC_APP_URL` | your Vercel URL, e.g. `https://booktns.com` |
+   | `FIREBASE_ADMIN_*` | Firebase → Service accounts → Generate key |
+   | `RESEND_API_KEY`, `EMAIL_FROM` | Resend |
+   | `CLOUDFLARE_R2_*` | R2 (see the warning in step 3) |
 
-### 3. Environment variables
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   ```
 
-Set these in Vercel → Settings → Environment Variables. Use `.env.example` as
-the checklist — it documents every variable and where to get it.
+5. **Settings → Networking → Generate Domain.** Note the URL — Vercel needs
+   it as `NEXT_PUBLIC_API_URL`.
 
-**Will not boot / will 500 without these:**
+### 3. Cloudflare R2 — two buckets
 
-| Variable | Where it comes from |
-|---|---|
-| `DATABASE_URL` | Railway, step 1 (public URL) |
-| `JWT_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
-| `NEXT_PUBLIC_APP_URL` | Your production URL, e.g. `https://booktns.com` — no trailing slash |
-| `NEXT_PUBLIC_FIREBASE_*` | Firebase console → Project settings → Web app |
-| `FIREBASE_ADMIN_*` | Firebase console → Service accounts → Generate key |
+Not optional, and the second one especially:
 
-**Required for production correctness — set before real vendors sign up:**
+- **Public bucket** — product photos, logos, PDFs. Enable public access.
+- **Private bucket** (`CLOUDFLARE_R2_PRIVATE_BUCKET`) — government ID scans
+  for vendor verification. **No public access, no custom domain.**
 
-| Variable | What breaks without it |
-|---|---|
-| `CLOUDFLARE_R2_PRIVATE_BUCKET` | **ID documents are destroyed.** See the warning below. |
-| `CLOUDFLARE_R2_*` (public set) | Product photos and logos can't be uploaded |
-| `RESEND_API_KEY`, `EMAIL_FROM` | No booking emails at all |
-| `SUPPORT_INBOX_EMAIL` | Feedback silently routes to `support@biibisoft.com` |
-
-**Optional:** `AFRICAS_TALKING_*` (SMS), `SENTRY_*`, `NEXT_PUBLIC_POSTHOG_*`,
-`PLATFORM_APEX_IP` / `PLATFORM_CNAME_TARGET` (custom domains),
-`DEMO_VENDOR_SLUGS`.
-
-> ⚠️ **`CLOUDFLARE_R2_PRIVATE_BUCKET` is not optional in production.**
-> `lib/private-storage.ts` falls back to writing government ID scans to
-> `.private-uploads/` on local disk. Vercel's filesystem is ephemeral — every
-> deploy and every cold start wipes it. Verification would appear to work and
+> ⚠️ Without `CLOUDFLARE_R2_PRIVATE_BUCKET`, `lib/private-storage.ts` falls
+> back to writing ID documents to local disk. Both Vercel and a Railway
+> container wipe that on every deploy. Verification would appear to work and
 > then lose the documents. The code logs a loud warning; heed it.
 
-### 4. Deploy
+### 4. Vercel — the frontend
 
-Push to `main`, or hit Deploy. The build runs:
+1. **Add New → Project → Import** `frimpongopoku/booktns`.
+2. Framework preset **Next.js**, root directory left at the repo root.
+3. Leave the build command alone — `vercel.json` and `package.json` set it.
 
-```
-prisma generate && node scripts/migrate-if-production.mjs && next build
-```
+### 5. Vercel environment variables
 
-`prisma generate` is in the build command as well as `postinstall` because
-Vercel caches `node_modules` and can skip `postinstall` on subsequent builds,
-leaving a stale client.
+Use `.env.example` as the checklist.
 
-### 5. Bootstrap the first platform admin
+**Won't boot without these:**
 
-**Nothing else grants access to `/superadmin`.** There is no signup route and
-the seed must never run in production. Once, after the first deploy:
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Railway's **public** URL |
+| `JWT_SECRET` | **the same string as Railway** |
+| `NEXT_PUBLIC_APP_URL` | your production URL, no trailing slash |
+| `NEXT_PUBLIC_API_URL` | the Railway API URL from step 2.5 |
+| `NEXT_PUBLIC_FIREBASE_*` | Firebase → Web app config |
+| `FIREBASE_ADMIN_*` | same service-account key as the API |
+
+**Needed before real vendors sign up:** `CLOUDFLARE_R2_*` (both buckets),
+`RESEND_API_KEY` / `EMAIL_FROM`, `SUPPORT_INBOX_EMAIL`.
+
+**Optional:** `AFRICAS_TALKING_*`, `SENTRY_*`, `NEXT_PUBLIC_POSTHOG_*`,
+`PLATFORM_APEX_IP` / `PLATFORM_CNAME_TARGET`, `DEMO_VENDOR_SLUGS`.
+
+### 6. Firebase — authorised domains
+
+Firebase Console → **Authentication → Settings → Authorized domains** → add
+your production domain.
+
+> Forgetting this is the single most common cause of "login does nothing in
+> production". The popup opens, Google succeeds, and the SDK rejects with
+> `auth/unauthorized-domain`. The login page now surfaces that code and sends
+> it to Sentry, so at least it is diagnosable.
+
+### 7. Bootstrap the first platform admin
+
+**Nothing else grants `/superadmin` access.** No signup route, and the seed
+must never run in production. Once, after the first deploy:
 
 ```bash
+cd backend
 DATABASE_URL="<railway public url>" npm run bootstrap:superadmin
 ```
 
 Defaults to `FIRST_SUPERADMIN_EMAIL` in `prisma/first-superadmin.ts`. Pass an
-email argument to add a different one. Idempotent — safe to re-run.
+email argument to add a different one. Idempotent.
 
-### 6. Point DNS at Vercel
+### 8. DNS
 
-Vercel → Settings → Domains. Then confirm `NEXT_PUBLIC_APP_URL` matches
-exactly — canonical URLs, OG images, sitemap and the booking links in emails
-are all built from it.
+Vercel → **Settings → Domains**. Then confirm `NEXT_PUBLIC_APP_URL` matches
+exactly — canonical URLs, OG images, the sitemap and every booking link in an
+email are built from it.
 
 ---
 
-## Migrations
+## Migrations — one owner only
 
-`scripts/migrate-if-production.mjs` runs `prisma migrate deploy` **only** when
-`VERCEL_ENV === "production"`.
+Both projects carry an identical `prisma/migrations/`. **Only one may apply
+them.**
 
-That guard is deliberate. Vercel builds every branch and pull request, and
-preview deployments inherit production environment variables by default — so
-an unguarded `migrate deploy` in the build command lets any open PR migrate
-your production database. Local builds are skipped too; use
-`npx prisma migrate dev` there, which is interactive and writes the migration
-file.
+The Vercel build already does, via `scripts/migrate-if-production.mjs`, which
+runs `prisma migrate deploy` **only** when `VERCEL_ENV === "production"`. That
+guard exists because Vercel builds every branch and preview deployments
+inherit production environment variables — without it, any open PR could
+migrate your production database.
 
-To apply migrations by hand:
+**So: do not add a release command to the Railway API service.** Leave
+migrations to the Vercel production build.
+
+To run them by hand instead:
 
 ```bash
 DATABASE_URL="<railway public url>" npm run db:deploy
 ```
 
-> **Before the first deploy, check this one:** migration
+> **Check this before the first deploy:** migration
 > `20260903120000_staff_multi_vendor_membership` drops the global unique index
-> on `Staff.email` and creates `Staff_vendorId_email_key` on
-> `(vendorId, email)`. It fails if any vendor already has the same email on two
-> staff rows. On a fresh database this is a non-issue.
+> on `Staff.email` and creates one on `(vendorId, email)`. It fails if any
+> vendor already has the same email on two staff rows. On a fresh database,
+> a non-issue.
 
 **Never run `prisma db seed` against production.** It is demo fixtures and it
 deletes existing rows, including real vendor accounts.
 
 ---
 
-## Things that behave differently on serverless
+## The three things that will cost you an afternoon
 
-Worth knowing when something looks wrong in production but works locally.
+**1. `JWT_SECRET` must be byte-identical on Vercel and Railway.** The frontend
+mints and stores the cookie; the API verifies the token inside it. A mismatch
+logs everyone out with no error anywhere — it just looks like sign-in silently
+failing.
 
-**Background work.** Every email, SMS and PDF is deferred with `after()` from
-`next/server`, not left as a floating promise. On Vercel the function can be
-frozen the instant a response is returned, so unawaited work is not
-"background" — it's work that may never run. If you add a new notification,
-wrap it in `after()` and `await` it inside, or it will silently not send.
+**2. Use the right `DATABASE_URL` in each place.** Railway's private
+`*.railway.internal` host only resolves inside Railway. The API uses it;
+Vercel and your laptop need the public one.
 
-**Database connections.** `lib/db.ts` creates one Prisma client per instance,
-and serverless runs many instances. If you see connection-limit errors under
-load, switch `DATABASE_URL` to a pooled connection string rather than raising
-the app's pool size.
+**3. Never point a liveness probe at `/api/health`.** It makes real
+authenticated round trips to Postgres, R2, Resend and Firebase with a 3s
+budget each, so a provider blip would restart the service. Use `/api/ping` —
+already configured in `railway.toml`.
 
-**Rate limiting is per-instance.** The throttle in `app/api/feedback/route.ts`
-is an in-memory `Map`. With N instances the effective limit is N × 5/hour. It
-slows casual abuse; it is not a real rate limiter. Revisit alongside login
-rate limiting, when a shared store earns itself.
+### What you do *not* have to configure
 
-**Health checks.** Never point Vercel's or an uptime monitor's liveness probe
-at `/api/health` — it makes real authenticated round trips to Resend, R2 and
-the database with a 3s budget each. Use `/api/ping`, which is trivial and
-dependency-free. `/api/health` is for a human or a status dashboard.
-
-**Function budgets.** `vercel.json` raises `maxDuration` for the routes that
-do real work — PDF generation (Satori → resvg → R2 upload), media upload,
-verification, and the health check. Hobby plans cap at 60s; the values here
-stay within that.
+The API is **cookie-blind**: it returns a JWT in the response body and reads
+`Authorization: Bearer`. The Next.js app owns the cookie and mints it
+host-only. So there is **no CORS origin allowlist and no cookie domain to
+set** — which is what makes vendor custom domains work without touching an
+env var each time one is added. See `backend/MIGRATION.md`.
 
 ---
 
 ## Verifying a deploy
 
 ```bash
-curl -s https://<your-domain>/api/ping                 # 200, no dependencies
-curl -s https://<your-domain>/api/health | jq .        # each check individually
+curl -s https://<api-host>/api/ping                    # {"ok":true,...}
+curl -s https://<api-host>/                            # HTML landing page
+curl -s https://<api-host>/api/health | jq '.status'   # ok | warn | error
+curl -s https://<frontend>/api/ping                    # frontend is up
 ```
 
-`/api/health` reports `ok` / `warn` / `error` per dependency. `warn` means
-working but on a dev fallback that must not be in production — the private
-storage bucket is the one to watch. Only `error` returns 503.
+`/api/health` reports per-dependency. `warn` means working but on a dev
+fallback that must not be in production — **private storage is the one to
+watch**. Only `error` returns 503.
 
-Then, by hand:
+Then by hand:
 
 1. `/` loads
 2. `/login` → Google sign-in with an allowlisted staff email
-3. Create a test booking on a storefront → confirmation email arrives
+3. Book on a storefront → confirmation email arrives
 4. Confirm it in the dashboard → PDF link appears within ~15 seconds
 
-Step 4 is the one that proves `after()` is working. If the email arrives but
-the PDF never appears, the deferred work is being cut short.
+Step 4 proves the deferred work is surviving. If the email arrives but the PDF
+never appears, `after()` is being cut short.
+
+---
+
+## Local development
+
+```bash
+docker compose up -d              # Postgres on 5434
+npm install && npm run dev        # frontend on 2665
+cd backend && npm install && npm run start:dev   # API on 2666
+```
+
+Ports are pinned deliberately — 2665/2666, mnemonic **BOOK** on a phone
+keypad, clear of the crowded 3000/4000/8000 ranges (macOS holds 5000 and 7000
+for AirPlay). `npm run dev` passes `-p` explicitly so it fails loudly rather
+than drifting to another port, which would break the API URL and cookie host
+assumptions.

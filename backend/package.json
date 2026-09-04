@@ -15,15 +15,14 @@
     "bootstrap:superadmin": "tsx prisma/bootstrap-superadmin.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1095.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
-    "@aws-sdk/client-s3": "^3.1095.0",
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
     "@resvg/resvg-js": "^2.6.2",
     "africastalking": "^0.7.9",
-    "cookie-parser": "^1.4.7",
     "firebase-admin": "^14.2.0",
     "jose": "^6.2.4",
     "pdf-lib": "^1.17.1",
@@ -37,7 +36,6 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
     "@nestjs/schematics": "^11.0.9",
-    "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.0",
     "@types/node": "^20",
     "eslint": "^9",

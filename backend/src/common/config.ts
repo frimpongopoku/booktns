@@ -21,31 +21,12 @@ export const config = {
   databaseUrl: required("DATABASE_URL"),
   jwtSecret: required("JWT_SECRET"),
 
-  // The browser origin(s) allowed to call this API with credentials.
-  // Comma-separated so preview deployments can be added without a code
-  // change. There is no wildcard fallback on purpose: CORS with
-  // credentials + "*" is rejected by browsers anyway, and silently
-  // allowing every origin would defeat the point of the cookie being
-  // httpOnly in the first place.
-  corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:3000")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean),
-
-  // Cookie scoping. The frontend and this API are on different hosts, so
-  // how the session cookie is scoped is the single most consequential
-  // deployment decision:
-  //
-  //   Same apex (app.booktns.com + api.booktns.com):
-  //     COOKIE_DOMAIN=.booktns.com, COOKIE_SAMESITE=lax  <- strongly preferred
-  //
-  //   Unrelated hosts (booktns.vercel.app + booktns-api.up.railway.app):
-  //     COOKIE_DOMAIN unset, COOKIE_SAMESITE=none
-  //     SameSite=None is a third-party cookie. Safari's ITP and Chrome's
-  //     third-party cookie phase-out block or expire these, so sessions
-  //     will drop for real users. Treat it as a staging-only configuration.
-  cookieDomain: optional("COOKIE_DOMAIN"),
-  cookieSameSite: (process.env.COOKIE_SAMESITE ?? "lax") as "lax" | "none" | "strict",
+  // A SEPARATE secret for the platform console's token space. Different
+  // secrets mean a vendor token fails signature verification as a superadmin
+  // token and vice versa — a stronger guarantee than both guards remembering
+  // to check a `kind` field. Falls back to jwtSecret so an existing single-
+  // secret deployment keeps working, but set it in production.
+  superAdminJwtSecret: process.env.SUPERADMIN_JWT_SECRET?.trim() || required("JWT_SECRET"),
 
   firebase: {
     projectId: optional("FIREBASE_ADMIN_PROJECT_ID"),

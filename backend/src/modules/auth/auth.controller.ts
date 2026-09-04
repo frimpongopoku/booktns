@@ -1,5 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Res } from "@nestjs/common";
-import type { Response } from "express";
+import { Body, Controller, Get, Post } from "@nestjs/common";
 import { z } from "zod";
 import { CurrentSession, Public } from "../../common/decorators";
 import { ZodValidationPipe } from "../../common/zod.pipe";
@@ -13,29 +12,24 @@ const signInSchema = z.object({
 
 const switchSchema = z.object({ vendorId: z.string().min(1) });
 
+// Every response here returns the JWT in the BODY. This API never sets a
+// cookie — the Next.js app is the only thing that does, against whatever host
+// the browser is actually on. See session.service.ts for why.
 @Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  // Google handshake. Firebase verifies identity; we issue our own session.
   @Public()
   @Post("session")
-  async signIn(
-    @Body(new ZodValidationPipe(signInSchema)) body: z.infer<typeof signInSchema>,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    return this.auth.signIn(body.idToken, body.vendorId, res);
+  signIn(@Body(new ZodValidationPipe(signInSchema)) body: z.infer<typeof signInSchema>) {
+    return this.auth.signIn(body.idToken, body.vendorId);
   }
 
-  @Public()
-  @Delete("session")
-  signOut(@Res({ passthrough: true }) res: Response) {
-    this.auth.signOut(res);
-    return { ok: true };
-  }
+  // No sign-out endpoint: there is no server-side session to destroy and no
+  // cookie here to clear. Signing out is the frontend deleting its own
+  // cookie. (A revocation list would be the reason to add one — the tokens
+  // are long-lived and cannot currently be invalidated early.)
 
-  // Who am I — lets the frontend render without decoding a cookie it can't
-  // read (the cookie is httpOnly by design).
   @Get("me")
   me(@CurrentSession() session: SessionPayload) {
     return { session };
@@ -46,12 +40,15 @@ export class AuthController {
     return this.auth.memberships(session.email);
   }
 
+  // Re-scoping to another shop mints a BRAND NEW token rather than mutating
+  // the current one; the frontend overwrites its cookie with it. Nothing to
+  // diff, no client-side session cache to invalidate — the token never lived
+  // in JavaScript to begin with.
   @Post("switch-vendor")
-  async switchVendor(
+  switchVendor(
     @Body(new ZodValidationPipe(switchSchema)) body: z.infer<typeof switchSchema>,
     @CurrentSession() session: SessionPayload,
-    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.auth.switchVendor(session.email, body.vendorId, res);
+    return this.auth.switchVendor(session.email, body.vendorId);
   }
 }

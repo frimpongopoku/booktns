@@ -1,18 +1,17 @@
-import { cookies } from "next/headers";
+import { readSessionToken, readSuperAdminToken } from "@/lib/session-cookie";
 
-// The single door from the frontend to the NestJS API. Everything that used
-// to be `db.something.findMany()` inside a server component, or a `fetch`
-// to a local /api route, goes through here instead.
+// The frontend's door to the NestJS API.
 //
-// Two things this has to get right, both of which fail silently otherwise:
+// The rule this file enforces: **the raw JWT never reaches browser
+// JavaScript.** It lives in an httpOnly cookie that only server-side code can
+// read, and it is attached as an `Authorization: Bearer` header from the
+// server. Browser components never call the API directly for anything
+// authenticated — they go through the BFF proxy at /api/admin/[...path],
+// which is server-side and does the attaching.
 //
-//  1. Cookies do not forward themselves. A server component runs on Vercel's
-//     server, not in the browser, so an outgoing fetch carries no cookies
-//     unless we copy them across from the incoming request. Without this the
-//     API sees an anonymous caller and returns 401 for every dashboard read.
-//
-//  2. Browser calls need `credentials: "include"`. Same-origin fetches send
-//     cookies by default; cross-origin ones do not.
+// Public storefront reads are the exception and go browser → API directly.
+// They carry no credentials at all, which is exactly why the API's CORS can
+// be permissive-origin: there is no cookie for a hostile origin to ride.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export interface ApiErrorBody {
@@ -20,9 +19,8 @@ export interface ApiErrorBody {
   code: string;
 }
 
-// Thrown for any non-2xx. Carries the status and the API's own `code` so
-// callers can branch on "slot_unavailable" rather than string-matching the
-// human-readable message.
+// Carries the API's own `code` so callers can branch on "slot_unavailable"
+// rather than string-matching a human-readable message.
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -37,8 +35,6 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
-  // Next's fetch cache directives. Public storefront reads can be cached and
-  // revalidated; anything session-scoped must not be.
   cache?: RequestCache;
   revalidate?: number | false;
   tags?: string[];
@@ -48,7 +44,6 @@ function buildInit(options: RequestOptions, headers: Record<string, string>): Re
   const init: RequestInit = {
     method: options.method ?? "GET",
     headers: { "Content-Type": "application/json", ...headers },
-    credentials: "include",
   };
   if (options.body !== undefined) init.body = JSON.stringify(options.body);
   if (options.cache) init.cache = options.cache;
@@ -70,37 +65,43 @@ async function parse<T>(res: Response): Promise<T> {
       body?.code ?? "unknown_error",
     );
   }
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
 
-// --- Server-side ------------------------------------------------------------
+export function apiUrl(path: string): string {
+  return `${API_URL}/api${path}`;
+}
 
-// Use from server components, route handlers and server actions. Forwards the
-// caller's cookies so the API sees the same session the browser has.
+// --- Server-side, authenticated ---------------------------------------------
+
+// For server components, server actions and route handlers. Reads the
+// httpOnly cookie and attaches the token as a Bearer header.
 export async function apiServer<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore
-    .getAll()
-    .map((c) => `${c.name}=${c.value}`)
-    .join("; ");
-
-  const res = await fetch(
-    `${API_URL}/api${path}`,
-    buildInit(options, cookieHeader ? { Cookie: cookieHeader } : {}),
+  const token = await readSessionToken();
+  return parse<T>(
+    await fetch(apiUrl(path), buildInit(options, token ? { Authorization: `Bearer ${token}` } : {})),
   );
-  return parse<T>(res);
 }
 
-// Public reads with no session — storefront pages, sitemap, OG images.
-// Deliberately does NOT forward cookies: these responses are cacheable and
-// shared between visitors, so a per-user cookie must never influence them.
+export async function apiSuperAdmin<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const token = await readSuperAdminToken();
+  return parse<T>(
+    await fetch(apiUrl(path), buildInit(options, token ? { Authorization: `Bearer ${token}` } : {})),
+  );
+}
+
+// --- Public, unauthenticated -------------------------------------------------
+
+// Storefront reads. Deliberately sends no credentials: these responses are
+// cacheable and shared between visitors, so nothing per-user may influence
+// them. Safe to call from either the server or the browser.
 export async function apiPublic<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const res = await fetch(`${API_URL}/api${path}`, buildInit(options, {}));
-  return parse<T>(res);
+  return parse<T>(await fetch(apiUrl(path), buildInit(options, {})));
 }
 
-// Same as apiPublic but returns null on a 404 instead of throwing, for the
-// "shop not found vs. not published yet" branches that render a real page.
+// Returns null on 404 instead of throwing, for the "shop not found" vs
+// "exists but not published" branches that both render a real page.
 export async function apiPublicOrNull<T>(path: string, options: RequestOptions = {}): Promise<T | null> {
   try {
     return await apiPublic<T>(path, options);
@@ -110,14 +111,13 @@ export async function apiPublicOrNull<T>(path: string, options: RequestOptions =
   }
 }
 
-// --- Client-side ------------------------------------------------------------
+// --- Browser, authenticated --------------------------------------------------
 
-// Use from "use client" components. The browser attaches the session cookie
-// itself, but only because of credentials: "include" — and only if the API's
-// CORS_ORIGINS lists this origin and the cookie's SameSite allows it.
+// Goes to this app's own /api/admin/* proxy, NOT to the API host. Same-origin,
+// so the httpOnly cookie is sent automatically; the proxy swaps it for a
+// Bearer header server-side. Browser JS still never sees the token.
 export async function apiBrowser<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const res = await fetch(`${API_URL}/api${path}`, buildInit(options, {}));
-  return parse<T>(res);
+  const init = buildInit(options, {});
+  init.credentials = "same-origin";
+  return parse<T>(await fetch(`/api/admin${path}`, init));
 }
-
-export { API_URL };

@@ -1,5 +1,4 @@
 import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
-import type { Response } from "express";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { verifyFirebaseIdToken } from "../../common/lib/firebase-admin";
 import { getMembershipsForEmail, findMembership } from "../../common/lib/memberships";
@@ -12,7 +11,7 @@ export class AuthService {
     private readonly sessions: SessionService,
   ) {}
 
-  async signIn(idToken: string, requestedVendorId: string | undefined, res: Response) {
+  async signIn(idToken: string, requestedVendorId: string | undefined) {
     const verified = await verifyFirebaseIdToken(idToken);
     // Unverified Google addresses are rejected outright — CLAUDE.md § Auth
     // Rules: the email allowlist is only meaningful if the address is proven.
@@ -45,19 +44,14 @@ export class AuthService {
       throw new ForbiddenException({ error: "Staff account not found", code: "not_registered" });
     }
 
-    await this.sessions.issueStaffSession(res, staff);
-    return { ok: true, memberships };
-  }
-
-  signOut(res: Response): void {
-    this.sessions.clearStaffSession(res);
+    return { token: await this.sessions.issueStaffToken(staff), memberships };
   }
 
   async memberships(email: string) {
     return { memberships: await getMembershipsForEmail(email) };
   }
 
-  async switchVendor(email: string, vendorId: string, res: Response) {
+  async switchVendor(email: string, vendorId: string) {
     // Re-derived from the database on every call rather than trusting a list
     // handed to the client at sign-in: access can be revoked between page
     // loads, and this cookie is what every other guard trusts.
@@ -76,7 +70,6 @@ export class AuthService {
       throw new ForbiddenException({ error: "You don't have access to that shop", code: "forbidden" });
     }
 
-    await this.sessions.issueStaffSession(res, staff);
-    return { ok: true, vendorId: staff.vendorId, role: staff.role };
+    return { token: await this.sessions.issueStaffToken(staff), vendorId: staff.vendorId, role: staff.role };
   }
 }

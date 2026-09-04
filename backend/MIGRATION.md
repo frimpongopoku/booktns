@@ -15,7 +15,7 @@ app behaves exactly as before.
 
 | Area | Endpoint | State |
 |---|---|---|
-| Sign in / out | `POST`/`DELETE /api/auth/session` | ported |
+| Sign in | `POST /api/auth/session` | ported — returns a JWT in the body, sets no cookie |
 | Session read | `GET /api/auth/me` | new |
 | Memberships | `GET /api/auth/memberships` | ported |
 | Shop switching | `POST /api/auth/switch-vendor` | ported |
@@ -51,9 +51,17 @@ Still served by Next.js API routes, still working:
 `availability` · `verification` · `support` · `calendar/[token]` ·
 all seven `superadmin/*` routes.
 
-**No frontend code calls the new API yet.** `lib/api-client.ts` exists and is
-ready, but every page and component still uses the Next.js routes and direct
-Prisma access. That's the second half of the work.
+**Almost no frontend code calls the new API yet.** The auth plumbing is
+wired and working — `lib/api-client.ts`, `lib/session-cookie.ts`, the BFF
+proxy at `app/api/admin/[...path]`, and the `session-v2` /
+`switch-vendor-v2` route handlers. But every page and component still uses
+the original Next.js routes and direct Prisma access. Switching them over is
+the second half of the work.
+
+The old `app/api/auth/session` route is deliberately still in place: it mints
+a cookie with the same secret and payload shape, so tokens are
+interchangeable and the un-migrated Next.js routes keep verifying them via
+`lib/auth.ts`. Delete it once the login page points at `session-v2`.
 
 ---
 
@@ -119,30 +127,66 @@ DATABASE_URL="<railway url>" npm run bootstrap:superadmin
 
 ---
 
-## The three settings that will cost you an afternoon
+## The auth architecture, and why it looks like this
 
-**1. `JWT_SECRET` must be byte-identical** on Vercel and Railway. Both sign
-and verify the same cookie. A mismatch logs everyone out with no error
-anywhere — it just looks like sign-in silently failing.
+**The API is cookie-blind. The frontend owns the cookie. Nothing outside a
+server-side route handler ever touches the raw token.**
 
-**2. `CORS_ORIGINS` must list the exact frontend origin,** scheme included.
-A missing entry presents as "I'm signed in but the API says I'm not".
-Wildcards are not an option: browsers reject `*` when credentials are
-involved.
+Write that down as the invariant. Everything else follows from it.
 
-**3. Cookie scoping decides whether sessions work at all.**
+- The NestJS API never sets `Set-Cookie`. `/auth/session` and
+  `/auth/switch-vendor` return a signed JWT **in the JSON body**.
+- Next.js route handlers (`app/api/auth/session-v2`, `.../switch-vendor-v2`)
+  are the only things that call `cookies().set()`. They mint an **httpOnly,
+  host-only cookie with no `domain` attribute** — scoped to whatever host the
+  browser is currently on.
+- Every other authenticated browser call goes through the BFF proxy at
+  `app/api/admin/[...path]/route.ts`, which reads the cookie server-side and
+  re-attaches it as `Authorization: Bearer`. **Browser JavaScript never holds
+  or sends the token.**
+- The only direct browser → API calls are unauthenticated public storefront
+  reads. They carry no credentials, which is exactly why CORS can be
+  `origin: true, credentials: false`.
 
-- **Same apex** (`app.booktns.com` + `api.booktns.com`):
-  `COOKIE_DOMAIN=.booktns.com`, `COOKIE_SAMESITE=lax`. **Do this.**
-- **Unrelated hosts** (`booktns.vercel.app` + `*.up.railway.app`):
-  requires `COOKIE_SAMESITE=none`, which makes the session a third-party
-  cookie. Safari's ITP blocks it and Chrome is phasing it out — real users
-  will lose sessions at random. Staging only.
+### Why not just have the API set the cookie
 
-This is the strongest practical argument for putting the API on a subdomain
-of your own apex before launch.
+Because it breaks custom domains, in two ways at once:
 
----
+1. The API would be a different origin from the frontend, making the session a
+   **third-party cookie** requiring `SameSite=None`. Safari's ITP blocks those
+   and Chrome is phasing them out — sessions would drop at random for real
+   users.
+2. Credentialed CORS requires an explicit origin allowlist (browsers reject
+   `*` with credentials). That allowlist would have to contain **every
+   vendor's custom domain**, which is unknowable at deploy time. Each new
+   vendor domain would silently fail until someone updated an env var.
+
+The host-only cookie sidesteps both: a vendor signing in on their own domain
+gets a first-party cookie for that domain, with zero configuration.
+
+**Do not add a `domain` attribute to the session cookie.** Even
+`.booktns.com` — which looks harmless — breaks every custom domain at once,
+because a vendor's host is not under that apex.
+
+### Two token spaces, two secrets
+
+Vendor sessions and the superadmin console are fully parallel: separate table,
+separate payload shape, separate frontend cookie, separate BFF path prefix.
+They are now signed with **different secrets** (`JWT_SECRET` vs
+`SUPERADMIN_JWT_SECRET`), so a token from one space fails signature
+verification in the other outright. The `kind` discriminator check is still
+there, but it is no longer the only thing standing between the two — a future
+route that forgets to check is still safe.
+
+### Still true regardless
+
+- `JWT_SECRET` must be byte-identical on Vercel and Railway. The frontend
+  stores what the API signs.
+- Guarded routes derive `vendorId` from the **verified token**, never from a
+  client-supplied field. Every mutating route: does it ignore the client's
+  vendorId and use `session.vendorId`?
+- The UI-side role checks in dashboard pages are **UX, not security**. The
+  API's `@Roles(...)` guard is the enforcement point.
 
 ## Known gaps
 

@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signInWithPopup, type AuthError } from "firebase/auth";
-import { getFirebaseAuth, googleProvider } from "@/lib/firebase-client";
+import { getFirebaseAuthReady, googleProvider } from "@/lib/firebase-client";
 import Logo from "@/components/shared/Logo";
 import Button from "@/components/ui/Button";
+import * as Sentry from "@sentry/nextjs";
 import { ShieldCheck, AlertCircle } from "lucide-react";
 
 function GoogleIcon() {
@@ -43,13 +44,24 @@ export default function LoginPage() {
 
     let idToken: string;
     try {
-      const result = await signInWithPopup(getFirebaseAuth(), googleProvider);
+      const result = await signInWithPopup(await getFirebaseAuthReady(), googleProvider);
       idToken = await result.user.getIdToken();
     } catch (err) {
       const code = (err as AuthError).code;
       setStatus("idle");
+      // A user closing the popup isn't a failure worth reporting. Anything
+      // else is: the raw provider code goes to the error tracker, because
+      // "auth/unauthorized-domain" (the production domain missing from
+      // Firebase Console -> Authorized Domains) is the most common cause of
+      // "login silently does nothing" and is undiagnosable without it.
       if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
-        setError("Something went wrong signing in with Google. Please try again.");
+        Sentry.captureException(err, { tags: { firebaseErrorCode: code ?? "unknown" } });
+        console.error("Google sign-in failed", code, err);
+        setError(
+          code === "auth/unauthorized-domain"
+            ? "This site isn't authorised for sign-in yet. Please tell the Booktns team."
+            : `Something went wrong signing in with Google. Please try again. (${code ?? "unknown"})`,
+        );
       }
       return;
     }

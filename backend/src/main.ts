@@ -1,7 +1,6 @@
 import "reflect-metadata";
 import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
-import cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
 import { config } from "./common/config";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
@@ -9,18 +8,18 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bodyParser: true });
 
-  // The session lives in an httpOnly cookie, so it has to be parsed before
-  // any guard can read it.
-  app.use(cookieParser());
-
-  // `credentials: true` plus an explicit origin list is mandatory, not
-  // optional tuning: the browser refuses to send the session cookie on a
-  // cross-origin request otherwise, and refuses a wildcard origin entirely
-  // when credentials are involved. A missing entry here presents as "I'm
-  // logged in but the API says I'm not".
+  // Permissive origin, credentials OFF — and those two go together.
+  //
+  // This API is cookie-blind (see modules/auth/session.service.ts). Every
+  // browser request is either an unauthenticated public storefront read, or
+  // carries a Bearer header attached server-side by the frontend's BFF proxy.
+  // Nothing depends on a cross-origin cookie, so there is no reason to enable
+  // credentials — and enabling them would force an origin allowlist that must
+  // include every vendor's own custom domain, which is unknowable at deploy
+  // time and silently breaks each new one until someone updates an env var.
   app.enableCors({
-    origin: config.corsOrigins,
-    credentials: true,
+    origin: true,
+    credentials: false,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   });
@@ -32,9 +31,7 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix("api");
 
   await app.listen(config.port, "0.0.0.0");
-  new Logger("Bootstrap").log(
-    `API listening on :${config.port} — CORS origins: ${config.corsOrigins.join(", ")}`,
-  );
+  new Logger("Bootstrap").log(`API listening on :${config.port}`);
 }
 
 void bootstrap();

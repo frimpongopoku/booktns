@@ -45,7 +45,7 @@ export default async function BookingsPage() {
         assignedStaff: { select: { name: true } },
         paymentMethod: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { startTime: "desc" },
     }),
     db.staff.findMany({ where: { vendorId: session.vendorId, active: true } }),
   ]);
@@ -59,6 +59,7 @@ export default async function BookingsPage() {
       vendorSlug={vendor.slug}
       vendorName={vendor.name}
       vendorLocation={vendor.location}
+      now={new Date().toISOString()}
       readOnly={isServiceStaff}
     />
   );

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
@@ -91,13 +91,26 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   // already rejects any request once status isn't "pending", and status can
   // only ever be the literal "cancelled") — a plain self-service edit
   // (name/phone/email with no status change) never fires anything.
+// Deferred with `after()` rather than left as a floating promise. On
+// serverless (Vercel) the function can be frozen or torn down the moment the
+// response is returned, so work started but not awaited is not guaranteed to
+// run — that would mean booking emails, SMS and PDFs silently never sending
+// in production. `after()` keeps the invocation alive until this finishes.
   if (parsed.data.status === "cancelled") {
-    sendBookingCancelledEmail(
-      serialized,
-      // Same show-flag gate the storefront applies to the owner's address.
-      { ...booking.vendor, ownerEmail: booking.vendor.showOwnerEmail ? booking.vendor.ownerEmail : null }
-    ).catch((err) => logger.error("sendBookingCancelledEmail failed", { bookingId: booking.id, vendorId: booking.vendorId, err }));
-    sendBookingCancelledSms(serialized, booking.vendor).catch((err) => logger.error("sendBookingCancelledSms failed", { bookingId: booking.id, vendorId: booking.vendorId, err }));
+    after(async () => {
+    // Awaited as a group: `after()` only keeps the invocation alive for the
+    // promise its callback returns, so leaving these unawaited inside it
+    // would defer nothing and race the freeze exactly as before. Promise.all
+    // keeps them concurrent while still being a single promise to wait on.
+      await Promise.all([
+        sendBookingCancelledEmail(
+          serialized,
+          // Same show-flag gate the storefront applies to the owner's address.
+          { ...booking.vendor, ownerEmail: booking.vendor.showOwnerEmail ? booking.vendor.ownerEmail : null }
+        ).catch((err) => logger.error("sendBookingCancelledEmail failed", { bookingId: booking.id, vendorId: booking.vendorId, err })),
+        sendBookingCancelledSms(serialized, booking.vendor).catch((err) => logger.error("sendBookingCancelledSms failed", { bookingId: booking.id, vendorId: booking.vendorId, err })),
+      ]);
+    });
   }
 
   return NextResponse.json({ booking: serialized });

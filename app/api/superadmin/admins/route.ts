@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/superadmin-auth";
@@ -41,9 +41,14 @@ export async function POST(request: Request) {
     data: { email: parsed.data.email, name: parsed.data.name || null },
   });
 
-  sendSuperAdminInviteEmail({ to: admin.email, invitedBy: auth.admin.email }).catch((err) =>
-    logger.error("sendSuperAdminInviteEmail failed", { email: admin.email, err })
-  );
+  // Deferred with `after()` rather than left as a floating promise. On
+  // serverless the function can be frozen the moment the response returns,
+  // so work started but not awaited is not guaranteed to run.
+  after(async () => {
+    await sendSuperAdminInviteEmail({ to: admin.email, invitedBy: auth.admin.email }).catch((err) =>
+      logger.error("sendSuperAdminInviteEmail failed", { email: admin.email, err })
+    );
+  });
 
   return NextResponse.json({ admin }, { status: 201 });
 }

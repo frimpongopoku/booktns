@@ -7,6 +7,7 @@ import {
   Calendar,
   ShoppingBag,
   Package,
+  Wallet,
   Settings,
 } from "lucide-react";
 import type { StaffRole } from "@/types";
@@ -29,6 +30,7 @@ export default function MobileNav({ bookingBadgeCount = 0, orderBadgeCount = 0, 
     { label: "Bookings", href: "/dashboard/bookings", icon: Calendar, badge: bookingBadgeCount, roles: ["Owner", "Management", "Service"] },
     { label: "Orders", href: "/dashboard/orders", icon: ShoppingBag, badge: orderBadgeCount, roles: ["Owner", "Management"] },
     { label: "Products", href: "/dashboard/products", icon: Package, badge: 0, roles: ["Owner", "Management"] },
+    { label: "Get paid", href: "/dashboard/payments", icon: Wallet, badge: 0, roles: ["Owner"] },
     { label: "Settings", href: "/dashboard/settings", icon: Settings, badge: 0, roles: ["Owner"] },
   ];
 
@@ -53,7 +55,7 @@ export default function MobileNav({ bookingBadgeCount = 0, orderBadgeCount = 0, 
           <Link
             key={item.href}
             href={item.href}
-            className="relative flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors"
+            className="relative flex-1 min-w-0 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors"
             style={{ color: active ? "var(--ac)" : "var(--tx3)" }}
           >
             <span className="relative">
@@ -67,7 +69,7 @@ export default function MobileNav({ bookingBadgeCount = 0, orderBadgeCount = 0, 
                 </span>
               )}
             </span>
-            <span>{item.label}</span>
+            <span className="whitespace-nowrap">{item.label}</span>
           </Link>
         );
       })}

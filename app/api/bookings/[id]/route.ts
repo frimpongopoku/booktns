@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
@@ -204,39 +204,52 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   // requested status differs from what it was) — editing notes, assigning
   // staff, or re-submitting the same status again never fires anything.
   if (newStatus && existing.status !== newStatus) {
+    // All of it deferred with `after()`. These were floating promises, which
+    // on serverless is not "background work" but "work that may never run":
+    // the function can be frozen the instant the response is returned. In
+    // production that would mean no confirmation email, no SMS, and no PDF —
+    // failing silently, which is the worst way for it to fail.
+    after(async () => {
     if (newStatus === "confirmed") {
       // The email/SMS only link to /booking/{slug} — neither reads
       // confirmedPdfUrl — so they don't need to wait on the PDF at all.
-      sendBookingConfirmedEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingConfirmedEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
-      sendBookingConfirmedSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingConfirmedSms failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+      await Promise.all([
+        sendBookingConfirmedEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingConfirmedEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err })),
+        sendBookingConfirmedSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingConfirmedSms failed", { bookingId: id, vendorId: auth.session.vendorId, err })),
+      ]);
 
       // PDF generation (Satori render + resvg rasterize) and the R2 upload
       // take multiple seconds and nothing in this response depends on the
       // result — the customer's booking page and the dashboard's booking
       // drawer both already read confirmedPdfUrl independently whenever it's
       // set, so this must not block the PATCH response the way it used to.
-      (async () => {
-        try {
-          const pdfBuffer = await generateConfirmedBookingPdf(serialized, vendorInfo);
-          const confirmedPdfUrl = await uploadFile(`bookings/${booking.slug}/confirmed.pdf`, pdfBuffer, "application/pdf");
-          await db.booking.update({ where: { id }, data: { confirmedPdfUrl } });
-        } catch (err) {
-          logger.error("generateConfirmedBookingPdf failed", { bookingId: id, vendorId: auth.session.vendorId, err });
-        }
-      })();
+      try {
+        const pdfBuffer = await generateConfirmedBookingPdf(serialized, vendorInfo);
+        const confirmedPdfUrl = await uploadFile(`bookings/${booking.slug}/confirmed.pdf`, pdfBuffer, "application/pdf");
+        await db.booking.update({ where: { id }, data: { confirmedPdfUrl } });
+      } catch (err) {
+        logger.error("generateConfirmedBookingPdf failed", { bookingId: id, vendorId: auth.session.vendorId, err });
+      }
     } else if (newStatus === "cancelled") {
-      sendBookingCancelledEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingCancelledEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
-      sendBookingCancelledSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingCancelledSms failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+      await Promise.all([
+        sendBookingCancelledEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingCancelledEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err })),
+        sendBookingCancelledSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingCancelledSms failed", { bookingId: id, vendorId: auth.session.vendorId, err })),
+      ]);
     } else if (newStatus === "completed") {
-      sendBookingCompletedEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingCompletedEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
-      sendBookingCompletedSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingCompletedSms failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+      await Promise.all([
+        sendBookingCompletedEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingCompletedEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err })),
+        sendBookingCompletedSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingCompletedSms failed", { bookingId: id, vendorId: auth.session.vendorId, err })),
+      ]);
     } else if (newStatus === "rescheduled") {
-      sendBookingRescheduledEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingRescheduledEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
-      sendBookingRescheduledSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingRescheduledSms failed", { bookingId: id, vendorId: auth.session.vendorId, err }));
+      await Promise.all([
+        sendBookingRescheduledEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingRescheduledEmail failed", { bookingId: id, vendorId: auth.session.vendorId, err })),
+        sendBookingRescheduledSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingRescheduledSms failed", { bookingId: id, vendorId: auth.session.vendorId, err })),
+      ]);
     } else if (newStatus === "no_show") {
       // Deliberately silent — no-show is a vendor-internal record, not
       // something we tell the customer about after the fact.
     }
+    });
   }
 
   return NextResponse.json({ booking: serialized });

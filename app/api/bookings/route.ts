@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
@@ -258,14 +258,27 @@ export async function POST(request: Request) {
     ownerEmail: vendor.showOwnerEmail ? vendor.ownerEmail : null,
   };
   const notifyStaffPhones = notifyStaff.map((s) => s.phone).filter((phone): phone is string => Boolean(phone));
-  // Fire-and-forget — a slow or failing email/SMS provider must never hold
-  // up the booking response or fail an otherwise-successful booking.
-  sendBookingRequestEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingRequestEmail failed", { bookingId: serialized.id, vendorId: vendor.id, err }));
-  sendNewBookingNotification(serialized, vendorInfo, notifyStaff.map((s) => s.email)).catch((err) =>
-    logger.error("sendNewBookingNotification failed", { bookingId: serialized.id, vendorId: vendor.id, err })
-  );
-  sendBookingRequestSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingRequestSms failed", { bookingId: serialized.id, vendorId: vendor.id, err }));
-  sendNewBookingSms(serialized, notifyStaffPhones).catch((err) => logger.error("sendNewBookingSms failed", { bookingId: serialized.id, vendorId: vendor.id, err }));
+// Deferred with `after()` rather than left as a floating promise. On
+// serverless (Vercel) the function can be frozen or torn down the moment the
+// response is returned, so work started but not awaited is not guaranteed to
+// run — that would mean booking emails, SMS and PDFs silently never sending
+// in production. `after()` keeps the invocation alive until this finishes.
+  // A slow or failing email/SMS provider must never hold up the booking
+  // response or fail an otherwise-successful booking.
+  after(async () => {
+    // Awaited as a group: `after()` only keeps the invocation alive for the
+    // promise its callback returns, so leaving these unawaited inside it
+    // would defer nothing and race the freeze exactly as before. Promise.all
+    // keeps them concurrent while still being a single promise to wait on.
+    await Promise.all([
+      sendBookingRequestEmail(serialized, vendorInfo).catch((err) => logger.error("sendBookingRequestEmail failed", { bookingId: serialized.id, vendorId: vendor.id, err })),
+      sendNewBookingNotification(serialized, vendorInfo, notifyStaff.map((s) => s.email)).catch((err) =>
+        logger.error("sendNewBookingNotification failed", { bookingId: serialized.id, vendorId: vendor.id, err })
+      ),
+      sendBookingRequestSms(serialized, vendorInfo).catch((err) => logger.error("sendBookingRequestSms failed", { bookingId: serialized.id, vendorId: vendor.id, err })),
+      sendNewBookingSms(serialized, notifyStaffPhones).catch((err) => logger.error("sendNewBookingSms failed", { bookingId: serialized.id, vendorId: vendor.id, err })),
+    ]);
+  });
 
   return NextResponse.json({ booking: serialized }, { status: 201 });
 }

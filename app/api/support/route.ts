@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -41,19 +41,24 @@ export async function POST(request: Request) {
     },
   });
 
-  sendSupportMessageNotification({
-    vendorName: auth.session.vendorName,
-    staffName: staff.name,
-    staffEmail: staff.email,
-    subject: parsed.data.subject,
-    message: parsed.data.message,
-  }).catch((err) =>
-    logger.error("sendSupportMessageNotification failed", {
-      supportMessageId: supportMessage.id,
-      vendorId: auth.session.vendorId,
-      err,
-    })
-  );
+  // Deferred with `after()` rather than left as a floating promise. On
+  // serverless the function can be frozen the moment the response returns,
+  // so work started but not awaited is not guaranteed to run.
+  after(async () => {
+    await sendSupportMessageNotification({
+      vendorName: auth.session.vendorName,
+      staffName: staff.name,
+      staffEmail: staff.email,
+      subject: parsed.data.subject,
+      message: parsed.data.message,
+    }).catch((err) =>
+      logger.error("sendSupportMessageNotification failed", {
+        supportMessageId: supportMessage.id,
+        vendorId: auth.session.vendorId,
+        err,
+      })
+    );
+  });
 
   return NextResponse.json({ supportMessage }, { status: 201 });
 }

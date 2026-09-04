@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && node scripts/migrate-if-production.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "bootstrap:superadmin": "tsx prisma/bootstrap-superadmin.ts"
+    "bootstrap:superadmin": "tsx prisma/bootstrap-superadmin.ts",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1095.0",

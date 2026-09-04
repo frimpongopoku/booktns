@@ -15,6 +15,7 @@ import {
   Images,
   Video,
   Settings,
+  Wallet,
   LogOut,
   ChevronRight,
   Store,
@@ -131,6 +132,10 @@ export default function Sidebar({
             badge: orderBadgeCount > 0 ? orderBadgeCount : undefined,
           },
         ]),
+    // Owner-only, matching the page guard and /api/payment-methods.
+    ...(role === "Owner"
+      ? [{ label: "Get paid", href: "/dashboard/payments", icon: <Wallet size={15} /> }]
+      : []),
   ];
 
   const visibleManageNav = manageNav.filter((item) => item.roles.includes(role));

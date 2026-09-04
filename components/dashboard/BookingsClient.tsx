@@ -447,12 +447,15 @@ interface BookingsClientProps {
   vendorSlug: string;
   vendorName: string;
   vendorLocation: string;
+  // Request time, ISO. Used as the fixed "now" the list sorts around; see
+  // the sort in this component for why it isn't computed client-side.
+  now: string;
   // True for Service staff, who receive only their own bookings and can't
   // change them. See app/(dashboard)/dashboard/bookings/page.tsx.
   readOnly?: boolean;
 }
 
-export default function BookingsClient({ initialBookings, staff, vendorSlug, vendorName, vendorLocation, readOnly = false }: BookingsClientProps) {
+export default function BookingsClient({ initialBookings, staff, vendorSlug, vendorName, vendorLocation, now, readOnly = false }: BookingsClientProps) {
   const [bookingList, setBookingList] = useState<Booking[]>(initialBookings);
   const [tab, setTab] = useState<"list" | "calendar">("list");
   const [search, setSearch] = useState("");
@@ -526,13 +529,40 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug, ven
     }
   };
 
-  const filtered = bookingList.filter((b) => {
-    const matchesSearch =
-      b.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      b.services.some((s) => s.name.toLowerCase().includes(search.toLowerCase()));
-    const matchesStatus = statusFilter === "all" || b.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Chronological by appointment time, not by when the booking happened to
+  // be created — the server orders by createdAt, which put a booking made
+  // today for next month above one made yesterday for tomorrow.
+  //
+  // Upcoming first, soonest at the top, because that's what a vendor opens
+  // this page to deal with. Past appointments follow, most recent first, so
+  // "who came in yesterday" is one scroll away rather than buried under
+  // every appointment the shop has ever taken. A single ascending or
+  // descending sort gets one of those two halves badly wrong.
+  //
+  // The now-pivot comes from the server rather than Date.now() so the
+  // server render and the client hydration sort identically — computing it
+  // here would let a booking starting during page load land on a different
+  // side of the boundary in each pass, which is a hydration mismatch.
+  const nowMs = new Date(now).getTime();
+
+  const filtered = bookingList
+    .filter((b) => {
+      const matchesSearch =
+        b.customerName.toLowerCase().includes(search.toLowerCase()) ||
+        b.services.some((s) => s.name.toLowerCase().includes(search.toLowerCase()));
+      const matchesStatus = statusFilter === "all" || b.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    })
+    // .filter() already returned a fresh array, so sorting in place here
+    // doesn't mutate bookingList.
+    .sort((a, b) => {
+      const aTime = new Date(a.startTime).getTime();
+      const bTime = new Date(b.startTime).getTime();
+      const aUpcoming = aTime >= nowMs;
+      const bUpcoming = bTime >= nowMs;
+      if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+      return aUpcoming ? aTime - bTime : bTime - aTime;
+    });
 
   return (
     <div>

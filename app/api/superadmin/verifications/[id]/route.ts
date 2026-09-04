@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/superadmin-auth";
@@ -74,13 +74,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     const cascade = await verifyPerson(owner.id);
 
-    // Fire-and-forget: a mail-provider outage must not roll back an approval
-    // that has already been written.
-    sendVerificationApprovedEmail({
-      to: owner.email,
-      legalName: application.legalName,
-      vendorNames: cascade.vendorNames,
-    }).catch((err) => logger.error("sendVerificationApprovedEmail failed", { applicationId: id, err }));
+    // A mail-provider outage must not roll back an approval that has already
+    // been written — but this can't be a floating promise either: on
+    // serverless the function may freeze the moment the response returns,
+    // and the vendor would never learn they'd been approved.
+    after(async () => {
+      await sendVerificationApprovedEmail({
+        to: owner.email,
+        legalName: application.legalName,
+        vendorNames: cascade.vendorNames,
+      }).catch((err) => logger.error("sendVerificationApprovedEmail failed", { applicationId: id, err }));
+    });
 
     return NextResponse.json({ ok: true, status: "APPROVED", verifiedVendors: cascade.vendorNames });
   }
@@ -102,11 +106,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   ]);
 
   if (owner) {
-    sendVerificationRejectedEmail({
-      to: owner.email,
-      legalName: application.legalName,
-      reason: parsed.data.reason,
-    }).catch((err) => logger.error("sendVerificationRejectedEmail failed", { applicationId: id, err }));
+    // Captured before the closure: TypeScript's narrowing of the
+    // approve/reject union doesn't survive into a deferred callback, since
+    // it can't prove the value is unchanged by the time it runs.
+    const rejectionReason = parsed.data.reason;
+    after(async () => {
+      await sendVerificationRejectedEmail({
+        to: owner.email,
+        legalName: application.legalName,
+        reason: rejectionReason,
+      }).catch((err) => logger.error("sendVerificationRejectedEmail failed", { applicationId: id, err }));
+    });
   }
 
   return NextResponse.json({ ok: true, status: "REJECTED" });

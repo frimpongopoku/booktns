@@ -3,7 +3,14 @@ import Link from "next/link";
 // The company behind Booktns. Same team, same entity named in /privacy and
 // /terms — see lib/legal.ts.
 const BUILDER_NAME = "Biibisoft Team";
-const BUILDER_URL = "https://biibisoft.com";
+
+// A new-business enquiry, not a marketing site visit. Someone who notices
+// this line on a vendor's storefront and clicks it is a prospective client,
+// so send them into a drafted email rather than to a homepage they'd have
+// to navigate. Subject is prefilled; the body is left empty so they write
+// their own opening line.
+const BUILDER_EMAIL = "message@biibisoft.com";
+const BUILDER_MAILTO = `mailto:${BUILDER_EMAIL}?subject=${encodeURIComponent("Work with Biibisoft")}`;
 
 // Injected at build time by next.config.ts from package.json and the git
 // commit count. Read here rather than passed down, so every place this line
@@ -31,10 +38,9 @@ export default function PlatformCredit({ showCopyright = true, className = "" }:
         {showCopyright && <>© {new Date().getFullYear()} Booktns. </>}
         Made for shops across Ghana. Built by the{" "}
         <a
-          href={BUILDER_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={BUILDER_MAILTO}
           className="underline underline-offset-2 hover:text-[var(--tx2)]"
+          title={`Work with Biibisoft — ${BUILDER_EMAIL}`}
         >
           {BUILDER_NAME}
         </a>

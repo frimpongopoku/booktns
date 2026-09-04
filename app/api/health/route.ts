@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildHealthReport, type HealthReport, type CheckStatus } from "@/lib/health";
+import { getCachedHealthReport, redactForPublic, type HealthReport, type CheckStatus } from "@/lib/health";
 
 // Always run the checks; never serve a cached verdict about whether the
 // system is up.
@@ -13,7 +13,11 @@ export const dynamic = "force-dynamic";
 // hostname. That is why every `detail` in lib/health.ts is a hand-written
 // sentence with at most `err.message` appended, never the error object.
 export async function GET(request: Request) {
-  const report = await buildHealthReport();
+  // Cached and redacted: this endpoint is unauthenticated, and the raw
+  // report both amplifies (one request fans out into nine upstream calls)
+  // and narrates (bucket names, provider error strings). See lib/health.ts.
+  const { report: raw } = await getCachedHealthReport();
+  const report = redactForPublic(raw);
 
   // `warn` is informational — a dev fallback in use, not an outage — so only
   // a hard error is a 503.

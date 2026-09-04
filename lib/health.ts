@@ -249,3 +249,67 @@ export async function buildHealthReport(): Promise<HealthReport> {
     checks,
   };
 }
+
+// --- Public exposure --------------------------------------------------------
+//
+// This endpoint is unauthenticated, so treat every request as hostile.
+//
+// Two things make the raw report unsafe to serve publicly. It amplifies: one
+// cheap HTTP request fans out into nine real upstream calls — a Postgres
+// query, two R2 HeadBucket calls, live API calls to Resend and Africa's
+// Talking, a DNS lookup. A bot looping on it burns third-party quota and real
+// money, and can get the account rate-limited by those providers. And it
+// narrates: `detail` carries bucket names, provider names and raw upstream
+// error text, which is free reconnaissance.
+//
+// The cache fixes the first; redaction fixes the second.
+
+const CACHE_TTL_MS = 20_000;
+let cached: { at: number; report: HealthReport } | null = null;
+let inFlight: Promise<HealthReport> | null = null;
+
+// One sweep per TTL no matter how many callers arrive, and concurrent callers
+// share a single in-flight run rather than each starting their own — without
+// that, a burst of simultaneous requests all miss the cache together and the
+// fan-out happens anyway.
+export async function getCachedHealthReport(): Promise<{ report: HealthReport; cached: boolean }> {
+  const now = Date.now();
+  if (cached && now - cached.at < CACHE_TTL_MS) {
+    return { report: cached.report, cached: true };
+  }
+  if (!inFlight) {
+    inFlight = buildHealthReport()
+      .then((report) => {
+        cached = { at: Date.now(), report };
+        return report;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
+  }
+  return { report: await inFlight, cached: false };
+}
+
+// What each status means, in words, without naming the thing behind it.
+// Mirrors the vocabulary a public status page uses ("Connected",
+// "Reachable") rather than echoing our own diagnostics.
+const PUBLIC_DETAIL: Record<CheckStatus, string> = {
+  ok: "Operational",
+  warn: "Degraded",
+  error: "Not responding",
+};
+
+// Strips every check down to name, status and timing. No bucket names, no
+// provider error strings, no configuration hints. Anyone who needs the real
+// detail is signed in to the platform console.
+export function redactForPublic(report: HealthReport): HealthReport {
+  return {
+    ...report,
+    checks: report.checks.map((c) => ({
+      name: c.name,
+      status: c.status,
+      detail: PUBLIC_DETAIL[c.status],
+      ms: c.ms,
+    })),
+  };
+}

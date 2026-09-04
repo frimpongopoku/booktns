@@ -174,10 +174,11 @@ failing.
 `*.railway.internal` host only resolves inside Railway. The API uses it;
 Vercel and your laptop need the public one.
 
-**3. Never point a liveness probe at `/api/health`.** It makes real
-authenticated round trips to Postgres, R2, Resend and Firebase with a 3s
-budget each, so a provider blip would restart the service. Use `/api/ping` —
-already configured in `railway.toml`.
+**3. Point liveness probes at `/api/ping`, not `/api/health`.** Already
+configured in `railway.toml`. `/api/health` is safe to hit — it's cached and
+redacted (below) — but it still reflects third-party state, so a Resend blip
+would fail the probe and restart a service that is itself perfectly healthy.
+`/api/ping` touches nothing.
 
 ### What you do *not* have to configure
 
@@ -198,9 +199,28 @@ curl -s https://<api-host>/api/health | jq '.status'   # ok | warn | error
 curl -s https://<frontend>/api/ping                    # frontend is up
 ```
 
-`/api/health` reports per-dependency. `warn` means working but on a dev
-fallback that must not be in production — **private storage is the one to
-watch**. Only `error` returns 503.
+`/api/health` serves a human status page to a browser and JSON to anything
+else (or with `?format=json`). `warn` means working but on a dev fallback
+that must not be in production — **private storage is the one to watch**.
+Only `error` returns 503.
+
+### It is public, so it is built to be hit
+
+Two properties make that safe:
+
+- **Cached, 20s, with request coalescing.** One cheap HTTP request used to
+  fan out into nine real upstream calls — a Postgres query, two R2
+  `HeadBucket` calls, live API calls to Resend and Africa's Talking, a DNS
+  lookup. A bot looping on it would burn third-party quota and real money.
+  Now a flood of requests produces at most one sweep per window, and
+  concurrent callers share a single in-flight run rather than each starting
+  their own.
+- **Redacted.** The public view is name, status and timing only. It no longer
+  prints bucket names, provider names or raw upstream error text — that was
+  free reconnaissance on an unauthenticated endpoint.
+
+The unredacted report lives at **`GET /api/health/detail`**, superadmin-only
+and uncached, for actually diagnosing a broken deploy.
 
 Then by hand:
 

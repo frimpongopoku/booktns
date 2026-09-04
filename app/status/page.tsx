@@ -3,8 +3,12 @@ import Link from "next/link";
 import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import Logo from "@/components/shared/Logo";
 import PlatformCredit from "@/components/shared/PlatformCredit";
-import { buildHealthReport, type CheckStatus, type HealthCheckResult } from "@/lib/health";
+import { getCachedHealthReport, redactForPublic, type CheckStatus, type HealthCheckResult } from "@/lib/health";
 
+// The rendered page is never cached, but the report behind it is (20s, see
+// lib/health.ts) — otherwise every refresh fans out into nine live upstream
+// calls on a public endpoint.
+//
 // Never cached — a status page that can serve a stale verdict is worse than
 // no status page.
 export const dynamic = "force-dynamic";
@@ -62,7 +66,12 @@ function CheckRow({ check }: { check: HealthCheckResult }) {
 }
 
 export default async function StatusPage() {
-  const report = await buildHealthReport();
+  // Redacted: this page is public and unauthenticated, and it renders
+  // check.detail directly — which used to include bucket names and raw
+  // provider error strings. The underlying report is cached for 20s so the
+  // page can't be used to hammer nine upstream services.
+  const { report: raw } = await getCachedHealthReport();
+  const report = redactForPublic(raw);
   const overall = STATUS_META[report.status];
 
   return (

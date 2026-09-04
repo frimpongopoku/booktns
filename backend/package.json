@@ -1,6 +1,6 @@
 {
   "name": "booktns-api",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "description": "Booktns backend \u2014 NestJS API, deployed separately from the Next.js frontend",
   "scripts": {

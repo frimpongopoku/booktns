@@ -13,6 +13,10 @@ export interface BookingWithVendor extends Booking {
     whatsapp: string;
     personalWhatsappNumber?: string;
     logoUrl?: string;
+    // The confirmation page renders the shop's QR, and /api/qr 404s for an
+    // unpublished storefront — so the page needs to know before it points an
+    // <img> at it.
+    storefrontPublished: boolean;
     cancellationPolicy?: string;
     storefrontTheme: StorefrontTheme;
     // Owner contact, already gated on the vendor's show* flags — the same
@@ -52,6 +56,7 @@ export const getBookingBySlug = (async (slug: string): Promise<BookingWithVendor
       whatsapp: booking.vendor.whatsapp,
       personalWhatsappNumber: booking.vendor.personalWhatsappNumber ?? undefined,
       logoUrl: booking.vendor.logoUrl ?? undefined,
+      storefrontPublished: booking.vendor.storefrontPublished,
       cancellationPolicy: booking.vendor.cancellationPolicy ?? undefined,
       storefrontTheme: booking.vendor.storefrontTheme,
       ownerPhone: booking.vendor.showOwnerPhone ? booking.vendor.ownerPhone ?? undefined : undefined,

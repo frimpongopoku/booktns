@@ -335,6 +335,45 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
             ← Back to {booking.vendor.name}
           </Link>
         </div>
+
+        {/* The shop's QR, for the conversation this page tends to start —
+            someone asks where you had it done and you show them your phone.
+            Scanning goes straight to the booking flow, so a recommendation
+            turns into a booking without anyone typing a URL.
+
+            Only when the storefront is published: /api/qr 404s otherwise,
+            which would render as a broken image. */}
+        {booking.vendor.storefrontPublished && (
+          <div
+            className="mt-8 p-4 rounded-[var(--rl)] flex items-center gap-4"
+            style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
+          >
+            <a
+              href={`/api/qr/${booking.vendor.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-24 flex-shrink-0 rounded-[var(--r)] overflow-hidden"
+              style={{ border: "1px solid var(--bds)", background: "#fff" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/qr/${booking.vendor.slug}`}
+                alt={`QR code to book at ${booking.vendor.name}`}
+                className="w-full h-auto block"
+                loading="lazy"
+              />
+            </a>
+            <div className="min-w-0">
+              <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>
+                Recommending {booking.vendor.name}?
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--tx3)" }}>
+                Show them this code — it opens the booking page straight away. Tap it to save or
+                share the full poster.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <footer

@@ -1,0 +1,14 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node dist/main.js"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# /api/ping is trivial and dependency-free. Never point this at /api/health —
+# that makes real authenticated round trips to Postgres, R2, Resend and
+# Firebase, so a third-party blip would make Railway restart the service.
+healthcheckPath = "/api/ping"
+healthcheckTimeout = 30

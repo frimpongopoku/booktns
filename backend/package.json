@@ -1,0 +1,48 @@
+{
+  "name": "booktns-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Booktns backend — NestJS API, deployed separately from the Next.js frontend",
+  "scripts": {
+    "build": "prisma generate && nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "lint": "eslint src",
+    "postinstall": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "bootstrap:superadmin": "tsx prisma/bootstrap-superadmin.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "@aws-sdk/client-s3": "^3.1095.0",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "africastalking": "^0.7.9",
+    "cookie-parser": "^1.4.7",
+    "firebase-admin": "^14.2.0",
+    "jose": "^6.2.4",
+    "pdf-lib": "^1.17.1",
+    "reflect-metadata": "^0.2.2",
+    "resend": "^6.18.0",
+    "rxjs": "^7.8.1",
+    "satori": "^0.29.0",
+    "sharp": "^0.35.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
+    "@nestjs/schematics": "^11.0.9",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.0",
+    "@types/node": "^20",
+    "eslint": "^9",
+    "prisma": "^7.9.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5"
+  }
+}

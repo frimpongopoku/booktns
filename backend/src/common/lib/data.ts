@@ -1,0 +1,335 @@
+import type {
+  Vendor,
+  Staff,
+  Service,
+  Product,
+  PaymentMethod,
+  VendorVideo,
+} from "../../types";
+
+export const vendor: Vendor = {
+  id: "v1",
+  name: "Glam by Rose",
+  slug: "glambyrose",
+  description: "Premium hair, skin, and nail services tailored for you.",
+  location: "Lekki Phase 1, Lagos",
+  hours: "Mon–Sat 9am–7pm",
+  phone: "+2348012345678",
+  whatsapp: "+2348012345678",
+  depositSetting: "None",
+  showOwnerName: false,
+  showOwnerPhone: false,
+  showOwnerEmail: false,
+  showVideoSection: true,
+  verificationStatus: "NONE",
+  suspended: false,
+  storefrontPublished: true,
+  storefrontDisplayMode: "All",
+  heroCardMode: "CoverImage",
+  heroGalleryUrls: [],
+  storefrontTheme: "Red",
+  active: true,
+  createdAt: "2024-01-15T09:00:00Z",
+};
+
+export const staff: Staff[] = [
+  {
+    id: "s1",
+    vendorId: "v1",
+    name: "Rose Adeyemi",
+    email: "rose@glambyrose.com",
+    phone: "+2348012345678",
+    role: "Owner",
+    botAccess: true,
+    active: true,
+    serviceCategories: ["Hair", "Nails", "Skin", "Lashes"],
+  },
+  {
+    id: "s2",
+    vendorId: "v1",
+    name: "Fatima Bello",
+    email: "fatima@glambyrose.com",
+    phone: "+2348023456789",
+    role: "Management",
+    botAccess: true,
+    active: true,
+    serviceCategories: ["Skin"],
+  },
+  {
+    id: "s3",
+    vendorId: "v1",
+    name: "Chioma Okafor",
+    email: "chioma@glambyrose.com",
+    phone: "+2348034567890",
+    role: "Service",
+    roleDetail: "Hair",
+    botAccess: true,
+    active: true,
+    serviceCategories: ["Hair"],
+  },
+  {
+    id: "s4",
+    vendorId: "v1",
+    name: "Kemi Adebayo",
+    email: "kemi@glambyrose.com",
+    phone: "+2348045678901",
+    role: "Service",
+    roleDetail: "Nails",
+    botAccess: false,
+    active: true,
+    serviceCategories: ["Nails"],
+  },
+];
+
+export const services: Service[] = [
+  {
+    id: "svc1",
+    vendorId: "v1",
+    name: "Knotless Braids",
+    category: "Hair",
+    durationMinutes: 270,
+    priceInPesewas: 35000,
+    description: "Long-lasting protective knotless braids in any size.",
+    active: true,
+    featured: false,
+    displayOrder: 0,
+  },
+  {
+    id: "svc2",
+    vendorId: "v1",
+    name: "Gel Manicure",
+    category: "Nails",
+    durationMinutes: 90,
+    priceInPesewas: 12000,
+    description: "Long-lasting gel polish with nail shaping and cuticle care.",
+    active: true,
+    featured: false,
+    displayOrder: 1,
+  },
+  {
+    id: "svc3",
+    vendorId: "v1",
+    name: "Facial Treatment",
+    category: "Skin",
+    durationMinutes: 60,
+    priceInPesewas: 20000,
+    description: "Deep cleansing facial with extraction and hydration mask.",
+    active: true,
+    featured: false,
+    displayOrder: 2,
+  },
+  {
+    id: "svc4",
+    vendorId: "v1",
+    name: "Lash Extensions",
+    category: "Lashes",
+    durationMinutes: 60,
+    priceInPesewas: 15000,
+    description: "Classic or volume lash extensions for a full, natural look.",
+    active: true,
+    featured: false,
+    displayOrder: 3,
+  },
+  {
+    id: "svc5",
+    vendorId: "v1",
+    name: "Pedicure",
+    category: "Nails",
+    durationMinutes: 60,
+    priceInPesewas: 10000,
+    description: "Relaxing foot soak, exfoliation, and nail polish.",
+    active: true,
+    featured: false,
+    displayOrder: 4,
+  },
+  {
+    id: "svc6",
+    vendorId: "v1",
+    name: "Twist Out",
+    category: "Hair",
+    durationMinutes: 120,
+    priceInPesewas: 18000,
+    description: "Defined twist out for natural hair.",
+    active: true,
+    featured: false,
+    displayOrder: 5,
+  },
+];
+
+export const products: Product[] = [
+  {
+    id: "p1",
+    vendorId: "v1",
+    name: "Argan Hair Oil",
+    slug: "argan-hair-oil",
+    priceInPesewas: 8500,
+    stockCount: 23,
+    lowStockThreshold: 5,
+    description: "Pure Moroccan argan oil for shine and moisture.",
+    images: [],
+    active: true,
+    featured: false,
+  },
+  {
+    id: "p2",
+    vendorId: "v1",
+    name: "Curl Defining Cream",
+    slug: "curl-defining-cream",
+    priceInPesewas: 6500,
+    stockCount: 15,
+    lowStockThreshold: 5,
+    description: "Lightweight cream for defined, frizz-free curls.",
+    images: [],
+    active: true,
+    featured: false,
+  },
+  {
+    id: "p3",
+    vendorId: "v1",
+    name: "Vitamin C Serum",
+    slug: "vitamin-c-serum",
+    priceInPesewas: 11000,
+    stockCount: 8,
+    lowStockThreshold: 5,
+    description: "Brightening serum with 15% Vitamin C complex.",
+    images: [],
+    active: true,
+    featured: false,
+  },
+  {
+    id: "p4",
+    vendorId: "v1",
+    name: "Nail Kit – Nude Set",
+    slug: "nail-kit-nude-set",
+    priceInPesewas: 4500,
+    stockCount: 30,
+    lowStockThreshold: 5,
+    description: "Complete at-home nail kit in elegant nude shades.",
+    images: [],
+    active: true,
+    featured: false,
+  },
+  {
+    id: "p5",
+    vendorId: "v1",
+    name: "Shea Butter Moisturiser",
+    slug: "shea-butter-moisturiser",
+    priceInPesewas: 5500,
+    stockCount: 5,
+    lowStockThreshold: 6,
+    description: "Rich whipped shea butter for deep skin hydration.",
+    images: [],
+    active: true,
+    featured: false,
+  },
+  {
+    id: "p6",
+    vendorId: "v1",
+    name: "Rose Water Toner",
+    slug: "rose-water-toner",
+    priceInPesewas: 7000,
+    stockCount: 12,
+    lowStockThreshold: 5,
+    description: "Balancing rose water toner for all skin types.",
+    images: [],
+    active: true,
+    featured: false,
+  },
+];
+
+export const paymentMethods: PaymentMethod[] = [
+  {
+    id: "pm1",
+    vendorId: "v1",
+    type: "momo",
+    label: "MTN MoMo",
+    accountName: "Rose Adeyemi",
+    accountNumber: "0551234567",
+    network: "MTN",
+    active: true,
+    displayOrder: 0,
+  },
+  {
+    id: "pm2",
+    vendorId: "v1",
+    type: "bank",
+    label: "GTBank",
+    accountName: "Rose Adeyemi",
+    accountNumber: "0123456789",
+    bankName: "GTBank PLC",
+    active: true,
+    displayOrder: 1,
+  },
+  {
+    id: "pm3",
+    vendorId: "v1",
+    type: "cash",
+    label: "Cash on Arrival",
+    accountName: "Rose Adeyemi",
+    active: true,
+    displayOrder: 2,
+  },
+];
+
+// Placeholder external links (dev seed data only) — real vendors paste their
+// own YouTube/Instagram/TikTok/Vimeo URLs via the dashboard.
+export const videos: VendorVideo[] = [
+  {
+    id: "vid1",
+    vendorId: "v1",
+    title: "Knotless Braids Transformation",
+    description: "Full installation from start to finish — medium-sized knotless braids.",
+    durationSeconds: 45,
+    gradientFrom: "#C0283A",
+    gradientTo: "#7A1524",
+    url: "https://www.youtube.com/watch?v=demo-knotless-braids",
+    displayOrder: 0,
+  },
+  {
+    id: "vid2",
+    vendorId: "v1",
+    title: "Studio Tour — Glam by Rose",
+    description: "A look inside our space in Lekki Phase 1.",
+    durationSeconds: 62,
+    gradientFrom: "#18181B",
+    gradientTo: "#C0283A",
+    url: "https://www.youtube.com/watch?v=demo-studio-tour",
+    displayOrder: 1,
+  },
+  {
+    id: "vid3",
+    vendorId: "v1",
+    title: "Gel Manicure Process",
+    description: "How we achieve the perfect gel finish every time.",
+    durationSeconds: 38,
+    gradientFrom: "#7A1524",
+    gradientTo: "#F08898",
+    url: "https://www.youtube.com/watch?v=demo-gel-manicure",
+    displayOrder: 2,
+  },
+];
+
+// Helper formatters
+export function formatPrice(pesewas: number): string {
+  const amount = pesewas / 100;
+  return `GH₵ ${amount.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+export function formatVideoDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (m === 0) return `${h}hr`;
+  return `${h}.${Math.round((m / 60) * 10)}hrs`;
+}
+
+export function getVendorBySlug(slug: string): Vendor | undefined {
+  if (slug === vendor.slug) return vendor;
+  return undefined;
+}

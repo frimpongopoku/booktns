@@ -7,6 +7,8 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    // The NestJS API has its own toolchain and lint config.
+    "backend/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

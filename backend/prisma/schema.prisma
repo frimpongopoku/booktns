@@ -1,0 +1,542 @@
+// Booktns data model — see functional-spec.md §10 for the conceptual model
+// this is based on, and CLAUDE.md § SEO/Auth/Data Rules for the constraints
+// (multi-tenant scoping, pesewas pricing, price snapshots, soft delete).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StaffRole {
+  Owner
+  Management
+  Service
+}
+
+enum ServiceCategory {
+  Hair
+  Nails
+  Skin
+  Lashes
+  Brows
+  Makeup
+  Barbering
+  Waxing
+  Massage
+  Other
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  completed
+  cancelled
+  rescheduled
+  no_show
+}
+
+// Denormalised onto Vendor for cheap badge reads on every storefront render.
+enum VerificationStatus {
+  NONE
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// The state of one submitted application. Distinct from VerificationStatus
+// above: that is the vendor's current standing, this is the paperwork.
+enum VerificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  new
+  processing
+  ready
+  completed
+  cancelled
+}
+
+enum PaymentMethodType {
+  momo
+  bank
+  cash
+}
+
+enum OrderDeliveryPreference {
+  Pickup
+  Delivery
+}
+
+enum DepositSetting {
+  None
+  Fixed
+  Percentage
+}
+
+// Governs how the storefront home page's service/product teaser sections
+// behave — distinct from the full /book and /shop pages, which always show
+// everything regardless of this setting.
+enum StorefrontDisplayMode {
+  All
+  FeaturedOnly
+  AllWithFeaturedHighlighted
+}
+
+// Governs what the storefront home page's right-side hero card shows.
+// CoverImage is the original single-photo behaviour; Gallery/Video are
+// vendor-opt-in. heroGalleryUrls/heroVideoId (on Vendor) are only meaningful
+// when this is set to the matching mode — the storefront falls back to
+// CoverImage rendering if the selected mode has nothing usable.
+enum HeroCardMode {
+  CoverImage
+  Gallery
+  Video
+}
+
+// Vendor-selectable storefront color theme (see lib/theme.ts for the hex
+// values behind each name). Red matches the app's original default accent —
+// picking it is a no-op. Scoped entirely to the public storefront via a
+// [data-storefront-theme] CSS override; the dashboard always stays Red
+// regardless of what a vendor picks here.
+enum StorefrontTheme {
+  Red
+  Emerald
+  Indigo
+  Orchid
+}
+
+model Vendor {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  location    String
+  hours       String
+  phone       String
+  whatsapp    String
+  coverColor  String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  // Spec §7.8-§7.11 storefront/booking settings — not editable via any UI yet,
+  // added now so that work doesn't need a follow-up migration.
+  logoUrl                String?
+  coverImageUrl          String?
+  personalWhatsappNumber String?
+  depositSetting         DepositSetting @default(None)
+  depositValue           Int?
+  cancellationPolicy     String?
+
+  // Spec §5 step 7 ("storefront goes live") — distinct from `active`, which
+  // gates the vendor account itself. A vendor explicitly publishes when ready;
+  // the storefront route 404s until then even though the account is active.
+  storefrontPublished   Boolean               @default(false)
+  storefrontDisplayMode StorefrontDisplayMode @default(All)
+
+  // Hero card mode (see HeroCardMode). heroGalleryUrls holds plain Media
+  // URLs (copied by value, same as coverImageUrl/logoUrl — no relation).
+  // heroVideoId points at one of this vendor's own VendorVideo rows, also by
+  // plain id rather than a Prisma relation — resolved against the already-
+  // fetched `videos` list at render time, so a stale/deleted id just falls
+  // back to CoverImage rendering instead of failing.
+  heroCardMode    HeroCardMode    @default(CoverImage)
+  heroGalleryUrls String[]        @default([])
+  heroVideoId     String?
+  storefrontTheme StorefrontTheme @default(Red)
+
+  // Verification (spec: trust signal on the storefront). Denormalised from
+  // the owner Staff record — Staff.verified is the truth about the person,
+  // this is the fast field every storefront render and badge check reads.
+  // Kept in sync inside a transaction; see lib/verification.ts.
+  verificationStatus VerificationStatus @default(NONE)
+  verifiedAt         DateTime?          @db.Timestamptz(3)
+
+  // Platform moderation, set only from the superadmin console. Distinct from
+  // `active` (the account) and `storefrontPublished` (the vendor's own
+  // choice). suspendedReason is an internal note shown to the vendor in
+  // their dashboard — never to shoppers.
+  suspended       Boolean   @default(false)
+  suspendedAt     DateTime? @db.Timestamptz(3)
+  suspendedReason String?
+
+  // Storefront video section (YouTube/TikTok/Instagram/Vimeo links managed
+  // at /dashboard/videos). The section is opt-out rather than opt-in: a
+  // vendor who has bothered to add videos plainly wants them shown, so the
+  // toggle exists for turning it off (seasonal promo ended, videos gone
+  // stale) rather than for switching it on. Title/subtitle are null until
+  // the vendor writes their own — the storefront falls back to defaults.
+  showVideoSection     Boolean @default(true)
+  videoSectionTitle    String?
+  videoSectionSubtitle String?
+
+  // Owner's own details, distinct from the business `phone`/`whatsapp`
+  // above (those are the shop's contact channels; these are the person who
+  // runs it). Each field carries its own visibility flag rather than one
+  // master toggle — wanting an "owned by …" credit line in public without
+  // also publishing a personal phone number is the common case, not an
+  // edge one. Hidden fields are still stored, just never sent to the
+  // storefront (see lib/vendors.ts).
+  ownerName      String?
+  ownerPhone     String?
+  ownerEmail     String?
+  showOwnerName  Boolean @default(false)
+  showOwnerPhone Boolean @default(false)
+  showOwnerEmail Boolean @default(false)
+
+  // Custom domain (spec §3.1) — vendor points their own domain at their
+  // storefront. customDomainVerified is a cache of the last live provider
+  // check: middleware trusts it directly for routing (fast path, also
+  // gated on active+storefrontPublished below), but GET /api/vendor/domain
+  // always re-verifies live against the provider rather than trusting this
+  // cached flag alone — see lib/domains/.
+  customDomain         String? @unique
+  customDomainVerified Boolean @default(false)
+
+  staff               Staff[]
+  services            Service[]
+  products            Product[]
+  bookings            Booking[]
+  orders              Order[]
+  paymentMethods      PaymentMethod[]
+  videos              VendorVideo[]
+  businessHours       BusinessHours[]
+  media               Media[]
+  supportMessages     SupportMessage[]
+  verificationRequest VerificationRequest?
+}
+
+model Staff {
+  id                String            @id @default(cuid())
+  vendorId          String
+  vendor            Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name              String
+  // NOT globally unique: one person can be staff at several vendors (a
+  // stylist working two salons, an owner running two shops). Identity is
+  // the email; the membership is (vendor, email). Sign-in looks up every
+  // row matching the Google account and lets the person pick — see
+  // lib/memberships.ts.
+  email             String
+  phone             String?
+  role              StaffRole
+  roleDetail        String?
+  botAccess         Boolean           @default(false)
+  active            Boolean           @default(true)
+  serviceCategories ServiceCategory[]
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
+
+  bookingPreferences Booking[]        @relation("BookingStaffPreference")
+  bookingAssignments Booking[]        @relation("BookingAssignedStaff")
+  supportMessages    SupportMessage[]
+
+  // Verification attaches to the *person*, not the shop — one owner can run
+  // several vendors and shouldn't photograph their ID once per shop. This is
+  // the source of truth; Vendor.verificationStatus is the denormalised copy.
+  verified   Boolean   @default(false)
+  verifiedAt DateTime? @db.Timestamptz(3)
+
+  // One membership per person per vendor — the same email can't be added
+  // to the same shop twice, but can exist at many shops.
+  @@unique([vendorId, email])
+  @@index([vendorId])
+  @@index([email])
+}
+
+model Service {
+  id              String          @id @default(cuid())
+  vendorId        String
+  vendor          Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name            String
+  category        ServiceCategory
+  durationMinutes Int
+  priceInPesewas  Int
+  description     String?
+  active          Boolean         @default(true)
+  featured        Boolean         @default(false)
+  displayOrder    Int             @default(0)
+
+  bookingServices BookingService[]
+
+  @@index([vendorId])
+}
+
+model Product {
+  id                String  @id @default(cuid())
+  vendorId          String
+  vendor            Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name              String
+  slug              String
+  priceInPesewas    Int
+  stockCount        Int
+  lowStockThreshold Int
+  description       String?
+  active            Boolean @default(true)
+  featured          Boolean @default(false)
+
+  images          ProductImage[]
+  orderItems      OrderItem[]
+  bookingProducts BookingProduct[]
+
+  @@unique([vendorId, slug])
+  @@index([vendorId])
+}
+
+// Spec §7.6 — up to 5 images per product, ordered for display. Replaces the
+// old single Product.imageUrl field.
+model ProductImage {
+  id           String  @id @default(cuid())
+  productId    String
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url          String
+  displayOrder Int     @default(0)
+
+  @@index([productId])
+}
+
+model Booking {
+  id                   String         @id @default(cuid())
+  vendorId             String
+  vendor               Vendor         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  slug                 String         @unique
+  customerName         String
+  customerPhone        String
+  customerEmail        String
+  staffPreferenceId    String?
+  staffPreference      Staff?         @relation("BookingStaffPreference", fields: [staffPreferenceId], references: [id], onDelete: SetNull)
+  assignedStaffId      String?
+  assignedStaff        Staff?         @relation("BookingAssignedStaff", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  startTime            DateTime       @db.Timestamptz(3)
+  endTime              DateTime       @db.Timestamptz(3)
+  status               BookingStatus  @default(pending)
+  notes                String         @default("")
+  depositAmountPesewas Int            @default(0)
+  // Only set when depositAmountPesewas > 0 — a short human-typed reference
+  // for manual bank/mobile-money payments so vendors can cross-reference.
+  // Not a security token; uniqueness is scoped per vendor since that's the
+  // only place two deposits could ever be confused with each other.
+  depositReferenceCode String?
+  paymentMethodId      String?
+  paymentMethod        PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  confirmedPdfUrl      String?
+  seenByVendorAt       DateTime?      @db.Timestamptz(3)
+  createdAt            DateTime       @default(now()) @db.Timestamptz(3)
+
+  services BookingService[]
+  products BookingProduct[]
+
+  @@unique([vendorId, depositReferenceCode])
+  @@index([vendorId])
+}
+
+model BookingService {
+  id              String   @id @default(cuid())
+  bookingId       String
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  serviceId       String?
+  service         Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  name            String
+  priceAtBooking  Int
+  durationMinutes Int
+
+  @@index([bookingId])
+}
+
+// Mirrors OrderItem's snapshot pattern — products the customer flagged
+// interest in during booking (spec §6.3 step 4), not a real purchase/order.
+model BookingProduct {
+  id             String   @id @default(cuid())
+  bookingId      String
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name           String
+  priceAtBooking Int
+  quantity       Int
+
+  @@index([bookingId])
+}
+
+model Order {
+  id                 String                  @id @default(cuid())
+  vendorId           String
+  vendor             Vendor                  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  slug               String                  @unique
+  ref                String                  @unique
+  customerName       String
+  customerPhone      String
+  notes              String                  @default("")
+  deliveryPreference OrderDeliveryPreference @default(Pickup)
+  paymentMethodId    String?
+  paymentMethod      PaymentMethod?          @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  totalPesewas       Int
+  status             OrderStatus             @default(new)
+  // Generated lazily on the first download request rather than at checkout
+  // (see app/api/orders/by-slug/[slug]/pdf) — the customer is on the
+  // confirmation page the instant the order exists, so a background job
+  // would race the page. Cached here after the first generation.
+  confirmationPdfUrl String?
+  seenByVendorAt     DateTime?               @db.Timestamptz(3)
+  createdAt          DateTime                @default(now()) @db.Timestamptz(3)
+
+  items OrderItem[]
+
+  @@index([vendorId])
+  @@index([paymentMethodId])
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name          String
+  priceSnapshot Int
+  quantity      Int
+
+  @@index([orderId])
+}
+
+model PaymentMethod {
+  id            String            @id @default(cuid())
+  vendorId      String
+  vendor        Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  type          PaymentMethodType
+  label         String
+  accountName   String
+  accountNumber String?
+  bankName      String?
+  network       String?
+  active        Boolean           @default(true)
+  displayOrder  Int               @default(0)
+
+  orders   Order[]
+  bookings Booking[]
+
+  @@index([vendorId])
+}
+
+// Spec §7.10 — one row per day of week (0=Sun..6=Sat). openTime/closeTime are
+// null when isClosed is true. Vendor.hours (free-text) stays for now as the
+// storefront fallback display until that's swapped to read structured hours.
+model BusinessHours {
+  id        String  @id @default(cuid())
+  vendorId  String
+  vendor    Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  dayOfWeek Int
+  isClosed  Boolean @default(false)
+  openTime  String?
+  closeTime String?
+
+  @@unique([vendorId, dayOfWeek])
+  @@index([vendorId])
+}
+
+// Vendor's media library (Cloudflare R2-backed) — every file a vendor uploads
+// lands here regardless of what it's used for, so it can be reused across
+// products/services rather than re-uploaded each time.
+model Media {
+  id          String   @id @default(cuid())
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  url         String
+  filename    String
+  contentType String
+  sizeBytes   Int
+  tags        String[] @default([])
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([vendorId])
+}
+
+// Not part of the functional spec's data model — a UI-only storefront feature
+// already built into app/[slug]/page.tsx. Persisted so it doesn't regress once
+// lib/data.ts is retired. Videos are external links (YouTube/Instagram/TikTok/
+// Vimeo etc.) rather than self-hosted files — url is the whole point of an
+// entry. gradientFrom/gradientTo are auto-assigned server-side from a preset
+// palette, not vendor-configurable.
+model VendorVideo {
+  id              String  @id @default(cuid())
+  vendorId        String
+  vendor          Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  durationSeconds Int?
+  gradientFrom    String
+  gradientTo      String
+  url             String
+  // Resolved server-side via the platform's public oEmbed API at
+  // create/update time (YouTube/TikTok/Vimeo). Null when the platform has no
+  // public oEmbed (Instagram) or resolution failed — falls back to the
+  // gradient+play-button card design.
+  thumbnailUrl    String?
+  displayOrder    Int     @default(0)
+
+  @@index([vendorId])
+}
+
+// A vendor's staff reaching the Booktns platform team for help — distinct
+// from the (parked) vendor-to-customer WhatsApp channel. staffId is
+// SetNull rather than required so the message survives if the staff
+// account is later removed.
+model SupportMessage {
+  id        String   @id @default(cuid())
+  vendorId  String
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  staffId   String?
+  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  subject   String
+  message   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([vendorId])
+}
+
+// Platform administrators. A separate table is deliberately the ONLY way in:
+// there is no signup route, no "request access", and no role flag on Staff
+// that some other code path could flip to escalate someone to platform admin.
+// Sign-in verifies a Google token, looks the email up here, and issues no
+// session at all if it isn't present.
+//
+// The first row is created by `npm run bootstrap:superadmin`, NOT by the
+// seed — bootstrapping the first admin isn't optional demo data, it's the
+// only way anyone ever gets in. Everyone after that is invited from the
+// console.
+model SuperAdmin {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  name       String?
+  invitedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  acceptedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+}
+
+model VerificationRequest {
+  id       String @id @default(cuid())
+  // One application row per vendor. A rejected vendor resubmits by
+  // overwriting this row, so there is always exactly one *current*
+  // application and no ambiguity about which one a reviewer is looking at.
+  vendorId String @unique
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  legalName       String
+  ghanaCardNumber String
+  // Opaque storage keys, never URLs. Nothing in the schema or in any API
+  // response can be pasted into a browser — see lib/private-storage.ts.
+  idPhotoKey      String
+  selfiePhotoKey  String?
+
+  status                 VerificationRequestStatus @default(PENDING)
+  rejectionReason        String?
+  reviewedBySuperAdminId String?
+  reviewedAt             DateTime?                 @db.Timestamptz(3)
+  submittedAt            DateTime                  @default(now()) @db.Timestamptz(3)
+
+  @@index([status])
+}

@@ -86,7 +86,13 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
   const subtotal = order.items.reduce((s, item) => s + item.priceSnapshot * item.quantity, 0);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
+    // Same vendor accent scope as the storefront and the booking
+    // confirmation — see app/[slug]/layout.tsx.
+    <div
+      data-storefront-theme={order.vendor.storefrontTheme}
+      className="min-h-screen flex flex-col"
+      style={{ background: "var(--bg)" }}
+    >
       {/* Header */}
       <div
         className="px-4 py-4 flex items-center justify-center"

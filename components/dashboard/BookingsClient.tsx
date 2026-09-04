@@ -545,24 +545,55 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug, ven
   // side of the boundary in each pass, which is a hydration mismatch.
   const nowMs = new Date(now).getTime();
 
-  const filtered = bookingList
-    .filter((b) => {
-      const matchesSearch =
-        b.customerName.toLowerCase().includes(search.toLowerCase()) ||
-        b.services.some((s) => s.name.toLowerCase().includes(search.toLowerCase()));
-      const matchesStatus = statusFilter === "all" || b.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    })
-    // .filter() already returned a fresh array, so sorting in place here
-    // doesn't mutate bookingList.
-    .sort((a, b) => {
-      const aTime = new Date(a.startTime).getTime();
-      const bTime = new Date(b.startTime).getTime();
-      const aUpcoming = aTime >= nowMs;
-      const bUpcoming = bTime >= nowMs;
-      if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
-      return aUpcoming ? aTime - bTime : bTime - aTime;
-    });
+  const filtered = bookingList.filter((b) => {
+    const matchesSearch =
+      b.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      b.services.some((s) => s.name.toLowerCase().includes(search.toLowerCase()));
+    const matchesStatus = statusFilter === "all" || b.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Three groups, because they are three different jobs, not one list with a
+  // status column. A pending request is work the vendor owes someone an
+  // answer on; a confirmed upcoming booking is something to prepare for; a
+  // past one is a record. Sorting them into one chronological run buried the
+  // requests — the only group that is actually urgent — among appointments
+  // needing no action at all.
+  //
+  // A pending request is grouped by what it *is*, not when it is: one for
+  // next month still needs answering today, so it belongs at the top rather
+  // than sorted below tomorrow's confirmed booking.
+  const byTimeAsc = (a: Booking, b: Booking) =>
+    new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+  const byTimeDesc = (a: Booking, b: Booking) =>
+    new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+
+  const isPast = (b: Booking) => new Date(b.startTime).getTime() < nowMs;
+
+  // "Finished" statuses are records regardless of date — a booking cancelled
+  // this morning for next week is history, not something to prepare for.
+  const isSettled = (b: Booking) =>
+    b.status === "completed" || b.status === "cancelled" || b.status === "no_show";
+
+  const needsAnswer = filtered.filter((b) => b.status === "pending").sort(byTimeAsc);
+  const upcoming = filtered
+    .filter((b) => b.status !== "pending" && !isSettled(b) && !isPast(b))
+    .sort(byTimeAsc);
+  const past = filtered
+    .filter((b) => b.status !== "pending" && (isSettled(b) || isPast(b)))
+    .sort(byTimeDesc);
+
+  const groups: { key: string; title: string; hint: string; items: Booking[]; urgent?: boolean }[] = [
+    {
+      key: "needs-answer",
+      title: "Needs your answer",
+      hint: "Customers waiting on you to confirm or decline",
+      items: needsAnswer,
+      urgent: true,
+    },
+    { key: "upcoming", title: "Coming up", hint: "Confirmed and on the way", items: upcoming },
+    { key: "past", title: "Past", hint: "Completed, cancelled and no-shows", items: past },
+  ].filter((g) => g.items.length > 0);
 
   return (
     <div>
@@ -626,51 +657,86 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug, ven
             </select>
           </div>
 
-          {/* Table */}
-          <div className="rounded-[var(--rl)] overflow-hidden" style={{ border: "1px solid var(--bds)" }}>
+          {groups.length === 0 ? (
             <div
-              className="hidden md:grid grid-cols-[1fr_2fr_1fr_1fr_auto] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wide"
-              style={{ background: "var(--bg2)", color: "var(--tx3)" }}
+              className="py-16 text-center rounded-[var(--rl)]"
+              style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
             >
-              <span>Time</span>
-              <span>Customer & Service</span>
-              <span>Staff</span>
-              <span>Status</span>
-              <span />
+              <p className="text-sm" style={{ color: "var(--tx3)" }}>No bookings match your search</p>
             </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {groups.map((group) => (
+                <div key={group.key}>
+                  <div className="flex items-baseline gap-2 mb-2 px-1">
+                    <h3 className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
+                      {group.title}
+                    </h3>
+                    <span
+                      className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+                      style={
+                        group.urgent
+                          ? { background: "var(--amber-bg)", color: "var(--amber)" }
+                          : { background: "var(--bg3)", color: "var(--tx3)" }
+                      }
+                    >
+                      {group.items.length}
+                    </span>
+                    <span className="text-xs truncate" style={{ color: "var(--tx3)" }}>
+                      {group.hint}
+                    </span>
+                  </div>
 
-            {filtered.length === 0 ? (
-              <div className="py-16 text-center" style={{ background: "var(--bg2)" }}>
-                <p className="text-sm" style={{ color: "var(--tx3)" }}>No bookings match your search</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-0.5 p-2" style={{ background: "var(--bg)" }}>
-                {filtered.map((booking) => (
-                  <button
-                    key={booking.id}
-                    className="w-full grid md:grid-cols-[1fr_2fr_1fr_1fr_auto] gap-2 md:gap-4 px-3 py-3 text-left rounded-lg hover:bg-[var(--bg2)] transition-colors items-center"
-                    onClick={() => setSelectedBookingId(booking.id)}
+                  <div
+                    className="rounded-[var(--rl)] overflow-hidden"
+                    style={{
+                      // The one group that needs acting on gets a coloured
+                      // edge, so it reads as urgent at a glance rather than
+                      // being three identical panels.
+                      border: group.urgent ? "1px solid var(--amber)" : "1px solid var(--bds)",
+                    }}
                   >
-                    <div>
-                      <p className="text-xs font-medium" style={{ color: "var(--tx3)" }}>{formatDate(booking.startTime)}</p>
-                      <p className="text-sm font-semibold" style={{ color: "var(--tx)" }}>{formatTime(booking.startTime)}</p>
+                    <div
+                      className="hidden md:grid grid-cols-[1fr_2fr_1fr_1fr_auto] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wide"
+                      style={{ background: "var(--bg2)", color: "var(--tx3)" }}
+                    >
+                      <span>Time</span>
+                      <span>Customer &amp; Service</span>
+                      <span>Staff</span>
+                      <span>Status</span>
+                      <span />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>{booking.customerName}</p>
-                      <p className="text-xs truncate" style={{ color: "var(--tx3)" }}>
-                        {booking.services.map((s) => s.name).join(" + ")}
+
+                    <div className="flex flex-col gap-0.5 p-2" style={{ background: "var(--bg)" }}>
+                      {group.items.map((booking) => (
+                    <button
+                      key={booking.id}
+                      className="w-full grid md:grid-cols-[1fr_2fr_1fr_1fr_auto] gap-2 md:gap-4 px-3 py-3 text-left rounded-lg hover:bg-[var(--bg2)] transition-colors items-center"
+                      onClick={() => setSelectedBookingId(booking.id)}
+                    >
+                      <div>
+                        <p className="text-xs font-medium" style={{ color: "var(--tx3)" }}>{formatDate(booking.startTime)}</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--tx)" }}>{formatTime(booking.startTime)}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>{booking.customerName}</p>
+                        <p className="text-xs truncate" style={{ color: "var(--tx3)" }}>
+                          {booking.services.map((s) => s.name).join(" + ")}
+                        </p>
+                      </div>
+                      <p className="text-sm hidden md:block" style={{ color: "var(--tx2)" }}>
+                        {booking.assignedStaffName ?? "Unassigned"}
                       </p>
+                      <div className="hidden md:flex">{bookingStatusBadge(booking.status)}</div>
+                      <ChevronRight size={16} style={{ color: "var(--tx3)" }} className="hidden md:block" />
+                    </button>
+                      ))}
                     </div>
-                    <p className="text-sm hidden md:block" style={{ color: "var(--tx2)" }}>
-                      {booking.assignedStaffName ?? "Unassigned"}
-                    </p>
-                    <div className="hidden md:flex">{bookingStatusBadge(booking.status)}</div>
-                    <ChevronRight size={16} style={{ color: "var(--tx3)" }} className="hidden md:block" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 

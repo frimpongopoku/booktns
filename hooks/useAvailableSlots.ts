@@ -38,6 +38,14 @@ export function useAvailableSlots({
     }
 
     let cancelled = false;
+
+    // Deliberately does NOT clear `slots` here. Every dependency change —
+    // toggling a service changes durationMinutes, picking a stylist changes
+    // staffId — used to blank the list and swap the panel to a loading
+    // message, so the times visibly disappeared and came back on almost
+    // every click. Keeping the previous results on screen while the new
+    // ones load makes the panel hold its height and stops the flicker;
+    // callers dim the stale list via `loading` rather than removing it.
     setLoading(true);
 
     const params = new URLSearchParams({ vendorSlug, date, durationMinutes: String(durationMinutes) });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,6 +11,7 @@ import {
   User,
   Minus,
   Plus,
+  ShoppingBag,
 } from "lucide-react";
 import { formatPrice, formatDuration } from "@/lib/data";
 import { calculateDepositAmountPesewas } from "@/lib/deposit";
@@ -123,8 +124,12 @@ export default function BookingFlow({
   // validates availability against.
   const now = new Date();
   const todayUTCStr = `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())}`;
-  const [calMonth, setCalMonth] = useState(now.getUTCMonth());
-  const [calYear, setCalYear] = useState(now.getUTCFullYear());
+  // One piece of state, not two. Stepping from January to December has to
+  // change month and year together; as separate setState calls it was a pair
+  // of updates that could render an impossible month/year combination in
+  // between, which is what made the grid jump.
+  const [cal, setCal] = useState({ year: now.getUTCFullYear(), month: now.getUTCMonth() });
+  const { year: calYear, month: calMonth } = cal;
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
@@ -151,7 +156,10 @@ export default function BookingFlow({
 
   const depositAmountPesewas = calculateDepositAmountPesewas(depositSetting, depositValue, totalServiceCost);
 
-  const calDays = generateCalendarDays(calYear, calMonth);
+  // Memoised: this rebuilt on every render, so typing a name or bumping a
+  // product quantity re-created the whole day grid and made the calendar
+  // visibly churn.
+  const calDays = useMemo(() => generateCalendarDays(calYear, calMonth), [calYear, calMonth]);
   const monthName = new Date(calYear, calMonth, 1).toLocaleString("default", { month: "long" });
   const selectedDateStr = selectedDay ? `${calYear}-${pad2(calMonth + 1)}-${pad2(selectedDay)}` : null;
   const isPastDay = (day: number) => {
@@ -292,7 +300,7 @@ export default function BookingFlow({
         className="sticky top-0 z-30 px-4 py-3"
         style={{ background: "var(--bg)", borderBottom: "1px solid var(--bd)" }}
       >
-        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
+        <div className="w-full max-w-2xl lg:max-w-5xl mx-auto">
           <Link href={storefrontHref(slug, isCustomDomain)} className="flex items-center gap-2 mb-3 group">
             {vendorLogoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -348,8 +356,13 @@ export default function BookingFlow({
       </div>
 
       {/* Content */}
-      <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto px-4 py-6">
-        <div className={step < 5 ? "md:grid md:grid-cols-[1fr_320px] md:gap-8 md:items-start" : ""}>
+      <div className="w-full max-w-2xl lg:max-w-5xl mx-auto px-4 py-6">
+        {/* minmax(0,1fr), not 1fr. A grid column defaults to min-width:auto,
+            so the time-slot grid and service cards could force the column
+            wider than its share and push the whole page into horizontal
+            overflow. Also moved from md to lg: at exactly 768px a 320px
+            sidebar left the main column too narrow to use. */}
+        <div className={step < 5 ? "lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start" : ""}>
         <div>
         {/* Step 0: Select Services */}
         {step === 0 && (
@@ -489,8 +502,7 @@ export default function BookingFlow({
             <div className="flex items-center justify-between mb-3">
               <button
                 onClick={() => {
-                  if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
-                  else setCalMonth(m => m - 1);
+                  setCal((c) => (c.month === 0 ? { year: c.year - 1, month: 11 } : { ...c, month: c.month - 1 }));
                 }}
                 className="p-1.5 rounded-full hover:bg-[var(--bg3)] transition-colors"
                 style={{ color: "var(--tx2)" }}
@@ -502,8 +514,7 @@ export default function BookingFlow({
               </p>
               <button
                 onClick={() => {
-                  if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
-                  else setCalMonth(m => m + 1);
+                  setCal((c) => (c.month === 11 ? { year: c.year + 1, month: 0 } : { ...c, month: c.month + 1 }));
                 }}
                 className="p-1.5 rounded-full hover:bg-[var(--bg3)] transition-colors"
                 style={{ color: "var(--tx2)" }}
@@ -524,12 +535,16 @@ export default function BookingFlow({
             {/* Days */}
             <div className="grid grid-cols-7 gap-1 md:gap-2 mb-6">
               {calDays.map((day, i) => {
-                if (day === null) return <div key={`empty-${i}`} />;
+                // Keyed by the actual date, not the day number. With bare
+                // day numbers the cells kept their identity across a month
+                // change while the leading blanks shifted, so React reused
+                // the wrong DOM nodes and the grid visibly reshuffled.
+                if (day === null) return <div key={`${calYear}-${calMonth}-blank-${i}`} />;
                 const blocked = isPastDay(day);
                 const selected = selectedDay === day;
                 return (
                   <button
-                    key={day}
+                    key={`${calYear}-${calMonth}-${day}`}
                     onClick={() => !blocked && setSelectedDay(day)}
                     className="aspect-square flex items-center justify-center text-sm md:text-base rounded-[var(--r)] transition-all"
                     disabled={blocked}
@@ -553,14 +568,25 @@ export default function BookingFlow({
                 <p className="text-sm font-semibold mb-3" style={{ color: "var(--tx)" }}>
                   Available times on {monthName} {selectedDay}
                 </p>
-                {loadingSlots ? (
+                {/* Only a full swap when there is genuinely nothing to show
+                    yet. Once slots are on screen a refetch dims them in
+                    place (below) instead of replacing the panel, so the
+                    layout doesn't jump every time a service is toggled. */}
+                {loadingSlots && availableSlots.length === 0 ? (
                   <p className="text-sm py-6 text-center" style={{ color: "var(--tx3)" }}>Checking availability…</p>
                 ) : availableSlots.length === 0 ? (
                   <p className="text-sm py-6 text-center" style={{ color: "var(--tx3)" }}>
                     No times available this day — try another date.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                  <div
+                    className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 transition-opacity"
+                    // Stale results stay in place, dimmed and inert, while
+                    // the new ones load — the panel keeps its height instead
+                    // of collapsing and re-expanding on every click.
+                    style={{ opacity: loadingSlots ? 0.45 : 1, pointerEvents: loadingSlots ? "none" : undefined }}
+                    aria-busy={loadingSlots}
+                  >
                     {availableSlots.map((slot) => {
                       const selected = selectedTime === slot;
                       return (
@@ -606,10 +632,19 @@ export default function BookingFlow({
                       border: `1px solid ${qty > 0 ? "var(--ac)" : "var(--bds)"}`,
                     }}
                   >
+                    {/* Was a hardcoded empty grey box — the image data was
+                        being passed in and thrown away. */}
                     <div
-                      className="w-10 h-10 rounded-lg flex-shrink-0"
+                      className="w-10 h-10 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center"
                       style={{ background: "var(--bg3)" }}
-                    />
+                    >
+                      {p.images[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.images[0].url} alt="" className="w-full h-full object-cover object-top" />
+                      ) : (
+                        <ShoppingBag size={15} style={{ color: "var(--tx3)" }} />
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>
                         {p.name}
@@ -838,7 +873,7 @@ export default function BookingFlow({
           paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
+        <div className="w-full max-w-2xl lg:max-w-5xl mx-auto">
           {step === 0 && selectedServices.length > 0 && (
             <p className="text-xs text-center mb-2" style={{ color: "var(--tx3)" }}>
               {selectedServices.length} service{selectedServices.length > 1 ? "s" : ""} · Total{" "}

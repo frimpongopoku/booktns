@@ -76,7 +76,10 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (data.ok) {
-        router.push("/dashboard");
+        // replace, not push: /login should not sit in history behind the
+        // dashboard, or Back lands on a page that immediately redirects.
+        router.replace("/dashboard");
+        router.refresh();
         return;
       }
 

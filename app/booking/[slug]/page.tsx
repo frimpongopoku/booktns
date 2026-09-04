@@ -106,7 +106,16 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
   });
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
+    // data-storefront-theme scopes the vendor's chosen accent colour, the
+    // same mechanism app/[slug]/layout.tsx applies to the storefront itself.
+    // This page sits outside that route group, so it had no wrapper and
+    // always rendered in the default red regardless of the vendor's theme —
+    // jarring right after a storefront in, say, Emerald.
+    <div
+      data-storefront-theme={booking.vendor.storefrontTheme}
+      className="min-h-screen flex flex-col"
+      style={{ background: "var(--bg)" }}
+    >
       {/* Header */}
       {/* The vendor's own identity, not the Booktns wordmark — this page is
           the customer's record of a booking with *them*. */}

@@ -2,16 +2,12 @@
 
 import { useState } from "react";
 import { formatPrice } from "@/lib/data";
+import { apiBrowser, apiUrl, ApiError } from "@/lib/api-client";
 import type { Order, OrderStatus } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
 import { orderStatusBadge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { X, ChevronRight, Calendar, Hash, Copy, Download } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -217,7 +213,7 @@ function OrderDrawer({ order, onClose, onStatusChange, updatingStatus }: OrderDr
               it builds the PDF on first request, so the vendor can pull a
               copy even if the customer never downloaded theirs. */}
           <a
-            href={`/api/orders/by-slug/${order.slug}/pdf`}
+            href={apiUrl(`/orders/by-slug/${order.slug}/pdf`)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center gap-1.5 h-8 px-3 text-xs font-medium rounded-[var(--r)]"
@@ -246,21 +242,11 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
     setUpdatingStatus(true);
     setError(null);
     try {
-      const res = await fetch(`/api/orders/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(body?.error ?? "Something went wrong. Please try again.");
-        return;
-      }
-      const { order: updated } = (await res.json()) as { order: Order };
+      const { order: updated } = await apiBrowser<{ order: Order }>(`/orders/${id}`, { method: "PATCH", body: { status } });
       setOrderList((prev) => prev.map((o) => (o.id === id ? updated : o)));
       setSelectedOrder((prev) => (prev && prev.id === id ? updated : prev));
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
     } finally {
       setUpdatingStatus(false);
     }

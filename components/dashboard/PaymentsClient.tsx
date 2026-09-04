@@ -2,16 +2,12 @@
 
 import { useState } from "react";
 import type { PaymentMethod, PaymentMethodType } from "@/types";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import Topbar from "@/components/dashboard/Topbar";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { CreditCard, Smartphone, Banknote, Plus, Archive, X } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 // Lifted out of the Settings tab strip and given its own dashboard route.
 // Being paid is a standing job a vendor comes back to, not a setting they
@@ -57,24 +53,14 @@ function PaymentMethodModal({ method, onClose, onSaved }: PaymentMethodModalProp
     };
 
     try {
-      const res = await fetch(method ? `/api/payment-methods/${method.id}` : "/api/payment-methods", {
-        method: method ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errBody?.error ?? "Something went wrong. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      const { paymentMethod: saved } = (await res.json()) as { paymentMethod: PaymentMethod };
+      const { paymentMethod: saved } = await apiBrowser<{ paymentMethod: PaymentMethod }>(
+        method ? `/payment-methods/${method.id}` : "/payment-methods",
+        { method: method ? "PATCH" : "POST", body },
+      );
       onSaved(saved);
       close();
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setLoading(false);
     }
   };
@@ -172,14 +158,10 @@ export default function PaymentsClient({ initialPaymentMethods }: PaymentsClient
     setArchivingId(pm.id);
     setError(null);
     try {
-      const res = await fetch(`/api/payment-methods/${pm.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(errBody?.error ?? `Couldn't remove "${pm.label}". Please try again.`);
-      }
+      await apiBrowser(`/payment-methods/${pm.id}`, { method: "DELETE" });
       setMethods((prev) => prev.map((m) => (m.id === pm.id ? { ...m, active: false } : m)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Couldn't remove "${pm.label}". Please try again.`);
+      setError(err instanceof ApiError ? err.message : `Couldn't remove "${pm.label}". Please try again.`);
     } finally {
       setArchivingId(null);
       setArchiving(null);

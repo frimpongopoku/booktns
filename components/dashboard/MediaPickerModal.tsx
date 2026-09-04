@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { Media } from "@/types";
+import { apiBrowser } from "@/lib/api-client";
 import Button from "@/components/ui/Button";
 import MediaUploadModal from "@/components/dashboard/MediaUploadModal";
 import { X, Upload, ImageOff, Check, Search } from "lucide-react";
@@ -30,9 +31,11 @@ export default function MediaPickerModal({ selectedUrls, maxSelectable, onClose,
     const params = new URLSearchParams();
     if (query) params.set("search", query);
     if (cursor) params.set("cursor", cursor);
-    const res = await fetch(`/api/media?${params.toString()}`);
-    if (!res.ok) return null;
-    return (await res.json()) as { media: Media[]; nextCursor: string | null };
+    try {
+      return await apiBrowser<{ media: Media[]; nextCursor: string | null }>(`/media?${params.toString()}`);
+    } catch {
+      return null;
+    }
   }, []);
 
   useEffect(() => {

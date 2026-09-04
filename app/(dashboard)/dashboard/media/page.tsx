@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { serializeMedia } from "@/lib/serialize";
+import { apiServer } from "@/lib/api-client.server";
 import MediaClient from "@/components/dashboard/MediaClient";
+import type { Media } from "@/types";
 
 export default async function MediaPage() {
   const session = await getSession();
@@ -22,18 +22,7 @@ export default async function MediaPage() {
     );
   }
 
-  // Keep in sync with PAGE_SIZE in app/api/media/route.ts — this is the same
-  // first page the client would get from GET /api/media, fetched directly to
-  // avoid a redundant round-trip on initial page load.
-  const PAGE_SIZE = 24;
-  const page = await db.media.findMany({
-    where: { vendorId: session.vendorId },
-    orderBy: { createdAt: "desc" },
-    take: PAGE_SIZE + 1,
-  });
-  const hasMore = page.length > PAGE_SIZE;
-  const media = page.slice(0, PAGE_SIZE);
-  const nextCursor = hasMore ? media[media.length - 1].id : null;
+  const { media, nextCursor } = await apiServer<{ media: Media[]; nextCursor: string | null }>("/media");
 
-  return <MediaClient initialMedia={media.map(serializeMedia)} initialNextCursor={nextCursor} />;
+  return <MediaClient initialMedia={media} initialNextCursor={nextCursor} />;
 }

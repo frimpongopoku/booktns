@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatPrice } from "@/lib/data";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import { buildGoogleCalendarUrl } from "@/lib/calendar";
 import { useAvailableSlots } from "@/hooks/useAvailableSlots";
 import type { Booking, BookingStatus, Staff } from "@/types";
@@ -26,11 +27,6 @@ import {
   CheckCheck,
   UserX,
 } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -510,21 +506,14 @@ export default function BookingsClient({ initialBookings, staff, vendorSlug, ven
   const updateBooking = async (id: string, patch: Record<string, unknown>): Promise<Booking | null> => {
     setError(null);
     try {
-      const res = await fetch(`/api/bookings/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(body?.error ?? "Something went wrong. Please try again.");
-        return null;
-      }
-      const { booking } = (await res.json()) as { booking: Booking };
+      // Through the BFF proxy (/api/admin -> NestJS PATCH /bookings/:id) —
+      // see lib/api-client.ts for why browser code never calls the API host
+      // directly for anything authenticated.
+      const { booking } = await apiBrowser<{ booking: Booking }>(`/bookings/${id}`, { method: "PATCH", body: patch });
       setBookingList((prev) => prev.map((b) => (b.id === id ? booking : b)));
       return booking;
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       return null;
     }
   };

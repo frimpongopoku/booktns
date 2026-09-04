@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatPrice } from "@/lib/data";
+import { apiPublic, ApiError } from "@/lib/api-client";
 import { getCart, setCart as persistCart, clearCart } from "@/lib/cart";
 import { captureEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
 import type { Product, CartItem, PaymentMethod, OrderDeliveryPreference } from "@/types";
@@ -15,11 +16,6 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Input";
 import { storefrontHref } from "@/lib/storefront-links";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 interface ShopClientProps {
   slug: string;
@@ -135,10 +131,12 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
     setError(null);
 
     try {
-      const res = await fetch("/api/orders", {
+      // Guest checkout — public and unauthenticated — goes straight to the
+      // NestJS API rather than through the BFF proxy, which exists to
+      // attach a session this request doesn't have.
+      const { order } = await apiPublic<{ order: { slug: string } }>("/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           vendorSlug: slug,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
@@ -146,17 +144,8 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
           paymentMethodId: paymentMethodId ?? undefined,
           deliveryPreference,
           notes: notes.trim() || undefined,
-        }),
+        },
       });
-
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(body?.error ?? "Something went wrong. Please try again.");
-        setSubmitting(false);
-        return;
-      }
-
-      const { order } = (await res.json()) as { order: { slug: string } };
 
       // Cart shape only — never the customer's name or phone number.
       captureEvent(ANALYTICS_EVENTS.orderSubmitted, {
@@ -170,8 +159,8 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
       clearCart(slug);
       setCart([]);
       router.push(`/order/${order.slug}`);
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setSubmitting(false);
     }
   };

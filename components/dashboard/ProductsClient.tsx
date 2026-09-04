@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatPrice } from "@/lib/data";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import type { Product } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
 import Badge from "@/components/ui/Badge";
@@ -17,11 +18,6 @@ function getStockBadge(p: Product) {
   if (p.stockCount === 0) return <Badge variant="out">Out of stock</Badge>;
   if (p.stockCount <= p.lowStockThreshold) return <Badge variant="low">Low stock</Badge>;
   return <Badge variant="active">{p.stockCount} in stock</Badge>;
-}
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
 }
 
 interface ProductModalProps {
@@ -60,24 +56,14 @@ function ProductModal({ product, onClose, onSaved }: ProductModalProps) {
     };
 
     try {
-      const res = await fetch(product ? `/api/products/${product.id}` : "/api/products", {
-        method: product ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errBody?.error ?? "Something went wrong. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      const { product: saved } = (await res.json()) as { product: Product };
+      const { product: saved } = await apiBrowser<{ product: Product }>(
+        product ? `/products/${product.id}` : "/products",
+        { method: product ? "PATCH" : "POST", body },
+      );
       onSaved(saved);
       close();
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setLoading(false);
     }
   };
@@ -233,9 +219,11 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
     const params = new URLSearchParams();
     if (query) params.set("search", query);
     if (cursor) params.set("cursor", cursor);
-    const res = await fetch(`/api/products?${params.toString()}`);
-    if (!res.ok) return null;
-    return (await res.json()) as { products: Product[]; nextCursor: string | null };
+    try {
+      return await apiBrowser<{ products: Product[]; nextCursor: string | null }>(`/products?${params.toString()}`);
+    } catch {
+      return null;
+    }
   }, []);
 
   // Debounced search — re-fetches page one from scratch whenever the query changes.
@@ -295,12 +283,13 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
   const handleArchive = async (product: Product) => {
     setArchivingId(product.id);
     try {
-      const res = await fetch(`/api/products/${product.id}`, { method: "DELETE" });
-      if (res.ok) {
-        // The API only ever returns active products, so once archived it no
-        // longer belongs in this list at all.
-        setProductList((prev) => prev.filter((p) => p.id !== product.id));
-      }
+      await apiBrowser(`/products/${product.id}`, { method: "DELETE" });
+      // The API only ever returns active products, so once archived it no
+      // longer belongs in this list at all.
+      setProductList((prev) => prev.filter((p) => p.id !== product.id));
+    } catch {
+      // Silent — an archive failure just leaves the product listed, no
+      // dedicated error banner needed over a one-field flip.
     } finally {
       setArchivingId(null);
       setArchiving(null);
@@ -310,15 +299,13 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
   const handleToggleFeatured = async (product: Product) => {
     setTogglingFeaturedId(product.id);
     try {
-      const res = await fetch(`/api/products/${product.id}`, {
+      const { product: updated } = await apiBrowser<{ product: Product }>(`/products/${product.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ featured: !product.featured }),
+        body: { featured: !product.featured },
       });
-      if (res.ok) {
-        const { product: updated } = (await res.json()) as { product: Product };
-        handleSaved(updated);
-      }
+      handleSaved(updated);
+    } catch {
+      // Silent, same rationale as handleArchive.
     } finally {
       setTogglingFeaturedId(null);
     }

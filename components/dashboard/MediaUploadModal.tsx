@@ -2,14 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Media } from "@/types";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { X, ImagePlus, Upload } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 interface PendingFile {
   file: File;
@@ -71,18 +67,12 @@ export default function MediaUploadModal({ onClose, onUploaded }: MediaUploadMod
     if (tags.length > 0) formData.append("tags", JSON.stringify(tags));
 
     try {
-      const res = await fetch("/api/media", { method: "POST", body: formData });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errBody?.error ?? "Upload failed. Please try again.");
-        setUploading(false);
-        return;
-      }
-      const { media } = (await res.json()) as { media: Media[] };
+      // FormData passes through apiBrowser untouched — see lib/api-client.ts.
+      const { media } = await apiBrowser<{ media: Media[] }>("/media", { method: "POST", body: formData });
       onUploaded(media);
       close();
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setUploading(false);
     }
   };

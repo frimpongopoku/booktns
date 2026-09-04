@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { serializeStaff } from "@/lib/serialize";
+import { apiServer } from "@/lib/api-client.server";
 import StaffClient from "@/components/dashboard/StaffClient";
+import type { Staff } from "@/types";
 
 export default async function StaffPage() {
   const session = await getSession();
@@ -22,10 +22,7 @@ export default async function StaffPage() {
     );
   }
 
-  const staff = await db.staff.findMany({
-    where: { vendorId: session.vendorId },
-    orderBy: { createdAt: "asc" },
-  });
+  const { staff } = await apiServer<{ staff: Staff[] }>("/staff");
 
-  return <StaffClient initialStaff={staff.map(serializeStaff)} />;
+  return <StaffClient initialStaff={staff} />;
 }

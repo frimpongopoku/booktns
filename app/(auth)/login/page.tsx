@@ -68,6 +68,11 @@ export default function LoginPage() {
 
     setStatus("verifying");
     try {
+      // Talks to the NestJS API (session-v2), not the legacy Next.js route —
+      // the API verifies the Google token and the staff allowlist and
+      // returns a JWT in the body; this route handler mints the cookie
+      // host-only against whatever domain the browser is actually on. See
+      // backend/MIGRATION.md § auth architecture.
       const res = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

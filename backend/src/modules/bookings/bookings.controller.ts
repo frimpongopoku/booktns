@@ -1,9 +1,12 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
 import { CurrentSession, Public, Roles } from "../../common/decorators";
 import { ZodValidationPipe } from "../../common/zod.pipe";
 import type { SessionPayload } from "../../common/session.types";
 import { BookingsService } from "./bookings.service";
-import { createBookingSchema, type CreateBookingDto } from "./bookings.schemas";
+import {
+  createBookingSchema, updateBookingSchema, selfServiceUpdateSchema,
+  type CreateBookingDto, type UpdateBookingDto, type SelfServiceUpdateDto,
+} from "./bookings.schemas";
 
 @Controller("bookings")
 export class BookingsController {
@@ -23,5 +26,27 @@ export class BookingsController {
   @Get()
   list(@CurrentSession() session: SessionPayload) {
     return this.bookings.list(session.vendorId, session.staffId, session.role === "Service");
+  }
+
+  @Roles("Owner", "Management")
+  @Patch(":id")
+  update(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateBookingSchema)) dto: UpdateBookingDto,
+    @CurrentSession() session: SessionPayload,
+  ) {
+    return this.bookings.update(session.vendorId, id, dto);
+  }
+}
+
+
+@Public()
+@Controller("bookings/by-slug")
+export class BookingsSelfServiceController {
+  constructor(private readonly bookings: BookingsService) {}
+
+  @Patch(":slug")
+  update(@Param("slug") slug: string, @Body(new ZodValidationPipe(selfServiceUpdateSchema)) dto: SelfServiceUpdateDto) {
+    return this.bookings.selfServiceUpdate(slug, dto);
   }
 }

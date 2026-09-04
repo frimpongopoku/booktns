@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { BusinessHours, Vendor, StorefrontDisplayMode, HeroCardMode, VendorVideo, StorefrontTheme, Service } from "@/types";
 import { formatPrice, formatDuration } from "@/lib/data";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import { STOREFRONT_THEMES } from "@/lib/theme";
 import Topbar from "@/components/dashboard/Topbar";
 import BusinessHoursCard from "@/components/dashboard/BusinessHoursCard";
@@ -18,11 +19,6 @@ import PlatformCredit from "@/components/shared/PlatformCredit";
 import VerificationTab, { type VerificationApplication } from "@/components/dashboard/VerificationTab";
 import QrCodeCard from "@/components/dashboard/QrCodeCard";
 import { CreditCard, Smartphone, Banknote, Check, ImagePlus, ExternalLink, Rocket, X, Plus, Archive, CalendarDays, Globe, ShieldCheck, AlertTriangle, Share2, MessageCircle } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 const DISPLAY_MODE_OPTIONS: { value: StorefrontDisplayMode; label: string; desc: string }[] = [
   { value: "All", label: "Show all", desc: "Every active service/product appears on your home page" },
@@ -201,16 +197,11 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
   const [error, setError] = useState<string | null>(null);
 
   const patchVendor = async (body: Record<string, unknown>) => {
-    const res = await fetch("/api/vendor", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-      throw new Error(errBody?.error ?? "Something went wrong. Please try again.");
+    try {
+      return await apiBrowser<{ vendor: Vendor }>("/vendor", { method: "PATCH", body });
+    } catch (err) {
+      throw new Error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }
-    return (await res.json()) as { vendor: Vendor };
   };
 
   // Logo and cover image save immediately on selection/removal — waiting for
@@ -783,14 +774,12 @@ function DomainTab() {
   const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   const fetchDomain = async () => {
-    const res = await fetch("/api/vendor/domain");
-    if (!res.ok) {
-      const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-      setError(errBody?.error ?? "Couldn't load domain settings.");
-      return;
+    try {
+      setInfo(await apiBrowser<DomainInfo>("/vendor/domain"));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't load domain settings.");
     }
-    setError(null);
-    setInfo((await res.json()) as DomainInfo);
   };
 
   useEffect(() => {
@@ -802,19 +791,10 @@ function DomainTab() {
     setAdding(true);
     setError(null);
     try {
-      const res = await fetch("/api/vendor/domain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: domainInput.trim() }),
-      });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(errBody?.error ?? "Couldn't add that domain. Please try again.");
-      }
-      setInfo((await res.json()) as DomainInfo);
+      setInfo(await apiBrowser<DomainInfo>("/vendor/domain", { method: "POST", body: { domain: domainInput.trim() } }));
       setDomainInput("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't add that domain. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Couldn't add that domain. Please try again.");
     } finally {
       setAdding(false);
     }
@@ -833,14 +813,10 @@ function DomainTab() {
   const handleRemove = async () => {
     setError(null);
     try {
-      const res = await fetch("/api/vendor/domain", { method: "DELETE" });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(errBody?.error ?? "Couldn't remove that domain. Please try again.");
-      }
+      await apiBrowser("/vendor/domain", { method: "DELETE" });
       setInfo({ domain: null, verified: false, instructions: [] });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't remove that domain. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Couldn't remove that domain. Please try again.");
     } finally {
       setConfirmingRemove(false);
     }
@@ -999,24 +975,15 @@ function BookingTab({ vendor }: BookingTabProps) {
       depositType === "None" ? null : depositType === "Fixed" ? Math.round(parseFloat(depositAmount) * 100) || 0 : parseInt(depositAmount) || 0;
 
     try {
-      const res = await fetch("/api/vendor", {
+      await apiBrowser("/vendor", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          depositSetting: depositType,
-          depositValue,
-          cancellationPolicy: policy.trim() || null,
-        }),
+        body: { depositSetting: depositType, depositValue, cancellationPolicy: policy.trim() || null },
       });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(errBody?.error ?? "Something went wrong. Please try again.");
-      }
       setSavedFields(currentFields);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -1439,21 +1406,13 @@ function SupportTab() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/support", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject: subject.trim(), message: message.trim() }),
-      });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(errBody?.error ?? "Something went wrong. Please try again.");
-      }
+      await apiBrowser("/support", { method: "POST", body: { subject: subject.trim(), message: message.trim() } });
       setSubject("");
       setMessage("");
       setSent(true);
       setTimeout(() => setSent(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

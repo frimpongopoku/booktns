@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatPrice, formatDuration } from "@/lib/data";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import { SERVICE_CATEGORIES } from "@/types";
 import type { Service, ServiceCategory } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
@@ -25,11 +26,6 @@ const CATEGORY_ICONS: Record<ServiceCategory, React.ReactNode> = {
 };
 
 const CATEGORIES: ServiceCategory[] = [...SERVICE_CATEGORIES];
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 interface ServiceModalProps {
   service?: Service;
@@ -64,24 +60,14 @@ function ServiceModal({ service, onClose, onSaved }: ServiceModalProps) {
     };
 
     try {
-      const res = await fetch(service ? `/api/services/${service.id}` : "/api/services", {
-        method: service ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errBody?.error ?? "Something went wrong. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      const { service: saved } = (await res.json()) as { service: Service };
+      const { service: saved } = await apiBrowser<{ service: Service }>(
+        service ? `/services/${service.id}` : "/services",
+        { method: service ? "PATCH" : "POST", body },
+      );
       onSaved(saved);
       close();
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setLoading(false);
     }
   };
@@ -203,15 +189,14 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   const handleToggleFeatured = async (service: Service) => {
     setTogglingFeaturedId(service.id);
     try {
-      const res = await fetch(`/api/services/${service.id}`, {
+      const { service: updated } = await apiBrowser<{ service: Service }>(`/services/${service.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ featured: !service.featured }),
+        body: { featured: !service.featured },
       });
-      if (res.ok) {
-        const { service: updated } = (await res.json()) as { service: Service };
-        handleSaved(updated);
-      }
+      handleSaved(updated);
+    } catch {
+      // Silent — a toggle failure just leaves the star unchanged, no need
+      // for a dedicated error banner over a one-field flip.
     } finally {
       setTogglingFeaturedId(null);
     }
@@ -220,10 +205,10 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   const handleArchive = async (service: Service) => {
     setArchivingId(service.id);
     try {
-      const res = await fetch(`/api/services/${service.id}`, { method: "DELETE" });
-      if (res.ok) {
-        setServiceList((prev) => prev.map((s) => (s.id === service.id ? { ...s, active: false } : s)));
-      }
+      await apiBrowser(`/services/${service.id}`, { method: "DELETE" });
+      setServiceList((prev) => prev.map((s) => (s.id === service.id ? { ...s, active: false } : s)));
+    } catch {
+      // Silent, same rationale as handleToggleFeatured.
     } finally {
       setArchivingId(null);
       setArchiving(null);

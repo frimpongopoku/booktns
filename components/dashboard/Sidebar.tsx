@@ -146,6 +146,8 @@ export default function Sidebar({
   };
 
   const handleLogout = async () => {
+    // session-v2's DELETE just clears our own cookie — there is no server
+    // session to destroy, since the API holds no session state.
     await fetch("/api/auth/session", { method: "DELETE" });
     await signOut(getFirebaseAuth()).catch(() => {});
     router.push("/login");

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { formatPrice, formatDuration } from "@/lib/data";
 import { calculateDepositAmountPesewas } from "@/lib/deposit";
+import { apiPublic, ApiError } from "@/lib/api-client";
 import { useAvailableSlots } from "@/hooks/useAvailableSlots";
 import type { Service, Product, Staff, PaymentMethod, DepositSetting } from "@/types";
 import Button from "@/components/ui/Button";
@@ -23,11 +24,6 @@ import { Textarea } from "@/components/ui/Input";
 import { storefrontHref } from "@/lib/storefront-links";
 import { captureEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
 import StorefrontFooter from "@/components/storefront/StorefrontFooter";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 const STEPS = [
   "Services",
@@ -211,10 +207,12 @@ export default function BookingFlow({
     setError(null);
 
     try {
-      const res = await fetch("/api/bookings", {
+      // Guest checkout — public and unauthenticated — goes straight to the
+      // NestJS API rather than through the BFF proxy, which exists to
+      // attach a session this request doesn't have.
+      const { booking } = await apiPublic<{ booking: { slug: string } }>("/bookings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           vendorSlug: slug,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
@@ -226,17 +224,8 @@ export default function BookingFlow({
           startTime: selectedTime,
           paymentMethodId: paymentMethodId ?? undefined,
           notes: customerNotes.trim() || undefined,
-        }),
+        },
       });
-
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(body?.error ?? "Something went wrong. Please try again.");
-        setSubmitting(false);
-        return;
-      }
-
-      const { booking } = (await res.json()) as { booking: { slug: string } };
 
       // Shape of the booking only — no name, phone, email, or notes. See
       // the warning on captureEvent in lib/analytics.ts.
@@ -250,8 +239,8 @@ export default function BookingFlow({
       });
 
       router.push(`/booking/${booking.slug}`);
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setSubmitting(false);
     }
   };

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { apiServer } from "@/lib/api-client.server";
 import { formatPrice } from "@/lib/data";
 import Topbar from "@/components/dashboard/Topbar";
 import { bookingStatusBadge, orderStatusBadge } from "@/components/ui/Badge";
@@ -15,81 +15,63 @@ import {
   Plus,
 } from "lucide-react";
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true });
+// Both take an ISO string now — the API serializes every timestamp to JSON,
+// unlike the Prisma Date objects this page used to receive directly.
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
-function formatShortDate(date: Date): string {
-  return date.toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+}
+
+interface OverviewBooking {
+  id: string;
+  customerName: string;
+  startTime: string;
+  status: import("@/types").BookingStatus;
+  services: string[];
+}
+interface OverviewOrder {
+  id: string;
+  ref: string;
+  customerName: string;
+  createdAt: string;
+  totalPesewas: number;
+  status: import("@/types").OrderStatus;
+}
+interface OverviewData {
+  vendorSlug: string;
+  activeServiceCount: number;
+  activeStaffCount: number;
+  lowStockCount: number;
+  todaysBookings: OverviewBooking[];
+  upcomingBookings: OverviewBooking[];
+  pendingBookingCount: number;
+  pendingOrderCount: number;
+  recentOrders: OverviewOrder[];
+  olderOrders: OverviewOrder[];
 }
 
 export default async function DashboardOverview() {
   const session = await getSession();
   if (!session) redirect("/login");
 
+  // Just for the Topbar's date subtitle now — the actual "today" boundary
+  // used to compute todaysBookings lives server-side in OverviewService.
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfTomorrow = new Date(startOfToday);
-  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [
-    vendor,
-    activeServiceCount,
-    activeStaffCount,
-    activeProducts,
-    todaysBookings,
-    upcomingBookings,
-    pendingBookingCount,
-    pendingOrderCount,
-    recentOrders,
-    olderOrders,
-  ] = await Promise.all([
-    db.vendor.findUnique({ where: { id: session.vendorId }, select: { slug: true } }),
-    db.service.count({ where: { vendorId: session.vendorId, active: true } }),
-    db.staff.count({ where: { vendorId: session.vendorId, active: true } }),
-    db.product.findMany({
-      where: { vendorId: session.vendorId, active: true },
-      select: { stockCount: true, lowStockThreshold: true },
-    }),
-    db.booking.findMany({
-      where: { vendorId: session.vendorId, startTime: { gte: startOfToday, lt: startOfTomorrow } },
-      include: { services: true },
-      orderBy: { startTime: "asc" },
-    }),
-    // Fallback when nothing's booked today — next upcoming, not-yet-resolved bookings.
-    db.booking.findMany({
-      where: {
-        vendorId: session.vendorId,
-        startTime: { gte: startOfTomorrow },
-        status: { notIn: ["cancelled", "completed", "no_show"] },
-      },
-      include: { services: true },
-      orderBy: { startTime: "asc" },
-      take: 5,
-    }),
-    db.booking.count({ where: { vendorId: session.vendorId, status: "pending" } }),
-    db.order.count({ where: { vendorId: session.vendorId, status: { in: ["new", "processing"] } } }),
-    db.order.findMany({
-      where: { vendorId: session.vendorId, createdAt: { gte: sevenDaysAgo } },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-    // Fallback when there's been no order activity in the last 7 days.
-    db.order.findMany({
-      where: { vendorId: session.vendorId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-  ]);
+  const {
+    vendorSlug, activeServiceCount, activeStaffCount, lowStockCount,
+    todaysBookings, upcomingBookings, pendingBookingCount, pendingOrderCount,
+    recentOrders, olderOrders,
+  } = await apiServer<OverviewData>("/overview");
 
   const showingUpcomingFallback = todaysBookings.length === 0 && upcomingBookings.length > 0;
   const bookingsToShow = todaysBookings.length > 0 ? todaysBookings : upcomingBookings;
 
   const showingOrderHistory = recentOrders.length === 0 && olderOrders.length > 0;
   const ordersToShow = recentOrders.length > 0 ? recentOrders : olderOrders;
-
-  const lowStockCount = activeProducts.filter((p) => p.stockCount > 0 && p.stockCount <= p.lowStockThreshold).length;
 
   const stats = [
     {
@@ -139,9 +121,9 @@ export default async function DashboardOverview() {
         title="Overview"
         subtitle={now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         actions={
-          vendor && (
+          vendorSlug && (
             <Link
-              href={`/${vendor.slug}`}
+              href={`/${vendorSlug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs font-medium px-3 py-1.5 rounded-[var(--r)]"
@@ -263,7 +245,7 @@ export default async function DashboardOverview() {
                         {booking.customerName}
                       </p>
                       <p className="text-xs truncate" style={{ color: "var(--tx3)" }}>
-                        {booking.services.map((s) => s.name).join(" + ")}
+                        {booking.services.join(" + ")}
                       </p>
                     </div>
                     <div className="flex-shrink-0">{bookingStatusBadge(booking.status)}</div>

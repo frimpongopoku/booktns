@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { serializeService } from "@/lib/serialize";
+import { apiServer } from "@/lib/api-client.server";
 import ServicesClient from "@/components/dashboard/ServicesClient";
+import type { Service } from "@/types";
 
 export default async function ServicesPage() {
   const session = await getSession();
@@ -22,10 +22,7 @@ export default async function ServicesPage() {
     );
   }
 
-  const services = await db.service.findMany({
-    where: { vendorId: session.vendorId },
-    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-  });
+  const { services } = await apiServer<{ services: Service[] }>("/services");
 
-  return <ServicesClient initialServices={services.map(serializeService)} />;
+  return <ServicesClient initialServices={services} />;
 }

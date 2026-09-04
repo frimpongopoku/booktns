@@ -1,70 +1,61 @@
 # Backend separation — status and how to finish it
 
-The NestJS API in `backend/` is **stood up and working, but the migration is
-partial**. This document is the handover: what moved, what didn't, and the
-recipe for the rest.
+The frontend now talks to the NestJS API for the entire vendor dashboard,
+authentication, and every guest-facing write (booking, checkout, self-service
+edit/cancel). The Next.js routes for all of that are deleted — this API is
+no longer a parallel, unused system sitting next to the old one.
 
-**Nothing is broken right now.** This is a strangler migration — the Next.js
-API routes are all still live and still serving the dashboard. The new API
-runs alongside them. You can deploy the backend, point nothing at it, and the
-app behaves exactly as before.
-
----
+**What is left on Next.js:** the superadmin console (7 routes, its own
+parked token space), the public storefront *read* path (`app/[slug]/*`,
+`app/booking/[slug]`, `app/order/[slug]`, sitemap/robots/OG images — all
+still query Prisma directly), the QR code route, and vendor onboarding
+(`app/onboarding/actions.ts`, which creates the first Vendor + owner Staff
+row directly — CLAUDE.md documents this as the one deliberate exception to
+"Google Sign-In never creates a Staff record").
 
 ## What actually moved
 
-| Area | Endpoint | State |
-|---|---|---|
-| Sign in | `POST /api/auth/session` | ported — returns a JWT in the body, sets no cookie |
-| Session read | `GET /api/auth/me` | new |
-| Memberships | `GET /api/auth/memberships` | ported |
-| Shop switching | `POST /api/auth/switch-vendor` | ported |
-| Guest booking | `POST /api/bookings` | ported, incl. the serializable slot transaction |
-| Booking list | `GET /api/bookings` | ported, incl. Service-staff narrowing |
-| Storefront read | `GET /api/storefront/:slug` | **new** |
-| Vendor slugs | `GET /api/storefront/slugs` | **new** |
-| Custom domain resolve | `GET /api/storefront/resolve-domain` | **new** |
-| Booking by slug | `GET /api/storefront/booking/:slug` | **new** |
-| Order by slug | `GET /api/storefront/order/:slug` | **new** |
-| Feedback | `POST /api/feedback` | ported |
-| Landing page | `GET /` | **new** — human-readable, outside the /api prefix |
-| Liveness | `GET /api/ping` | ported |
-| Health | `GET /api/health` | ported |
+Every endpoint the vendor dashboard, guest booking/checkout, and auth need.
+The matching Next.js route for each of these is **deleted**, not just
+unused:
 
-The five **new** endpoints are the point of the exercise. They didn't exist
-before because the storefront pages queried Prisma directly inside server
-components — there was nothing to expose. Splitting the backend out is what
-makes them necessary.
+| Area | Endpoints |
+|---|---|
+| Auth | sign-in, /auth/me, memberships, switch-vendor (cookie-blind — see below) |
+| Bookings | create (guest), list + mark-seen, PATCH (status/reassign/reschedule), self-service edit/cancel by slug |
+| Orders | create (guest), list + mark-seen, status update, PDF receipt |
+| Storefront reads | vendor read, slugs, resolve-domain, booking/order by slug |
+| Catalog | services, products (CRUD), low-stock names |
+| Staff | CRUD (Owner), list (Owner + Management — see note below) |
+| Payments | payment methods CRUD, Owner-only |
+| Media | list, upload (multer, memory storage), tag, delete |
+| Videos | CRUD |
+| Vendor | settings, dashboard-context (any role), business hours, custom domain, slug availability |
+| Availability | public slot lookup |
+| Verification | ID submission (multer, sharp), status |
+| Support | platform support messages |
+| Calendar | ICS subscription feed |
+| Overview | the dashboard home page's ten-query summary, in one call |
+| Feedback, health, ping, landing page | (already covered) |
 
-Also moved: `prisma/` (schema + all 22 migrations) and 33 framework-agnostic
-`lib/*` modules — email, SMS, PDF, storage, availability, deposit, phone,
-slugs, verification, domains, health.
+**Superadmin console (7 routes) is the one deliberate gap.** Lower traffic,
+separate token space already built (`@SuperAdminOnly()`), and porting it
+doesn't block anything a vendor or shopper does.
 
-## What has NOT moved
+**The staff list is intentionally not Owner-only**, unlike every other staff
+mutation. "Manage bookings" (Owner AND Management, per spec §7.4) means
+assigning a booking to a staff member, which means reading this list — the
+dashboard's booking-assignment dropdown is the caller. The old Next.js
+version sidestepped this entirely by querying Prisma directly from the
+bookings page, bypassing whatever the `/api/staff` route's own role check
+said. Funneling everything through one guarded endpoint surfaced that
+inconsistency; `@Roles("Owner", "Management")` on the GET only (mutations
+stay Owner-only) is the fix, not a workaround.
 
-Still served by Next.js API routes, still working:
-
-`orders` · `orders/[id]` · `orders/by-slug/[slug]/pdf` · `bookings/[id]` ·
-`bookings/by-slug/[slug]` · `services` · `services/[id]` · `products` ·
-`products/[id]` · `staff` · `staff/[id]` · `payment-methods` ·
-`payment-methods/[id]` · `media` · `media/[id]` · `videos` · `videos/[id]` ·
-`vendor` · `vendor/domain` · `vendor/hours` · `vendors/check-slug` ·
-`availability` · `verification` · `support` · `calendar/[token]` ·
-all seven `superadmin/*` routes.
-
-**Almost no frontend code calls the new API yet.** The auth plumbing is
-wired and working — `lib/api-client.ts`, `lib/session-cookie.ts`, the BFF
-proxy at `app/api/admin/[...path]`, and the `session-v2` /
-`switch-vendor-v2` route handlers. But every page and component still uses
-the original Next.js routes and direct Prisma access. Switching them over is
-the second half of the work.
-
-The old `app/api/auth/session` route is deliberately still in place: it mints
-a cookie with the same secret and payload shape, so tokens are
-interchangeable and the un-migrated Next.js routes keep verifying them via
-`lib/auth.ts`. Delete it once the login page points at `session-v2`.
-
----
+Also ported for this pass: `backend/public/fonts/*.woff` — `lib/fonts.ts`
+reads these off disk for Satori, and they weren't in the backend at all
+until now. `backend/Dockerfile` copies `public/` into the runtime image
+alongside `dist/`.
 
 ## Porting recipe
 

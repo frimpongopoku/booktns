@@ -7,11 +7,7 @@ import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { CalendarPlus, Download, Pencil, XCircle } from "lucide-react";
 import type { BookingStatus } from "@/types";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
+import { apiPublic, ApiError } from "@/lib/api-client";
 
 interface BookingConfirmationActionsProps {
   slug: string;
@@ -50,17 +46,16 @@ export default function BookingConfirmationActions({
   const isPending = status === "pending";
   const isLockedByVendor = status === "confirmed" || status === "completed" || status === "rescheduled";
 
+  // Public and unauthenticated — a guest's only credential is the
+  // unguessable booking slug — so this goes straight to the NestJS API, not
+  // through the BFF proxy (which exists to attach a session this request
+  // doesn't have).
   const patchBooking = async (body: Record<string, string>) => {
-    const res = await fetch(`/api/bookings/by-slug/${slug}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-      throw new Error(errBody?.error ?? "Something went wrong. Please try again.");
+    try {
+      return await apiPublic(`/bookings/by-slug/${slug}`, { method: "PATCH", body });
+    } catch (err) {
+      throw new Error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }
-    return res.json();
   };
 
   const handleSaveDetails = async () => {

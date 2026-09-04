@@ -59,6 +59,9 @@ export default function VendorSwitcher({ memberships, currentVendorId }: VendorS
     setSwitchingTo(vendorId);
     setError(null);
     try {
+      // switch-vendor-v2 talks to the NestJS API, which re-derives the
+      // membership from the database and mints a brand new token — see
+      // backend/MIGRATION.md.
       const res = await fetch("/api/auth/switch-vendor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

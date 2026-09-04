@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { serializeVendorVideo, serializeVendor } from "@/lib/serialize";
+import { apiServer } from "@/lib/api-client.server";
 import VideosClient from "@/components/dashboard/VideosClient";
+import type { VendorVideo } from "@/types";
+
+interface DashboardContext {
+  vendor: { showVideoSection: boolean; videoSectionTitle: string | null; videoSectionSubtitle: string | null };
+}
 
 export default async function VideosPage() {
   const session = await getSession();
@@ -22,15 +26,23 @@ export default async function VideosPage() {
     );
   }
 
-  const [videos, vendor] = await Promise.all([
-    db.vendorVideo.findMany({
-      where: { vendorId: session.vendorId },
-      orderBy: { displayOrder: "asc" },
-    }),
-    db.vendor.findUnique({ where: { id: session.vendorId } }),
+  // dashboard-context (open to any role) carries just the three
+  // video-section fields this page needs — GET /vendor itself is
+  // Owner-only, and Management can reach this page too.
+  const [{ videos }, { vendor }] = await Promise.all([
+    apiServer<{ videos: VendorVideo[] }>("/videos"),
+    apiServer<DashboardContext>("/vendor/dashboard-context"),
   ]);
 
-  if (!vendor) redirect("/login");
-
-  return <VideosClient initialVideos={videos.map(serializeVendorVideo)} vendor={serializeVendor(vendor)} canEditSection={session.role === "Owner"} />;
+  return (
+    <VideosClient
+      initialVideos={videos}
+      vendor={{
+        showVideoSection: vendor.showVideoSection,
+        videoSectionTitle: vendor.videoSectionTitle ?? undefined,
+        videoSectionSubtitle: vendor.videoSectionSubtitle ?? undefined,
+      }}
+      canEditSection={session.role === "Owner"}
+    />
+  );
 }

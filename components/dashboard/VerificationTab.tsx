@@ -6,11 +6,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { BadgeCheck, ShieldAlert, Clock, AlertTriangle, Upload, X } from "lucide-react";
 import type { VerificationStatus } from "@/types";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
+import { apiBrowser, ApiError } from "@/lib/api-client";
 
 export interface VerificationApplication {
   legalName: string;
@@ -115,14 +111,11 @@ export default function VerificationTab({ status, application }: VerificationTab
     if (selfie) form.append("selfiePhoto", selfie);
 
     try {
-      const res = await fetch("/api/verification", { method: "POST", body: form });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(body?.error ?? "Something went wrong. Please try again.");
-      }
+      // FormData passes through apiBrowser untouched — see lib/api-client.ts.
+      await apiBrowser("/verification", { method: "POST", body: form });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }

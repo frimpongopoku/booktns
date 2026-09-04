@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/api-client";
 
 interface UseAvailableSlotsParams {
   vendorSlug: string;
@@ -15,8 +16,11 @@ interface UseAvailableSlotsResult {
   loading: boolean;
 }
 
-// Fetches real open time slots from /api/availability whenever the inputs
-// change — shared by the customer-facing booking wizard
+// Fetches real open time slots from the NestJS API's public /availability
+// endpoint whenever the inputs change — called directly (not through the
+// BFF proxy), since this route needs no session and the dashboard's own
+// reschedule picker calls this exact same unauthenticated endpoint too.
+// Shared — shared by the customer-facing booking wizard
 // (components/storefront/BookingFlow.tsx) and the dashboard's reschedule
 // picker (components/dashboard/BookingsClient.tsx), which need the identical
 // fetch/loading/reset sequence. Does not own "which slot is selected" — that
@@ -52,7 +56,7 @@ export function useAvailableSlots({
     if (staffId) params.set("staffId", staffId);
     if (excludeBookingId) params.set("excludeBookingId", excludeBookingId);
 
-    fetch(`/api/availability?${params.toString()}`)
+    fetch(apiUrl(`/availability?${params.toString()}`))
       .then((res) => (res.ok ? res.json() : { slots: [] }))
       .then((data: { slots: string[] }) => {
         if (!cancelled) setSlots(data.slots);

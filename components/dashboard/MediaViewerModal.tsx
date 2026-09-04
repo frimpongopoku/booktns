@@ -2,14 +2,10 @@
 
 import { useState } from "react";
 import type { Media } from "@/types";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { X, ExternalLink, Trash2, Tag, Check } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -40,37 +36,29 @@ export default function MediaViewerModal({ media, onClose, onUpdated, onDeleted 
     const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
 
     try {
-      const res = await fetch(`/api/media/${media.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tags }),
-      });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errBody?.error ?? "Couldn't save tags. Please try again.");
-        setSavingTags(false);
-        return;
-      }
-      const { media: updated } = (await res.json()) as { media: Media };
+      const { media: updated } = await apiBrowser<{ media: Media }>(`/media/${media.id}`, { method: "PATCH", body: { tags } });
       onUpdated(updated);
       setSavingTags(false);
       setSavedTags(true);
       setTimeout(() => setSavedTags(false), 2000);
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setSavingTags(false);
     }
   };
 
   const handleDelete = async () => {
     setDeleting(true);
-    const res = await fetch(`/api/media/${media.id}`, { method: "DELETE" });
-    if (res.ok) {
+    try {
+      await apiBrowser(`/media/${media.id}`, { method: "DELETE" });
       onDeleted(media.id);
       close();
+    } catch {
+      // Silent — a delete failure just leaves the file listed.
+    } finally {
+      setDeleting(false);
+      setConfirmingDelete(false);
     }
-    setDeleting(false);
-    setConfirmingDelete(false);
   };
 
   return (

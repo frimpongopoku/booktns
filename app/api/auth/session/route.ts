@@ -1,63 +1,44 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { db } from "@/lib/db";
-import { createSession, clearSession } from "@/lib/auth";
-import { verifyFirebaseIdToken } from "@/lib/firebase-admin";
-import { getMembershipsForEmail } from "@/lib/memberships";
+import { apiPublic, ApiError } from "@/lib/api-client";
+import { setSessionCookie, clearSessionCookie } from "@/lib/session-cookie";
 
-const bodySchema = z.object({
-  idToken: z.string().min(1),
-  // Which shop to land in, when the account belongs to several. Optional:
-  // omitted on a first sign-in, at which point the server picks (see below)
-  // and the client can offer a switcher afterwards.
-  vendorId: z.string().optional(),
-});
+// Sign-in against the NestJS API, then mint the cookie here.
+//
+// The split matters: the API verifies the Google identity, checks the staff
+// allowlist and mints a JWT — but it returns that JWT in the response body
+// and sets nothing. This route is what turns it into an httpOnly cookie,
+// scoped host-only to whatever domain the browser is on. That is what makes
+// a vendor signing in on their own custom domain work with no configuration.
 
-export async function POST(request: Request) {
-  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Missing or invalid idToken", code: "invalid_request" }, { status: 400 });
-  }
-
-  const verified = await verifyFirebaseIdToken(parsed.data.idToken);
-  if (!verified || !verified.emailVerified) {
-    return NextResponse.json({ error: "Google sign-in could not be verified", code: "invalid_token" }, { status: 401 });
-  }
-
-  const memberships = await getMembershipsForEmail(verified.email);
-
-  if (memberships.length === 0) {
-    return NextResponse.json(
-      {
-        error: "This Google account isn't linked to a Booktns staff account. Ask your vendor owner to add you.",
-        code: "not_registered",
-      },
-      { status: 403 }
-    );
-  }
-
-  // A requested vendor is honoured only if this email genuinely has an
-  // active membership there — the id comes from the client, so it is a
-  // request, never an assertion. Anything else falls back to the first
-  // (oldest) membership rather than failing the sign-in.
-  const requested = parsed.data.vendorId
-    ? memberships.find((m) => m.vendorId === parsed.data.vendorId)
-    : undefined;
-  const membership = requested ?? memberships[0];
-
-  const staff = await db.staff.findUnique({
-    where: { id: membership.staffId },
-    select: { id: true, vendorId: true, name: true, role: true, email: true, vendor: { select: { name: true } } },
-  });
-  if (!staff) {
-    return NextResponse.json({ error: "Staff account not found", code: "not_registered" }, { status: 403 });
-  }
-
-  await createSession(staff);
-  return NextResponse.json({ ok: true, memberships });
+interface SignInResponse {
+  token: string;
+  memberships: unknown[];
 }
 
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null);
+
+  try {
+    const result = await apiPublic<SignInResponse>("/auth/session", { method: "POST", body });
+    await setSessionCookie(result.token);
+    // The token itself is deliberately NOT returned to the caller — it goes
+    // into the httpOnly cookie and nowhere else. The client only needs to
+    // know which shops this person belongs to.
+    return NextResponse.json({ ok: true, memberships: result.memberships });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
+    }
+    return NextResponse.json(
+      { error: "Couldn't reach the sign-in service. Please try again.", code: "upstream_unreachable" },
+      { status: 502 },
+    );
+  }
+}
+
+// Signing out is just deleting our own cookie — there is no server-side
+// session to destroy, because the API holds no session state.
 export async function DELETE() {
-  await clearSession();
+  await clearSessionCookie();
   return NextResponse.json({ ok: true });
 }

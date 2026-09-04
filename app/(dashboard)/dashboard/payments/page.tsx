@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { serializePaymentMethod } from "@/lib/serialize";
+import { apiServer } from "@/lib/api-client.server";
 import PaymentsClient from "@/components/dashboard/PaymentsClient";
+import type { PaymentMethod } from "@/types";
 
 // Payment details are Owner-only, matching the guard on every
-// /api/payment-methods route (requireRole(["Owner"])) and spec §7.4's
-// "Payment settings" row. This page inherited that rule from the Settings
-// tab it was lifted out of.
+// /payment-methods route (@Roles("Owner")) and spec §7.4's "Payment
+// settings" row. This page inherited that rule from the Settings tab it
+// was lifted out of.
 export default async function PaymentsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -26,10 +26,7 @@ export default async function PaymentsPage() {
     );
   }
 
-  const paymentMethods = await db.paymentMethod.findMany({
-    where: { vendorId: session.vendorId },
-    orderBy: { displayOrder: "asc" },
-  });
+  const { paymentMethods } = await apiServer<{ paymentMethods: PaymentMethod[] }>("/payment-methods");
 
-  return <PaymentsClient initialPaymentMethods={paymentMethods.map(serializePaymentMethod)} />;
+  return <PaymentsClient initialPaymentMethods={paymentMethods} />;
 }

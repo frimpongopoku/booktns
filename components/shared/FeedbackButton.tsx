@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { MessageSquarePlus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import type { FeedbackSource } from "@/lib/feedback";
+import { apiBrowser, apiPublic, ApiError } from "@/lib/api-client";
 
 interface FeedbackButtonProps {
   source: FeedbackSource;
@@ -75,21 +76,20 @@ export default function FeedbackButton({ source, supportEmail, knownSender = fal
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, email: email || undefined, source, path: pathname }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "We couldn't send that. Please try again.");
-        setSubmitting(false);
-        return;
+      // Dashboard use (knownSender) is authenticated staff — go through the
+      // BFF proxy so the API can identify the sender from the session and
+      // skip asking for an address it already has. Storefront/landing use
+      // has no session to send in the first place, so it hits the API's
+      // public endpoint directly.
+      if (knownSender) {
+        await apiBrowser("/feedback", { method: "POST", body: { message, email: email || undefined, source, path: pathname } });
+      } else {
+        await apiPublic("/feedback", { method: "POST", body: { message, email: email || undefined, source, path: pathname } });
       }
       setSent(true);
       setSubmitting(false);
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setSubmitting(false);
     }
   };

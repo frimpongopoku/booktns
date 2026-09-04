@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import type { Staff, StaffRole } from "@/types";
 import Topbar from "@/components/dashboard/Topbar";
 import Button from "@/components/ui/Button";
@@ -44,11 +45,6 @@ function StatusChip({ active }: { active: boolean }) {
   );
 }
 
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
-
 interface StaffModalProps {
   staff?: Staff;
   onClose: () => void;
@@ -82,24 +78,14 @@ function StaffModal({ staff, onClose, onSaved }: StaffModalProps) {
     };
 
     try {
-      const res = await fetch(staff ? `/api/staff/${staff.id}` : "/api/staff", {
-        method: staff ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errBody?.error ?? "Something went wrong. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      const { staff: saved } = (await res.json()) as { staff: Staff };
+      const { staff: saved } = await apiBrowser<{ staff: Staff }>(
+        staff ? `/staff/${staff.id}` : "/staff",
+        { method: staff ? "PATCH" : "POST", body },
+      );
       onSaved(saved);
       close();
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setLoading(false);
     }
   };
@@ -221,15 +207,10 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
   const toggleBot = async (member: Staff) => {
     setBusyId(member.id);
     try {
-      const res = await fetch(`/api/staff/${member.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ botAccess: !member.botAccess }),
-      });
-      if (res.ok) {
-        const { staff } = (await res.json()) as { staff: Staff };
-        handleSaved(staff);
-      }
+      const { staff } = await apiBrowser<{ staff: Staff }>(`/staff/${member.id}`, { method: "PATCH", body: { botAccess: !member.botAccess } });
+      handleSaved(staff);
+    } catch {
+      // Silent — a toggle failure just leaves the switch unchanged.
     } finally {
       setBusyId(null);
     }
@@ -238,10 +219,10 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
   const handleDeactivate = async (member: Staff) => {
     setBusyId(member.id);
     try {
-      const res = await fetch(`/api/staff/${member.id}`, { method: "DELETE" });
-      if (res.ok) {
-        setStaffList((prev) => prev.map((s) => (s.id === member.id ? { ...s, active: false } : s)));
-      }
+      await apiBrowser(`/staff/${member.id}`, { method: "DELETE" });
+      setStaffList((prev) => prev.map((s) => (s.id === member.id ? { ...s, active: false } : s)));
+    } catch {
+      // Silent, same rationale as toggleBot.
     } finally {
       setBusyId(null);
       setDeactivating(null);

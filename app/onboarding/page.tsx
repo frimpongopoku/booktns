@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiPublic } from "@/lib/api-client";
 import Link from "next/link";
 import Logo from "@/components/shared/Logo";
 import Button from "@/components/ui/Button";
@@ -108,9 +109,8 @@ function BusinessInfoStep({
     setSlugStatus("checking");
     const handle = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/vendors/check-slug?slug=${encodeURIComponent(trimmed)}`);
-        const data = await res.json();
-        setSlugStatus(res.ok ? (data.available ? "available" : "taken") : "error");
+        const { available } = await apiPublic<{ available: boolean }>(`/vendors/check-slug?slug=${encodeURIComponent(trimmed)}`);
+        setSlugStatus(available ? "available" : "taken");
       } catch {
         setSlugStatus("error");
       }

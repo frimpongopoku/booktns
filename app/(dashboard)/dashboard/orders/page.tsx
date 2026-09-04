@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { serializeOrder } from "@/lib/serialize";
+import { apiServer } from "@/lib/api-client.server";
 import OrdersClient from "@/components/dashboard/OrdersClient";
+import type { Order } from "@/types";
 
 export default async function OrdersPage() {
   const session = await getSession();
@@ -22,17 +22,9 @@ export default async function OrdersPage() {
     );
   }
 
-  // First view of a new order marks it seen — see CLAUDE.md data rules.
-  await db.order.updateMany({
-    where: { vendorId: session.vendorId, seenByVendorAt: null },
-    data: { seenByVendorAt: new Date() },
-  });
+  // GET /orders marks unseen orders as seen as a side effect — see
+  // OrdersService.list.
+  const { orders } = await apiServer<{ orders: Order[] }>("/orders");
 
-  const orders = await db.order.findMany({
-    where: { vendorId: session.vendorId },
-    include: { items: true, paymentMethod: true },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return <OrdersClient initialOrders={orders.map(serializeOrder)} />;
+  return <OrdersClient initialOrders={orders} />;
 }

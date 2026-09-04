@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { VendorVideo, Vendor } from "@/types";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import Topbar from "@/components/dashboard/Topbar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -9,11 +10,6 @@ import { Textarea } from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { AutoSaveBadge, ManualSaveBadge, UnsavedChangesBar } from "@/components/dashboard/SaveState";
 import { Plus, X, Pencil, Trash2, Play, ExternalLink, Video as VideoIcon } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 interface VideoModalProps {
   video?: VendorVideo;
@@ -44,24 +40,14 @@ function VideoModal({ video, onClose, onSaved }: VideoModalProps) {
     };
 
     try {
-      const res = await fetch(video ? `/api/videos/${video.id}` : "/api/videos", {
-        method: video ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errBody?.error ?? "Something went wrong. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      const { video: saved } = (await res.json()) as { video: VendorVideo };
+      const { video: saved } = await apiBrowser<{ video: VendorVideo }>(
+        video ? `/videos/${video.id}` : "/videos",
+        { method: video ? "PATCH" : "POST", body },
+      );
       onSaved(saved);
       close();
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setLoading(false);
     }
   };
@@ -118,8 +104,10 @@ function VideoModal({ video, onClose, onSaved }: VideoModalProps) {
   );
 }
 
+type VideoSectionVendor = Pick<Vendor, "showVideoSection" | "videoSectionTitle" | "videoSectionSubtitle">;
+
 interface SectionSettingsProps {
-  vendor: Vendor;
+  vendor: VideoSectionVendor;
 }
 
 // Controls for the storefront section these videos appear in — deliberately
@@ -142,14 +130,10 @@ function SectionSettings({ vendor }: SectionSettingsProps) {
   const dirty = title !== saved.title || subtitle !== saved.subtitle;
 
   const patchVendor = async (body: Record<string, unknown>) => {
-    const res = await fetch("/api/vendor", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-      throw new Error(errBody?.error ?? "Something went wrong. Please try again.");
+    try {
+      await apiBrowser("/vendor", { method: "PATCH", body });
+    } catch (err) {
+      throw new Error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }
   };
 
@@ -262,7 +246,7 @@ function SectionSettings({ vendor }: SectionSettingsProps) {
 
 interface VideosClientProps {
   initialVideos: VendorVideo[];
-  vendor: Vendor;
+  vendor: VideoSectionVendor;
   // Storefront settings are Owner-only (PATCH /api/vendor enforces it), but
   // this page is open to Management too — so the section controls are hidden
   // for them rather than shown as a control that 403s on click.
@@ -291,10 +275,10 @@ export default function VideosClient({ initialVideos, vendor, canEditSection }: 
   const handleDelete = async (video: VendorVideo) => {
     setDeletingId(video.id);
     try {
-      const res = await fetch(`/api/videos/${video.id}`, { method: "DELETE" });
-      if (res.ok) {
-        setVideoList((prev) => prev.filter((v) => v.id !== video.id));
-      }
+      await apiBrowser(`/videos/${video.id}`, { method: "DELETE" });
+      setVideoList((prev) => prev.filter((v) => v.id !== video.id));
+    } catch {
+      // Silent — a delete failure just leaves the video listed.
     } finally {
       setDeletingId(null);
       setDeleting(null);

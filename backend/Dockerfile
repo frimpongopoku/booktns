@@ -34,6 +34,9 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/generated ./src/generated
+# Bundled fonts for Satori (lib/fonts.ts reads these off disk relative to
+# process.cwd() — same layout the Next.js app uses for the same reason).
+COPY public ./public
 
 # Don't run as root.
 USER node

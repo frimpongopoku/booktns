@@ -1,6 +1,6 @@
 {
   "name": "booktns-api",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Booktns backend \u2014 NestJS API, deployed separately from the Next.js frontend",
   "scripts": {
@@ -25,6 +25,7 @@
     "africastalking": "^0.7.9",
     "firebase-admin": "^14.2.0",
     "jose": "^6.2.4",
+    "multer": "^2.3.0",
     "pdf-lib": "^1.17.1",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.18.0",
@@ -37,6 +38,7 @@
     "@nestjs/cli": "^11.0.10",
     "@nestjs/schematics": "^11.0.9",
     "@types/express": "^5.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20",
     "eslint": "^9",
     "prisma": "^7.9.0",

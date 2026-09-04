@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BusinessHours } from "@/types";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import Button from "@/components/ui/Button";
 import { Check } from "lucide-react";
 
@@ -12,11 +13,6 @@ interface DayRow {
   isClosed: boolean;
   openTime: string;
   closeTime: string;
-}
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
 }
 
 function toRows(hours: BusinessHours[]): DayRow[] {
@@ -50,31 +46,22 @@ export default function BusinessHoursCard({ initialHours }: BusinessHoursCardPro
     setError(null);
 
     try {
-      const res = await fetch("/api/vendor/hours", {
+      await apiBrowser("/vendor/hours", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           days: rows.map((row) => ({
             dayOfWeek: row.dayOfWeek,
             isClosed: row.isClosed,
             openTime: row.isClosed ? null : row.openTime,
             closeTime: row.isClosed ? null : row.closeTime,
           })),
-        }),
+        },
       });
-
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errBody?.error ?? "Something went wrong. Please try again.");
-        setLoading(false);
-        return;
-      }
-
       setLoading(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
       setLoading(false);
     }
   };

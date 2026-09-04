@@ -19,3 +19,25 @@ export const createBookingSchema = z.object({
 });
 
 export type CreateBookingDto = z.infer<typeof createBookingSchema>;
+
+const BOOKING_STATUSES = ["pending", "confirmed", "completed", "cancelled", "rescheduled", "no_show"] as const;
+
+export const updateBookingSchema = z.object({
+  status: z.enum(BOOKING_STATUSES).optional(),
+  assignedStaffId: z.string().trim().nullable().optional(),
+  notes: z.string().trim().optional(),
+  startTime: z.string().datetime().optional(),
+  endTime: z.string().datetime().optional(),
+});
+export type UpdateBookingDto = z.infer<typeof updateBookingSchema>;
+
+// The customer's own self-service edit/cancel — narrower than the vendor's
+// PATCH above: only their own contact details, and a cancellation is the
+// only status transition a guest can make.
+export const selfServiceUpdateSchema = z.object({
+  customerName: z.string().trim().min(1, "Name is required").optional(),
+  customerPhone: z.string().trim().min(1, "Phone number is required").optional(),
+  customerEmail: z.string().trim().email("Enter a valid email address").optional(),
+  status: z.literal("cancelled").optional(),
+});
+export type SelfServiceUpdateDto = z.infer<typeof selfServiceUpdateSchema>;

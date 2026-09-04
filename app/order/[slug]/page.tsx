@@ -3,6 +3,7 @@ import Link from "next/link";
 import PlatformCredit from "@/components/shared/PlatformCredit";
 import { notFound } from "next/navigation";
 import { getOrderBySlug } from "@/lib/orders";
+import { apiUrl } from "@/lib/api-client";
 import { formatPrice } from "@/lib/data";
 import { CopyButton } from "@/components/ui/CopyButton";
 import VendorContactCard from "@/components/storefront/VendorContactCard";
@@ -274,7 +275,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                 request then redirects to it on R2, so this works on the very
                 first click without the page having to poll for it. */}
             <a
-              href={`/api/orders/by-slug/${order.slug}/pdf`}
+              href={apiUrl(`/orders/by-slug/${order.slug}/pdf`)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"

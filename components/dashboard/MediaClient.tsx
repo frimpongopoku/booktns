@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Media } from "@/types";
+import { apiBrowser } from "@/lib/api-client";
 import Topbar from "@/components/dashboard/Topbar";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -36,9 +37,11 @@ export default function MediaClient({ initialMedia, initialNextCursor }: MediaCl
     const params = new URLSearchParams();
     if (query) params.set("search", query);
     if (cursor) params.set("cursor", cursor);
-    const res = await fetch(`/api/media?${params.toString()}`);
-    if (!res.ok) return null;
-    return (await res.json()) as { media: Media[]; nextCursor: string | null };
+    try {
+      return await apiBrowser<{ media: Media[]; nextCursor: string | null }>(`/media?${params.toString()}`);
+    } catch {
+      return null;
+    }
   }, []);
 
   // Debounced search — re-fetches page one from scratch whenever the query changes.
@@ -86,10 +89,10 @@ export default function MediaClient({ initialMedia, initialNextCursor }: MediaCl
   const handleDelete = async (item: Media) => {
     setDeletingId(item.id);
     try {
-      const res = await fetch(`/api/media/${item.id}`, { method: "DELETE" });
-      if (res.ok) {
-        setMediaList((prev) => prev.filter((m) => m.id !== item.id));
-      }
+      await apiBrowser(`/media/${item.id}`, { method: "DELETE" });
+      setMediaList((prev) => prev.filter((m) => m.id !== item.id));
+    } catch {
+      // Silent — a delete failure just leaves the file listed.
     } finally {
       setDeletingId(null);
       setDeleting(null);

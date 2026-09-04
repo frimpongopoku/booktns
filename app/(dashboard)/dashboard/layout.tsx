@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { getMembershipsForEmail } from "@/lib/memberships";
 import { getFeedbackInboxEmail } from "@/lib/feedback";
-import { db } from "@/lib/db";
+import { getMembershipsForEmail } from "@/lib/memberships";
+import { apiServer, ApiError } from "@/lib/api-client.server";
 import { SITE_URL } from "@/lib/site";
 import Sidebar from "@/components/dashboard/Sidebar";
 import MobileNav from "@/components/dashboard/MobileNav";
@@ -17,28 +17,32 @@ export default async function DashboardLayout({
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // Unseen counts — cleared when a vendor first opens the corresponding list
-  // page, see the seenByVendorAt updateMany in bookings/orders page.tsx.
-  const [bookingBadgeCount, orderBadgeCount, vendor, memberships] = await Promise.all([
-    db.booking.count({ where: { vendorId: session.vendorId, seenByVendorAt: null } }),
-    db.order.count({ where: { vendorId: session.vendorId, seenByVendorAt: null } }),
-    db.vendor.findUnique({
-      where: { id: session.vendorId },
-      select: {
-        slug: true,
-        storefrontPublished: true,
-        customDomain: true,
-        customDomainVerified: true,
-        suspended: true,
-        suspendedReason: true,
-      },
-    }),
-    // Every shop this Google account is staff at, for the sidebar switcher.
-    // Renders nothing when there's only one, which is the common case.
-    getMembershipsForEmail(session.email),
-  ]);
+  // One call to the NestJS API for the whole dashboard shell — badge
+  // counts, vendor slug/publish/domain/suspension state. See
+  // VendorService.dashboardContext.
+  let dashboardContext;
+  try {
+    dashboardContext = await apiServer<{
+      vendor: { slug: string; storefrontPublished: boolean; customDomain: string | null; customDomainVerified: boolean; suspended: boolean; suspendedReason: string | null };
+      bookingBadgeCount: number;
+      orderBadgeCount: number;
+    }>("/vendor/dashboard-context");
+  } catch (err) {
+    // A stale or forged cookie verifies locally (getSession above only
+    // checks the signature) — the API is what actually re-checks the
+    // vendor still exists. 401/404 from it means this session is no longer
+    // good for anything.
+    if (err instanceof ApiError && (err.status === 401 || err.status === 404)) redirect("/login");
+    throw err;
+  }
+  const { vendor, bookingBadgeCount, orderBadgeCount } = dashboardContext;
 
-  if (!vendor) redirect("/login");
+  // Every shop this Google account is staff at, for the sidebar switcher.
+  // Renders nothing when there's only one, which is the common case. Stays
+  // a direct DB read: this server component already holds a verified
+  // session, so there's no reason to round-trip it through the API's own
+  // auth guard on a page that renders on every dashboard load.
+  const memberships = await getMembershipsForEmail(session.email);
 
   // A custom domain is only usable once verified — before that the platform
   // URL is the one that actually resolves, so that's what we link to.

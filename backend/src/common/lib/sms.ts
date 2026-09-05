@@ -1,6 +1,7 @@
 import africastalking from "africastalking";
 import type { SMS as AfricasTalkingSms, SMSOptions } from "africastalking";
 import type { Booking } from "../../types";
+import { config } from "../config";
 
 // Only what these messages actually reference — mirrors lib/email.ts's
 // VendorEmailInfo shape/reasoning.
@@ -14,7 +15,10 @@ const AT_USERNAME = process.env.AFRICAS_TALKING_USERNAME;
 // Africa's Talking sends from a shared/generic ID, which is fine for testing
 // but should be set before relying on this in production.
 const AT_SENDER_ID = process.env.AFRICAS_TALKING_SENDER_ID;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665";
+// See lib/email.ts's identical note — this is the backend, so the app URL
+// comes from config.appUrl (PUBLIC_APP_URL), not the frontend's
+// NEXT_PUBLIC_APP_URL, which is never set on this service.
+const APP_URL = config.appUrl;
 
 // Built lazily, same reasoning as lib/email.ts's getResendClient — importing
 // this module must never crash the booking flow before the env vars are set.

@@ -10,7 +10,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import MediaPickerModal from "@/components/dashboard/MediaPickerModal";
-import { Plus, X, AlertTriangle, Package, Archive, ImagePlus, Search, Star } from "lucide-react";
+import { Plus, X, AlertTriangle, Package, Archive, ArchiveRestore, ImagePlus, Search, Star } from "lucide-react";
 
 const MAX_IMAGES_PER_PRODUCT = 5;
 
@@ -202,7 +202,10 @@ interface ProductsClientProps {
   lowStockProductNames: string[];
 }
 
+type ProductView = "active" | "archived";
+
 export default function ProductsClient({ initialProducts, initialNextCursor, lowStockProductNames }: ProductsClientProps) {
+  const [view, setView] = useState<ProductView>("active");
   const [productList, setProductList] = useState<Product[]>(initialProducts);
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -210,15 +213,17 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
   const [showModal, setShowModal] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<Product | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [searching, setSearching] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchPage = useCallback(async (query: string, cursor: string | null) => {
+  const fetchPage = useCallback(async (query: string, cursor: string | null, status: ProductView) => {
     const params = new URLSearchParams();
     if (query) params.set("search", query);
     if (cursor) params.set("cursor", cursor);
+    if (status === "archived") params.set("status", "archived");
     try {
       return await apiBrowser<{ products: Product[]; nextCursor: string | null }>(`/products?${params.toString()}`);
     } catch {
@@ -226,9 +231,10 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
     }
   }, []);
 
-  // Debounced search — re-fetches page one from scratch whenever the query changes.
-  // Skips the very first run: `initialProducts` already covers search="" on mount,
-  // so re-fetching there would just duplicate that request.
+  // Debounced search — re-fetches page one from scratch whenever the query
+  // changes. Skips the very first run: `initialProducts` already covers
+  // search="", view="active" on mount, so re-fetching there would just
+  // duplicate that request.
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
@@ -237,7 +243,7 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
     }
     let cancelled = false;
     const handle = setTimeout(async () => {
-      const data = await fetchPage(search, null);
+      const data = await fetchPage(search, null, view);
       if (cancelled || !data) return;
       setProductList(data.products);
       setNextCursor(data.nextCursor);
@@ -247,16 +253,29 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
+  // Switching the Active/Archived tab reloads immediately — no debounce,
+  // since it's a discrete click rather than a stream of keystrokes.
+  const switchView = async (next: ProductView) => {
+    if (next === view) return;
+    setView(next);
+    setSearching(true);
+    const data = await fetchPage(search, null, next);
+    setSearching(false);
+    if (!data) return;
+    setProductList(data.products);
+    setNextCursor(data.nextCursor);
+  };
+
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
-    const data = await fetchPage(search, nextCursor);
+    const data = await fetchPage(search, nextCursor, view);
     if (data) {
       setProductList((prev) => [...prev, ...data.products]);
       setNextCursor(data.nextCursor);
     }
     setLoadingMore(false);
-  }, [nextCursor, loadingMore, search, fetchPage]);
+  }, [nextCursor, loadingMore, search, view, fetchPage]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -284,8 +303,8 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
     setArchivingId(product.id);
     try {
       await apiBrowser(`/products/${product.id}`, { method: "DELETE" });
-      // The API only ever returns active products, so once archived it no
-      // longer belongs in this list at all.
+      // The list is always scoped to the current tab (active or archived),
+      // so an archived product no longer belongs in the active view.
       setProductList((prev) => prev.filter((p) => p.id !== product.id));
     } catch {
       // Silent — an archive failure just leaves the product listed, no
@@ -293,6 +312,21 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
     } finally {
       setArchivingId(null);
       setArchiving(null);
+    }
+  };
+
+  const handleRestore = async (product: Product) => {
+    setRestoringId(product.id);
+    try {
+      await apiBrowser(`/products/${product.id}`, { method: "PATCH", body: { active: true } });
+      // Same rationale as handleArchive, in reverse — a restored product no
+      // longer belongs in the archived view.
+      setProductList((prev) => prev.filter((p) => p.id !== product.id));
+    } catch {
+      // Silent — a restore failure just leaves the product archived, no
+      // dedicated error banner needed over a one-field flip.
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -315,7 +349,11 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
     <div>
       <Topbar
         title="Products"
-        subtitle={`${productList.length}${nextCursor ? "+" : ""} product${productList.length === 1 && !nextCursor ? "" : "s"}`}
+        subtitle={
+          view === "archived"
+            ? `${productList.length}${nextCursor ? "+" : ""} archived product${productList.length === 1 && !nextCursor ? "" : "s"}`
+            : `${productList.length}${nextCursor ? "+" : ""} product${productList.length === 1 && !nextCursor ? "" : "s"}`
+        }
         actions={
           <Button size="sm" onClick={() => { setEditingProduct(undefined); setShowModal(true); }}>
             <Plus size={14} />
@@ -324,19 +362,37 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
         }
       />
 
+      <div className="flex items-center gap-1 mb-5 p-1 rounded-[var(--r)] w-fit" style={{ background: "var(--bg2)" }}>
+        {(["active", "archived"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => switchView(v)}
+            className="px-3 py-1.5 rounded-[var(--r)] text-sm font-medium transition-colors"
+            style={{
+              background: view === v ? "var(--bg)" : "transparent",
+              color: view === v ? "var(--tx)" : "var(--tx3)",
+              boxShadow: view === v ? "var(--shadow-sm)" : "none",
+            }}
+          >
+            {v === "active" ? "Active" : "Archived"}
+          </button>
+        ))}
+      </div>
+
       <div className="relative mb-5">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tx3)" }} />
         <input
           value={search}
           onChange={(e) => { setSearch(e.target.value); setSearching(true); }}
-          placeholder="Search products by name or description…"
+          placeholder={view === "archived" ? "Search archived products…" : "Search products by name or description…"}
           className="w-full max-w-sm pl-9 pr-3 py-2.5 rounded-[var(--r)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--ac)]"
           style={{ background: "var(--bg2)", color: "var(--tx)", border: "1px solid var(--bd)" }}
         />
       </div>
 
-      {/* Low stock warning — scans the whole catalog, not just the loaded page */}
-      {lowStockProductNames.length > 0 && (
+      {/* Low stock warning — scans the whole active catalog, not just the
+          loaded page, and only matters for products customers can still buy. */}
+      {view === "active" && lowStockProductNames.length > 0 && (
         <div
           className="flex items-center gap-3 p-3 rounded-[var(--r)] mb-5"
           style={{ background: "var(--amber-bg)" }}
@@ -355,6 +411,20 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
           style={{ background: "var(--bg2)", border: "1px dashed var(--bds)" }}
         >
           <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>No products match &quot;{search}&quot;</p>
+        </div>
+      ) : productList.length === 0 && !searching ? (
+        <div
+          className="flex flex-col items-center justify-center gap-2 py-16 rounded-[var(--rl)] text-center"
+          style={{ background: "var(--bg2)", border: "1px dashed var(--bds)" }}
+        >
+          <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>
+            {view === "archived" ? "No archived products" : "No products yet"}
+          </p>
+          <p className="text-sm max-w-xs" style={{ color: "var(--tx3)" }}>
+            {view === "archived"
+              ? "Products you archive show up here, and you can bring them back anytime."
+              : "Add your first product so customers can shop from your storefront."}
+          </p>
         </div>
       ) : (
         <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${searching ? "opacity-50" : ""} transition-opacity`}>
@@ -398,57 +468,74 @@ export default function ProductsClient({ initialProducts, initialNextCursor, low
                     {formatPrice(product.priceInPesewas)}
                   </p>
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleToggleFeatured(product)}
-                      disabled={togglingFeaturedId === product.id}
-                      className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
-                      style={{ color: product.featured ? "var(--ac)" : "var(--tx3)" }}
-                      aria-label={product.featured ? `Unfeature ${product.name}` : `Feature ${product.name}`}
-                      title={product.featured ? "Featured — click to unfeature" : "Mark as featured"}
-                    >
-                      <Star size={14} fill={product.featured ? "currentColor" : "none"} />
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setEditingProduct(product); setShowModal(true); }}
-                    >
-                      Edit
-                    </Button>
-                    <button
-                      onClick={() => setArchiving(product)}
-                      disabled={archivingId === product.id}
-                      className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
-                      style={{ color: "var(--tx3)" }}
-                      aria-label={`Archive ${product.name}`}
-                    >
-                      <Archive size={14} />
-                    </button>
+                    {view === "archived" ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRestore(product)}
+                        disabled={restoringId === product.id}
+                      >
+                        <ArchiveRestore size={14} />
+                        Restore
+                      </Button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleToggleFeatured(product)}
+                          disabled={togglingFeaturedId === product.id}
+                          className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
+                          style={{ color: product.featured ? "var(--ac)" : "var(--tx3)" }}
+                          aria-label={product.featured ? `Unfeature ${product.name}` : `Feature ${product.name}`}
+                          title={product.featured ? "Featured — click to unfeature" : "Mark as featured"}
+                        >
+                          <Star size={14} fill={product.featured ? "currentColor" : "none"} />
+                        </button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { setEditingProduct(product); setShowModal(true); }}
+                        >
+                          Edit
+                        </Button>
+                        <button
+                          onClick={() => setArchiving(product)}
+                          disabled={archivingId === product.id}
+                          className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
+                          style={{ color: "var(--tx3)" }}
+                          aria-label={`Archive ${product.name}`}
+                        >
+                          <Archive size={14} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
           ))}
 
-          {/* Add new card */}
-          <button
-            onClick={() => { setEditingProduct(undefined); setShowModal(true); }}
-            className="rounded-[var(--rl)] flex flex-col items-center justify-center gap-2 min-h-[200px] transition-colors hover:bg-[var(--bg3)]"
-            style={{
-              background: "var(--bg2)",
-              border: "2px dashed var(--bds)",
-            }}
-          >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: "var(--bg3)" }}
+          {/* Add new card — only in the active tab; archiving something
+              archived doesn't belong next to a "create" affordance. */}
+          {view === "active" && (
+            <button
+              onClick={() => { setEditingProduct(undefined); setShowModal(true); }}
+              className="rounded-[var(--rl)] flex flex-col items-center justify-center gap-2 min-h-[200px] transition-colors hover:bg-[var(--bg3)]"
+              style={{
+                background: "var(--bg2)",
+                border: "2px dashed var(--bds)",
+              }}
             >
-              <Plus size={20} style={{ color: "var(--tx3)" }} />
-            </div>
-            <p className="text-sm" style={{ color: "var(--tx3)" }}>
-              Add product
-            </p>
-          </button>
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: "var(--bg3)" }}
+              >
+                <Plus size={20} style={{ color: "var(--tx3)" }} />
+              </div>
+              <p className="text-sm" style={{ color: "var(--tx3)" }}>
+                Add product
+              </p>
+            </button>
+          )}
         </div>
       )}
 

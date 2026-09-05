@@ -6,7 +6,8 @@ import { apiServer, ApiError } from "@/lib/api-client.server";
 import { SITE_URL } from "@/lib/site";
 import Sidebar from "@/components/dashboard/Sidebar";
 import MobileNav from "@/components/dashboard/MobileNav";
-import { Store, ExternalLink, Ban } from "lucide-react";
+import MobileTopStrip from "@/components/dashboard/MobileTopStrip";
+import { Ban } from "lucide-react";
 import PlatformCredit from "@/components/shared/PlatformCredit";
 
 export default async function DashboardLayout({
@@ -74,22 +75,14 @@ export default async function DashboardLayout({
         className="flex-1 overflow-y-auto pb-20 lg:pb-0 flex flex-col"
         style={{ background: "var(--bg)" }}
       >
-        {/* The sidebar's storefront link is desktop-only and the mobile
-            bottom nav has no free slot, so mobile gets its own strip rather
-            than losing the link entirely. */}
-        <a
-          href={storefrontUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="lg:hidden flex items-center gap-2 px-4 py-2.5 text-sm"
-          style={{ background: "var(--bg2)", borderBottom: "1px solid var(--bd)", color: "var(--tx2)" }}
-        >
-          <Store size={14} style={{ color: vendor.storefrontPublished ? "var(--ac)" : "var(--tx3)" }} />
-          <span className="flex-1 truncate">
-            {vendor.storefrontPublished ? storefrontLabel : "Preview storefront — not published yet"}
-          </span>
-          <ExternalLink size={12} style={{ color: "var(--tx3)" }} />
-        </a>
+        {/* The sidebar's storefront link AND logout are both desktop-only,
+            and the mobile bottom nav has no free slot for either, so mobile
+            gets this one strip rather than losing both entirely. */}
+        <MobileTopStrip
+          storefrontUrl={storefrontUrl}
+          storefrontLabel={storefrontLabel}
+          storefrontPublished={vendor.storefrontPublished}
+        />
 
         {/* The vendor's own view of a suspension. Shoppers see a neutral
             "unavailable" page; the reason is surfaced only here, to them. */}

@@ -62,10 +62,15 @@ export class CatalogService {
 
   // --- Products ----------------------------------------------------------
 
-  async listProducts(vendorId: string, cursor: string | undefined, search: string | undefined) {
+  async listProducts(
+    vendorId: string,
+    cursor: string | undefined,
+    search: string | undefined,
+    status: "active" | "archived" = "active",
+  ) {
     const where = {
       vendorId,
-      active: true,
+      active: status === "archived" ? false : true,
       ...(search
         ? {
             OR: [

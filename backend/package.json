@@ -1,8 +1,8 @@
 {
   "name": "booktns-api",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
-  "description": "Booktns backend \u2014 NestJS API, deployed separately from the Next.js frontend",
+  "description": "Booktns backend — NestJS API, deployed separately from the Next.js frontend",
   "scripts": {
     "build": "prisma generate && nest build",
     "start": "node dist/main.js",
@@ -37,12 +37,14 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
     "@nestjs/schematics": "^11.0.9",
+    "@types/africastalking": "^0.8.0",
     "@types/express": "^5.0.0",
     "@types/multer": "^2.2.0",
     "@types/node": "^20",
     "eslint": "^9",
     "prisma": "^7.9.0",
     "tsx": "^4.23.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.69.0"
   }
 }

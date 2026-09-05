@@ -1,13 +1,12 @@
-import * as Sentry from "@sentry/nextjs";
-
+// No Sentry SDK here — unlike the Next.js frontend's lib/logger.ts (which
+// this mirrors the shape of), the API has no Sentry integration wired up
+// yet. Structured JSON logging only; add Sentry reporting here if/when the
+// backend gets its own DSN and `@sentry/node` init.
 type Level = "info" | "warn" | "error";
 
 function log(level: Level, message: string, context?: Record<string, unknown>) {
   const entry = { level, message, timestamp: new Date().toISOString(), ...context };
   console[level === "info" ? "log" : level](JSON.stringify(entry));
-  if (level === "error" && context?.err instanceof Error) {
-    Sentry.captureException(context.err, { extra: context });
-  }
 }
 
 export const logger = {

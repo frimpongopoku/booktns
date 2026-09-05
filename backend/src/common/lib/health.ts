@@ -193,23 +193,12 @@ async function checkCustomDomains(): Promise<CheckOutcome> {
   }
 }
 
-// Config presence only, and optional — an unset DSN means errors aren't
-// reported anywhere, which is worth flagging but is not an outage.
-function checkErrorTracking(): CheckOutcome {
-  if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) {
-    return { status: "warn", detail: "No DSN set — errors aren't being reported anywhere." };
-  }
-  return { status: "ok", detail: "DSN configured." };
-}
-
-function checkAnalytics(): CheckOutcome {
-  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-    return { status: "warn", detail: "No project key set — storefront analytics are disabled." };
-  }
-  return { status: "ok", detail: "Project key configured." };
-}
-
 // --- Runner ----------------------------------------------------------------
+//
+// No error-tracking or analytics checks here: both are Sentry/PostHog
+// integrations that live entirely in the Next.js frontend (its own
+// /api/health covers them). This API has neither SDK wired up, so a
+// presence check here would test an env var this service never reads.
 
 export async function runHealthChecks(): Promise<HealthCheckResult[]> {
   const checks: [string, () => Promise<CheckOutcome> | CheckOutcome][] = [
@@ -220,8 +209,6 @@ export async function runHealthChecks(): Promise<HealthCheckResult[]> {
     ["SMS notifications (Africa's Talking)", checkSms],
     ["Google sign-in (Firebase)", checkFirebase],
     ["Custom domains", checkCustomDomains],
-    ["Error tracking (Sentry)", checkErrorTracking],
-    ["Analytics (PostHog)", checkAnalytics],
   ];
 
   // All in parallel, each individually timed and individually caught, so one

@@ -10,7 +10,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { Plus, X, Pencil, Archive, Star, Scissors, Sparkles, Hand, Eye, Brush, Droplet, Waves } from "lucide-react";
+import { Plus, X, Pencil, Archive, ArchiveRestore, Star, Scissors, Sparkles, Hand, Eye, Brush, Droplet, Waves } from "lucide-react";
 
 const CATEGORY_ICONS: Record<ServiceCategory, React.ReactNode> = {
   Hair: <Scissors size={14} />,
@@ -161,16 +161,22 @@ interface ServicesClientProps {
   initialServices: Service[];
 }
 
+type ServiceView = "active" | "archived";
+
 export default function ServicesClient({ initialServices }: ServicesClientProps) {
+  const [view, setView] = useState<ServiceView>("active");
   const [serviceList, setServiceList] = useState<Service[]>(initialServices);
   const [editingService, setEditingService] = useState<Service | undefined>();
   const [showModal, setShowModal] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<Service | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
 
+  const wantActive = view === "active";
+  const archivedCount = serviceList.filter((s) => !s.active).length;
   const grouped = CATEGORIES.reduce<Record<ServiceCategory, Service[]>>((acc, cat) => {
-    acc[cat] = serviceList.filter((s) => s.category === cat && s.active);
+    acc[cat] = serviceList.filter((s) => s.category === cat && s.active === wantActive);
     return acc;
   }, {} as Record<ServiceCategory, Service[]>);
 
@@ -215,11 +221,27 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
     }
   };
 
+  const handleRestore = async (service: Service) => {
+    setRestoringId(service.id);
+    try {
+      await apiBrowser(`/services/${service.id}`, { method: "PATCH", body: { active: true } });
+      setServiceList((prev) => prev.map((s) => (s.id === service.id ? { ...s, active: true } : s)));
+    } catch {
+      // Silent, same rationale as handleArchive.
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
   return (
     <div>
       <Topbar
         title="Services"
-        subtitle={`${serviceList.filter((s) => s.active).length} active services`}
+        subtitle={
+          view === "archived"
+            ? `${archivedCount} archived service${archivedCount === 1 ? "" : "s"}`
+            : `${serviceList.filter((s) => s.active).length} active service${serviceList.filter((s) => s.active).length === 1 ? "" : "s"}`
+        }
         actions={
           <Button size="sm" onClick={() => { setEditingService(undefined); setShowModal(true); }}>
             <Plus size={14} />
@@ -227,6 +249,23 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
           </Button>
         }
       />
+
+      <div className="flex items-center gap-1 mb-5 p-1 rounded-[var(--r)] w-fit" style={{ background: "var(--bg2)" }}>
+        {(["active", "archived"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className="px-3 py-1.5 rounded-[var(--r)] text-sm font-medium transition-colors"
+            style={{
+              background: view === v ? "var(--bg)" : "transparent",
+              color: view === v ? "var(--tx)" : "var(--tx3)",
+              boxShadow: view === v ? "var(--shadow-sm)" : "none",
+            }}
+          >
+            {v === "active" ? "Active" : "Archived"}
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-col gap-6">
         {CATEGORIES.map((cat) => {
@@ -267,34 +306,48 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                     <p className="text-sm font-semibold flex-shrink-0" style={{ color: "var(--tx)" }}>
                       {formatPrice(svc.priceInPesewas)}
                     </p>
-                    <Badge variant="active">Active</Badge>
-                    <button
-                      onClick={() => handleToggleFeatured(svc)}
-                      disabled={togglingFeaturedId === svc.id}
-                      className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0 disabled:opacity-50"
-                      style={{ color: svc.featured ? "var(--ac)" : "var(--tx3)" }}
-                      aria-label={svc.featured ? `Unfeature ${svc.name}` : `Feature ${svc.name}`}
-                      title={svc.featured ? "Featured — click to unfeature" : "Mark as featured"}
-                    >
-                      <Star size={13} fill={svc.featured ? "currentColor" : "none"} />
-                    </button>
-                    <button
-                      onClick={() => { setEditingService(svc); setShowModal(true); }}
-                      className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0"
-                      style={{ color: "var(--tx3)" }}
-                      aria-label={`Edit ${svc.name}`}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      onClick={() => setArchiving(svc)}
-                      disabled={archivingId === svc.id}
-                      className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0 disabled:opacity-50"
-                      style={{ color: "var(--tx3)" }}
-                      aria-label={`Archive ${svc.name}`}
-                    >
-                      <Archive size={13} />
-                    </button>
+                    <Badge variant={svc.active ? "active" : "inactive"}>{svc.active ? "Active" : "Archived"}</Badge>
+                    {svc.active ? (
+                      <>
+                        <button
+                          onClick={() => handleToggleFeatured(svc)}
+                          disabled={togglingFeaturedId === svc.id}
+                          className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0 disabled:opacity-50"
+                          style={{ color: svc.featured ? "var(--ac)" : "var(--tx3)" }}
+                          aria-label={svc.featured ? `Unfeature ${svc.name}` : `Feature ${svc.name}`}
+                          title={svc.featured ? "Featured — click to unfeature" : "Mark as featured"}
+                        >
+                          <Star size={13} fill={svc.featured ? "currentColor" : "none"} />
+                        </button>
+                        <button
+                          onClick={() => { setEditingService(svc); setShowModal(true); }}
+                          className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0"
+                          style={{ color: "var(--tx3)" }}
+                          aria-label={`Edit ${svc.name}`}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => setArchiving(svc)}
+                          disabled={archivingId === svc.id}
+                          className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors flex-shrink-0 disabled:opacity-50"
+                          style={{ color: "var(--tx3)" }}
+                          aria-label={`Archive ${svc.name}`}
+                        >
+                          <Archive size={13} />
+                        </button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRestore(svc)}
+                        disabled={restoringId === svc.id}
+                      >
+                        <ArchiveRestore size={13} />
+                        Restore
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -302,14 +355,18 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
           );
         })}
 
-        {serviceList.filter((s) => s.active).length === 0 && (
+        {serviceList.filter((s) => s.active === wantActive).length === 0 && (
           <div
             className="flex flex-col items-center justify-center gap-2 py-16 rounded-[var(--rl)] text-center"
             style={{ background: "var(--bg2)", border: "1px dashed var(--bds)" }}
           >
-            <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>No services yet</p>
-            <p className="text-xs max-w-xs" style={{ color: "var(--tx3)" }}>
-              Add your first service so customers can start booking from your storefront.
+            <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>
+              {view === "archived" ? "No archived services" : "No services yet"}
+            </p>
+            <p className="text-sm max-w-xs" style={{ color: "var(--tx3)" }}>
+              {view === "archived"
+                ? "Services you archive show up here, and you can bring them back anytime."
+                : "Add your first service so customers can start booking from your storefront."}
             </p>
           </div>
         )}

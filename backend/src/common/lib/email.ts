@@ -5,6 +5,7 @@ import { formatPrice } from "../lib/data";
 import { buildGoogleCalendarUrl } from "../lib/calendar";
 import { whatsappLink } from "../lib/vendor-contact";
 import { getFeedbackInboxEmail } from "../lib/feedback";
+import { config } from "../config";
 
 // Only what these templates actually reference — avoids requiring a full
 // Vendor row (with every settings field) just to send an email. Expanded
@@ -33,7 +34,11 @@ interface VendorEmailInfo {
 // matches the subdomain verified for this project; if that ever changes,
 // update EMAIL_FROM in .env rather than relying on this fallback.
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Booktns <bookings@notifications.booktns.com>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665";
+// The frontend's own lib/email.ts reads NEXT_PUBLIC_APP_URL — this is the
+// backend, a plain Node process with no build-time env inlining, so it goes
+// through config.appUrl (PUBLIC_APP_URL) instead. Reading the frontend's
+// variable name here would silently fall back to localhost in production.
+const APP_URL = config.appUrl;
 
 // Resend throws synchronously if constructed without a key — built lazily
 // (and only once RESEND_API_KEY is actually needed) so importing this module

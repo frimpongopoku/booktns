@@ -62,8 +62,9 @@ export class ProductsController {
     @CurrentSession() session: SessionPayload,
     @Query("cursor") cursor?: string,
     @Query("search") search?: string,
+    @Query("status") status?: string,
   ) {
-    return this.catalog.listProducts(session.vendorId, cursor, search?.trim());
+    return this.catalog.listProducts(session.vendorId, cursor, search?.trim(), status === "archived" ? "archived" : "active");
   }
 
   @Post()

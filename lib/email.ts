@@ -104,7 +104,7 @@ function emailShell(vendor: VendorEmailInfo, bodyHtml: string, showContact = tru
       <div style="padding: 14px 16px; margin-top: 8px; background: #FAFAFA; border-radius: 8px; text-align: center;">
         <p style="margin: 0 0 6px; font-size: 13px; color: #52525B;">${vendor.location}</p>
         <p style="margin: 0 0 6px; font-size: 13px;">
-          <a href="${whatsappLink(vendor)}" style="color: #C0283A; text-decoration: none; font-weight: 500;">Message ${vendor.name}</a>
+          <a href="${whatsappLink(vendor.personalWhatsappNumber ?? vendor.whatsapp)}" style="color: #C0283A; text-decoration: none; font-weight: 500;">Message ${vendor.name}</a>
           <span style="color: #D4D4D8;"> &middot; </span>
           <a href="${storefrontUrl}" style="color: #C0283A; text-decoration: none; font-weight: 500;">Visit storefront</a>
         </p>

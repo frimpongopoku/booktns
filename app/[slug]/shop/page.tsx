@@ -103,8 +103,9 @@ export default async function ShopPage({ params }: PageProps) {
             vendorName={vendorData.name}
             verified={vendorData.verificationStatus === "VERIFIED"}
             ownerName={vendorData.ownerName}
-            ownerPhone={vendorData.ownerPhone}
-            ownerEmail={vendorData.ownerEmail}
+            slug={vendorData.slug}
+            hasOwnerPhone={Boolean(vendorData.ownerPhone)}
+            hasOwnerEmail={Boolean(vendorData.ownerEmail)}
           />
         }
       />

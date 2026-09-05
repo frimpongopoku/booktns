@@ -7,6 +7,7 @@ import { storefrontHref } from "@/lib/storefront-links";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import VendorWordmark from "@/components/storefront/VendorWordmark";
 import StorefrontFooter from "@/components/storefront/StorefrontFooter";
+import WhatsAppContactLink from "@/components/storefront/WhatsAppContactLink";
 import TrackView from "@/components/storefront/TrackView";
 import VerifiedBadge from "@/components/shared/VerifiedBadge";
 import { ANALYTICS_EVENTS } from "@/lib/analytics";
@@ -60,7 +61,7 @@ export default async function PayPage({ params }: PageProps) {
           href={storefrontHref(slug, isCustomDomain)}
           logoUrl={vendorData.logoUrl}
         />
-        <Link href={storefrontHref(slug, isCustomDomain, "/book")} className="text-sm font-medium" style={{ color: "var(--ac)" }}>
+        <Link href={storefrontHref(slug, isCustomDomain, "/book")} className="text-base font-medium" style={{ color: "var(--ac)" }}>
           Book Now
         </Link>
       </div>
@@ -88,7 +89,7 @@ export default async function PayPage({ params }: PageProps) {
           </h1>
           <div className="flex items-center justify-center gap-1.5">
             <MapPin size={12} style={{ color: "var(--tx3)" }} />
-            <p className="text-sm" style={{ color: "var(--tx3)" }}>
+            <p className="text-base" style={{ color: "var(--tx3)" }}>
               {vendorData.location}
             </p>
           </div>
@@ -106,10 +107,10 @@ export default async function PayPage({ params }: PageProps) {
           >
             <BadgeCheck size={18} className="mt-0.5 flex-shrink-0" style={{ color: "var(--green)" }} />
             <div>
-              <p className="text-sm font-semibold" style={{ color: "var(--green)" }}>
+              <p className="text-base font-semibold" style={{ color: "var(--green)" }}>
                 Verified vendor
               </p>
-              <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--tx2)" }}>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--tx2)" }}>
                 Booktns has checked the identity of the person who runs {vendorData.name} against a
                 government ID.
               </p>
@@ -122,10 +123,10 @@ export default async function PayPage({ params }: PageProps) {
           >
             <ShieldAlert size={18} className="mt-0.5 flex-shrink-0" style={{ color: "var(--amber)" }} />
             <div>
-              <p className="text-sm font-semibold" style={{ color: "var(--amber)" }}>
+              <p className="text-base font-semibold" style={{ color: "var(--amber)" }}>
                 Before you pay
               </p>
-              <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--tx2)" }}>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--tx2)" }}>
                 Booktns hasn&apos;t verified this vendor&apos;s identity, and does not handle or refund
                 payments. Money you send goes directly to them. Make sure you know who you&apos;re paying.
               </p>
@@ -133,12 +134,12 @@ export default async function PayPage({ params }: PageProps) {
           </div>
         )}
 
-        <p className="text-xs font-semibold uppercase tracking-widest mb-4 text-center" style={{ color: "var(--tx3)" }}>
+        <p className="text-sm font-semibold uppercase tracking-widest mb-4 text-center" style={{ color: "var(--tx3)" }}>
           Payment Details
         </p>
 
         {vendorData.paymentMethods.length === 0 ? (
-          <p className="text-sm text-center py-6" style={{ color: "var(--tx3)" }}>
+          <p className="text-base text-center py-6" style={{ color: "var(--tx3)" }}>
             Payment details aren&apos;t set up yet — message us on WhatsApp to arrange payment.
           </p>
         ) : (
@@ -157,8 +158,8 @@ export default async function PayPage({ params }: PageProps) {
                   <PaymentIcon type={pm.type} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--tx)" }}>{pm.label}</p>
-                  {pm.bankName && <p className="text-xs" style={{ color: "var(--tx3)" }}>{pm.bankName}</p>}
+                  <p className="text-base font-semibold" style={{ color: "var(--tx)" }}>{pm.label}</p>
+                  {pm.bankName && <p className="text-sm" style={{ color: "var(--tx3)" }}>{pm.bankName}</p>}
                 </div>
               </div>
 
@@ -169,10 +170,10 @@ export default async function PayPage({ params }: PageProps) {
                     style={{ background: "var(--bg3)" }}
                   >
                     <div>
-                      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
+                      <p className="text-xs uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
                         Account Name
                       </p>
-                      <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{pm.accountName}</p>
+                      <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{pm.accountName}</p>
                     </div>
                     <CopyButton text={pm.accountName} />
                   </div>
@@ -182,7 +183,7 @@ export default async function PayPage({ params }: PageProps) {
                       style={{ background: "var(--bg3)" }}
                     >
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
+                        <p className="text-xs uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
                           {pm.type === "momo" ? "MoMo Number" : "Account Number"}
                         </p>
                         <p className="text-lg font-semibold tracking-wider" style={{ color: "var(--tx)" }}>
@@ -194,7 +195,7 @@ export default async function PayPage({ params }: PageProps) {
                   )}
                 </div>
               ) : (
-                <p className="text-sm" style={{ color: "var(--tx2)" }}>
+                <p className="text-base" style={{ color: "var(--tx2)" }}>
                   Pay when you arrive at the salon. Please come with exact change where possible.
                 </p>
               )}
@@ -203,15 +204,11 @@ export default async function PayPage({ params }: PageProps) {
         </div>
         )}
 
-        <p className="text-center text-xs mt-8" style={{ color: "var(--tx3)" }}>
+        <p className="text-center text-sm mt-8" style={{ color: "var(--tx3)" }}>
           After paying, send your receipt to{" "}
-          <a
-            href={`https://wa.me/${vendorData.whatsapp.replace("+", "")}`}
-            className="font-medium"
-            style={{ color: "var(--green)" }}
-          >
+          <WhatsAppContactLink slug={slug} className="font-medium" style={{ color: "var(--green)" }}>
             WhatsApp
-          </a>{" "}
+          </WhatsAppContactLink>{" "}
           for confirmation.
         </p>
       </div>
@@ -220,8 +217,9 @@ export default async function PayPage({ params }: PageProps) {
         vendorName={vendorData.name}
         verified={vendorData.verificationStatus === "VERIFIED"}
         ownerName={vendorData.ownerName}
-        ownerPhone={vendorData.ownerPhone}
-        ownerEmail={vendorData.ownerEmail}
+        slug={vendorData.slug}
+        hasOwnerPhone={Boolean(vendorData.ownerPhone)}
+        hasOwnerEmail={Boolean(vendorData.ownerEmail)}
       />
 
       <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} />

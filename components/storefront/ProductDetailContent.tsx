@@ -74,7 +74,7 @@ export default function ProductDetailContent({
       <div className="flex flex-col gap-3">
         {isLow && (
           <span
-            className="w-fit text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+            className="w-fit text-xs font-semibold px-1.5 py-0.5 rounded-full"
             style={{ background: "var(--amber-bg)", color: "var(--amber)" }}
           >
             Low stock
@@ -82,7 +82,7 @@ export default function ProductDetailContent({
         )}
         {outOfStock && (
           <span
-            className="w-fit text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+            className="w-fit text-xs font-semibold px-1.5 py-0.5 rounded-full"
             style={{ background: "var(--bg3)", color: "var(--tx3)" }}
           >
             Out of stock
@@ -98,7 +98,7 @@ export default function ProductDetailContent({
           {formatPrice(product.priceInPesewas)}
         </p>
         {product.description && (
-          <p className="text-sm leading-relaxed" style={{ color: "var(--tx2)" }}>
+          <p className="text-base leading-relaxed" style={{ color: "var(--tx2)" }}>
             {product.description}
           </p>
         )}
@@ -113,7 +113,7 @@ export default function ProductDetailContent({
             >
               <Minus size={14} />
             </button>
-            <span className="w-6 text-center text-sm font-semibold" style={{ color: "var(--tx)" }}>
+            <span className="w-6 text-center text-base font-semibold" style={{ color: "var(--tx)" }}>
               {quantity}
             </span>
             <button
@@ -128,7 +128,7 @@ export default function ProductDetailContent({
           <button
             onClick={handleAdd}
             disabled={outOfStock}
-            className="flex-1 py-2.5 rounded-[var(--r)] text-sm font-medium text-white disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded-[var(--r)] text-base font-medium text-white disabled:opacity-50 flex items-center justify-center gap-2"
             style={{ background: "var(--ac)" }}
           >
             {added ? (

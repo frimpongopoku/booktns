@@ -105,8 +105,8 @@ export default async function BookPage({ params, searchParams }: PageProps) {
         isCustomDomain={isCustomDomain}
         initialServices={initialServices}
         ownerName={vendorData.ownerName}
-        ownerPhone={vendorData.ownerPhone}
-        ownerEmail={vendorData.ownerEmail}
+        hasOwnerPhone={Boolean(vendorData.ownerPhone)}
+        hasOwnerEmail={Boolean(vendorData.ownerEmail)}
         verified={vendorData.verificationStatus === "VERIFIED"}
       />
     </>

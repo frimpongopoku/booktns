@@ -174,18 +174,18 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
       >
         <VendorWordmark name={vendorName} href={storefrontHref(slug, isCustomDomain)} logoUrl={vendorLogoUrl} />
         <div className="flex items-center gap-3">
-          <Link href={storefrontHref(slug, isCustomDomain, "/book")} className="text-sm font-medium hidden md:block" style={{ color: "var(--tx2)" }}>
+          <Link href={storefrontHref(slug, isCustomDomain, "/book")} className="text-base font-medium hidden md:block" style={{ color: "var(--tx2)" }}>
             Book
           </Link>
           <button
             onClick={() => { setView("cart"); setCartOpen(true); }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--r)] text-sm font-medium relative"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--r)] text-base font-medium relative"
             style={{ background: "var(--bg2)", color: "var(--tx)" }}
           >
             <ShoppingCart size={16} />
             {cartCount > 0 && (
               <span
-                className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white"
+                className="text-sm font-bold px-1.5 py-0.5 rounded-full text-white"
                 style={{ background: "var(--ac)" }}
               >
                 {cartCount}
@@ -211,7 +211,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className="px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
+              className="px-4 py-1.5 rounded-full text-base font-medium whitespace-nowrap transition-colors"
               style={{
                 background: filter === f ? "var(--ac)" : "var(--bg2)",
                 color: filter === f ? "white" : "var(--tx2)",
@@ -225,7 +225,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
 
         {/* Products grid */}
         {filtered.length === 0 ? (
-          <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
+          <p className="text-base text-center py-10" style={{ color: "var(--tx3)" }}>
             {products.length === 0 ? "No products in the shop yet." : "No products match this filter."}
           </p>
         ) : (
@@ -258,7 +258,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                 <div className="p-3">
                   {isLow && (
                     <span
-                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                      className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
                       style={{ background: "var(--amber-bg)", color: "var(--amber)" }}
                     >
                       Low stock
@@ -266,12 +266,12 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                   )}
                   <button
                     onClick={() => setQuickViewProduct(product)}
-                    className="block w-full text-sm font-medium mt-1 mb-1 text-left hover:underline"
+                    className="block w-full text-base font-medium mt-1 mb-1 text-left hover:underline"
                     style={{ color: "var(--tx)" }}
                   >
                     {product.name}
                   </button>
-                  <p className="text-sm font-semibold mb-3" style={{ color: "var(--ac)" }}>
+                  <p className="text-base font-semibold mb-3" style={{ color: "var(--ac)" }}>
                     {formatPrice(product.priceInPesewas)}
                   </p>
 
@@ -284,7 +284,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="flex-1 text-center text-sm font-semibold" style={{ color: "var(--tx)" }}>
+                      <span className="flex-1 text-center text-base font-semibold" style={{ color: "var(--tx)" }}>
                         {qty}
                       </span>
                       <button
@@ -298,7 +298,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                   ) : (
                     <button
                       onClick={() => addToCart(product)}
-                      className="w-full py-2 rounded-[var(--r)] text-xs font-medium transition-colors"
+                      className="w-full py-2 rounded-[var(--r)] text-sm font-medium transition-colors"
                       style={{ background: "var(--bg3)", color: "var(--tx2)" }}
                     >
                       Add to cart
@@ -323,8 +323,8 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
             className="w-full flex items-center justify-between px-5 py-3 rounded-[var(--r)] text-white"
             style={{ background: "var(--ac)" }}
           >
-            <span className="text-sm font-medium">{cartCount} item{cartCount > 1 ? "s" : ""} in cart</span>
-            <span className="text-sm font-semibold">{formatPrice(cartTotal)}</span>
+            <span className="text-base font-medium">{cartCount} item{cartCount > 1 ? "s" : ""} in cart</span>
+            <span className="text-base font-semibold">{formatPrice(cartTotal)}</span>
           </button>
         </div>
       )}
@@ -357,7 +357,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
               <>
                 <div className="flex-1 overflow-y-auto p-5">
                   {cart.length === 0 ? (
-                    <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>Your cart is empty</p>
+                    <p className="text-base text-center py-10" style={{ color: "var(--tx3)" }}>Your cart is empty</p>
                   ) : (
                     <div className="flex flex-col gap-3">
                       {cart.map((item) => (
@@ -367,14 +367,14 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                           style={{ background: "var(--bg2)" }}
                         >
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>{item.name}</p>
-                            <p className="text-xs" style={{ color: "var(--tx3)" }}>{formatPrice(item.price)}</p>
+                            <p className="text-base font-medium truncate" style={{ color: "var(--tx)" }}>{item.name}</p>
+                            <p className="text-sm" style={{ color: "var(--tx3)" }}>{formatPrice(item.price)}</p>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => updateQty(item.productId, item.quantity - 1)} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "var(--bg3)", color: "var(--tx)" }}>
                               <Minus size={10} />
                             </button>
-                            <span className="w-6 text-center text-sm" style={{ color: "var(--tx)" }}>{item.quantity}</span>
+                            <span className="w-6 text-center text-base" style={{ color: "var(--tx)" }}>{item.quantity}</span>
                             <button onClick={() => updateQty(item.productId, item.quantity + 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-white" style={{ background: "var(--ac)" }}>
                               <Plus size={10} />
                             </button>
@@ -391,14 +391,14 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                 {cart.length > 0 && (
                   <div className="p-5" style={{ borderTop: "1px solid var(--bd)" }}>
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>Total</span>
+                      <span className="text-base font-medium" style={{ color: "var(--tx2)" }}>Total</span>
                       <span className="font-display text-xl font-medium" style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}>
                         {formatPrice(cartTotal)}
                       </span>
                     </div>
                     <button
                       onClick={openCheckout}
-                      className="w-full block text-center py-3 rounded-[var(--r)] text-white text-sm font-medium"
+                      className="w-full block text-center py-3 rounded-[var(--r)] text-white text-base font-medium"
                       style={{ background: "var(--ac)" }}
                     >
                       Checkout
@@ -410,13 +410,13 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
               <>
                 <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
                   {error && (
-                    <div className="px-3 py-2 rounded-[var(--r)] text-sm" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
+                    <div className="px-3 py-2 rounded-[var(--r)] text-base" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
                       {error}
                     </div>
                   )}
 
                   <div className="p-3 rounded-[var(--r)]" style={{ background: "var(--bg2)" }}>
-                    <div className="flex items-center justify-between text-sm mb-1">
+                    <div className="flex items-center justify-between text-base mb-1">
                       <span style={{ color: "var(--tx2)" }}>{cartCount} item{cartCount > 1 ? "s" : ""}</span>
                       <span className="font-semibold" style={{ color: "var(--tx)" }}>{formatPrice(cartTotal)}</span>
                     </div>
@@ -426,14 +426,14 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                   <Input label="WhatsApp number" type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="e.g. 0244 123 456" />
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Pickup or delivery?</label>
+                    <label className="text-sm font-medium" style={{ color: "var(--tx2)" }}>Pickup or delivery?</label>
                     <div className="flex gap-2">
                       {(["Pickup", "Delivery"] as const).map((opt) => (
                         <button
                           key={opt}
                           type="button"
                           onClick={() => setDeliveryPreference(opt)}
-                          className="flex-1 py-2 rounded-[var(--r)] text-sm font-medium"
+                          className="flex-1 py-2 rounded-[var(--r)] text-base font-medium"
                           style={{
                             background: deliveryPreference === opt ? "var(--ac)" : "var(--bg2)",
                             color: deliveryPreference === opt ? "white" : "var(--tx2)",
@@ -447,7 +447,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
 
                   {paymentMethods.length > 0 && (
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Payment method</label>
+                      <label className="text-sm font-medium" style={{ color: "var(--tx2)" }}>Payment method</label>
                       <div className="flex flex-col gap-2">
                         {paymentMethods.map((pm) => (
                           <button
@@ -461,8 +461,8 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                             }}
                           >
                             <div>
-                              <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{pm.label}</p>
-                              <p className="text-xs" style={{ color: "var(--tx3)" }}>{pm.accountName}</p>
+                              <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{pm.label}</p>
+                              <p className="text-sm" style={{ color: "var(--tx3)" }}>{pm.accountName}</p>
                             </div>
                             <div
                               className="w-4 h-4 rounded-full border-2 flex-shrink-0"

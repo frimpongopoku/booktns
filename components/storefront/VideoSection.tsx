@@ -43,7 +43,7 @@ export default function VideoSection({ videos, title, subtitle }: VideoSectionPr
             <h2 className="text-xl md:text-2xl font-semibold" style={{ color: "var(--tx)" }}>
               {title || DEFAULT_TITLE}
             </h2>
-            <p className="text-sm mt-1" style={{ color: "var(--tx3)" }}>
+            <p className="text-base mt-1" style={{ color: "var(--tx3)" }}>
               {subtitle || DEFAULT_SUBTITLE}
             </p>
           </div>

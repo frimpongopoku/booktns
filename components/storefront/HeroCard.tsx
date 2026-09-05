@@ -95,7 +95,7 @@ export default function HeroCard({ name, location, coverImageUrl, heroCardMode, 
       {background}
       {/* Open badge */}
       <div
-        className="absolute top-5 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+        className="absolute top-5 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold"
         style={{
           background: "rgba(255,255,255,0.12)",
           color: "white",
@@ -110,7 +110,7 @@ export default function HeroCard({ name, location, coverImageUrl, heroCardMode, 
       {/* Text content */}
       <div className="relative z-10 flex flex-col justify-end p-8 h-full">
         <p
-          className="text-xs font-semibold uppercase tracking-widest mb-3"
+          className="text-sm font-semibold uppercase tracking-widest mb-3"
           style={{ color: "rgba(255,255,255,0.5)" }}
         >
           Premium Beauty Studio
@@ -118,7 +118,7 @@ export default function HeroCard({ name, location, coverImageUrl, heroCardMode, 
         <p className="text-3xl font-semibold text-white leading-tight" style={{ letterSpacing: "-0.025em" }}>
           {name}
         </p>
-        <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
+        <p className="text-base mt-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
           {location}
         </p>
       </div>

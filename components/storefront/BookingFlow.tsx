@@ -75,10 +75,12 @@ interface BookingFlowProps {
   // vendor on the server (app/[slug]/book/page.tsx).
   initialServices: Service[];
   // For the footer — already redacted by lib/vendors.ts, so a field that
-  // arrives undefined is one the vendor chose not to publish.
+  // arrives undefined is one the vendor chose not to publish. Presence only
+  // for phone/email — the real values are fetched client-side by
+  // StorefrontFooter's OwnerContactRow, never passed as a prop here.
   ownerName?: string;
-  ownerPhone?: string;
-  ownerEmail?: string;
+  hasOwnerPhone?: boolean;
+  hasOwnerEmail?: boolean;
   verified?: boolean;
 }
 
@@ -96,8 +98,8 @@ export default function BookingFlow({
   isCustomDomain,
   initialServices,
   ownerName,
-  ownerPhone,
-  ownerEmail,
+  hasOwnerPhone = false,
+  hasOwnerEmail = false,
   verified = false,
 }: BookingFlowProps) {
   const router = useRouter();
@@ -248,31 +250,31 @@ export default function BookingFlow({
   const summarySidebar = step < 5 && (selectedServices.length > 0 || selectedDay) && (
     <div className="hidden md:block md:sticky md:top-24 h-fit">
       <div className="rounded-[var(--rl)] p-5" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
+        <p className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
           Your booking so far
         </p>
         {selectedServices.length > 0 ? (
           <div className="flex flex-col gap-2 mb-3">
             {selectedServices.map((svc) => (
               <div key={svc.id} className="flex items-center justify-between gap-2">
-                <span className="text-sm truncate" style={{ color: "var(--tx)" }}>{svc.name}</span>
-                <span className="text-sm font-medium flex-shrink-0" style={{ color: "var(--tx2)" }}>
+                <span className="text-base truncate" style={{ color: "var(--tx)" }}>{svc.name}</span>
+                <span className="text-base font-medium flex-shrink-0" style={{ color: "var(--tx2)" }}>
                   {formatPrice(svc.priceInPesewas)}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm mb-3" style={{ color: "var(--tx3)" }}>No services selected yet</p>
+          <p className="text-base mb-3" style={{ color: "var(--tx3)" }}>No services selected yet</p>
         )}
         {selectedDateStr && selectedDay && (
-          <p className="text-sm mb-2" style={{ color: "var(--tx2)" }}>
+          <p className="text-base mb-2" style={{ color: "var(--tx2)" }}>
             {monthName} {selectedDay} · {selectedTime ? formatSlotLabel(selectedTime) : "no time picked yet"}
           </p>
         )}
         {selectedServices.length > 0 && (
           <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px solid var(--bds)" }}>
-            <span className="text-sm font-semibold" style={{ color: "var(--tx)" }}>Total</span>
+            <span className="text-base font-semibold" style={{ color: "var(--tx)" }}>Total</span>
             <span className="font-display text-lg font-medium" style={{ fontFamily: "var(--font-display)", color: "var(--ac)" }}>
               {formatPrice(totalServiceCost)}
             </span>
@@ -300,14 +302,14 @@ export default function BookingFlow({
               />
             ) : (
               <span
-                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold text-white flex-shrink-0"
                 style={{ background: "var(--ac)" }}
               >
                 {vendorName[0]}
               </span>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate group-hover:underline" style={{ color: "var(--tx)" }}>
+              <p className="text-base font-semibold truncate group-hover:underline" style={{ color: "var(--tx)" }}>
                 {vendorName}
               </p>
             </div>
@@ -323,10 +325,10 @@ export default function BookingFlow({
               </button>
             )}
             <div className="flex-1">
-              <p className="text-xs font-medium" style={{ color: "var(--tx3)" }}>
+              <p className="text-sm font-medium" style={{ color: "var(--tx3)" }}>
                 Step {step + 1} of {STEPS.length}
               </p>
-              <p className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
+              <p className="text-base font-semibold" style={{ color: "var(--tx)" }}>
                 {STEPS[step]}
               </p>
             </div>
@@ -360,7 +362,7 @@ export default function BookingFlow({
               What would you like?
             </h2>
             {services.length === 0 ? (
-              <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
+              <p className="text-base text-center py-10" style={{ color: "var(--tx3)" }}>
                 No services available yet — check back soon or contact us on WhatsApp.
               </p>
             ) : (
@@ -387,17 +389,17 @@ export default function BookingFlow({
                       {selected && <Check size={12} color="white" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>
+                      <p className="text-base font-medium truncate" style={{ color: "var(--tx)" }}>
                         {svc.name}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <Clock size={11} style={{ color: "var(--tx3)" }} />
-                        <span className="text-xs" style={{ color: "var(--tx3)" }}>
+                        <span className="text-sm" style={{ color: "var(--tx3)" }}>
                           {formatDuration(svc.durationMinutes)}
                         </span>
                       </div>
                     </div>
-                    <p className="text-sm font-semibold flex-shrink-0" style={{ color: selected ? "var(--ac)" : "var(--tx)" }}>
+                    <p className="text-base font-semibold flex-shrink-0" style={{ color: selected ? "var(--ac)" : "var(--tx)" }}>
                       {formatPrice(svc.priceInPesewas)}
                     </p>
                   </button>
@@ -414,7 +416,7 @@ export default function BookingFlow({
             <h2 className="font-display text-xl font-medium mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}>
               Staff preference
             </h2>
-            <p className="text-sm mb-4" style={{ color: "var(--tx3)" }}>
+            <p className="text-base mb-4" style={{ color: "var(--tx3)" }}>
               Choose who you&apos;d like to be served by — or let us assign someone. Your preference will be considered, but final staff assignment is confirmed by the shop.
             </p>
             <div className="flex flex-col gap-2">
@@ -433,10 +435,10 @@ export default function BookingFlow({
                   <User size={16} style={{ color: "var(--tx3)" }} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>
+                  <p className="text-base font-medium" style={{ color: "var(--tx)" }}>
                     No preference
                   </p>
-                  <p className="text-xs" style={{ color: "var(--tx3)" }}>
+                  <p className="text-sm" style={{ color: "var(--tx3)" }}>
                     We&apos;ll assign the best available
                   </p>
                 </div>
@@ -457,16 +459,16 @@ export default function BookingFlow({
                     }}
                   >
                     <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-white"
+                      className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-base font-semibold text-white"
                       style={{ background: "var(--ac)" }}
                     >
                       {s.name[0]}
                     </div>
                     <div>
-                      <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>
+                      <p className="text-base font-medium" style={{ color: "var(--tx)" }}>
                         {s.name}
                       </p>
-                      <p className="text-xs" style={{ color: "var(--tx3)" }}>
+                      <p className="text-sm" style={{ color: "var(--tx3)" }}>
                         {s.role}{s.roleDetail ? ` · ${s.roleDetail}` : ""}
                       </p>
                     </div>
@@ -498,7 +500,7 @@ export default function BookingFlow({
               >
                 <ChevronLeft size={16} />
               </button>
-              <p className="text-sm font-semibold" style={{ color: "var(--tx)" }}>
+              <p className="text-base font-semibold" style={{ color: "var(--tx)" }}>
                 {monthName} {calYear}
               </p>
               <button
@@ -515,7 +517,7 @@ export default function BookingFlow({
             {/* Day labels */}
             <div className="grid grid-cols-7 mb-1">
               {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                <div key={d} className="text-center text-xs py-1" style={{ color: "var(--tx3)" }}>
+                <div key={d} className="text-center text-sm py-1" style={{ color: "var(--tx3)" }}>
                   {d}
                 </div>
               ))}
@@ -535,7 +537,7 @@ export default function BookingFlow({
                   <button
                     key={`${calYear}-${calMonth}-${day}`}
                     onClick={() => !blocked && setSelectedDay(day)}
-                    className="aspect-square flex items-center justify-center text-sm md:text-base rounded-[var(--r)] transition-all"
+                    className="aspect-square flex items-center justify-center text-base md:text-base rounded-[var(--r)] transition-all"
                     disabled={blocked}
                     style={{
                       background: selected ? "var(--ac)" : blocked ? "var(--bg2)" : undefined,
@@ -554,7 +556,7 @@ export default function BookingFlow({
             {/* Time slots */}
             {selectedDay && (
               <>
-                <p className="text-sm font-semibold mb-3" style={{ color: "var(--tx)" }}>
+                <p className="text-base font-semibold mb-3" style={{ color: "var(--tx)" }}>
                   Available times on {monthName} {selectedDay}
                 </p>
                 {/* Only a full swap when there is genuinely nothing to show
@@ -562,9 +564,9 @@ export default function BookingFlow({
                     place (below) instead of replacing the panel, so the
                     layout doesn't jump every time a service is toggled. */}
                 {loadingSlots && availableSlots.length === 0 ? (
-                  <p className="text-sm py-6 text-center" style={{ color: "var(--tx3)" }}>Checking availability…</p>
+                  <p className="text-base py-6 text-center" style={{ color: "var(--tx3)" }}>Checking availability…</p>
                 ) : availableSlots.length === 0 ? (
-                  <p className="text-sm py-6 text-center" style={{ color: "var(--tx3)" }}>
+                  <p className="text-base py-6 text-center" style={{ color: "var(--tx3)" }}>
                     No times available this day — try another date.
                   </p>
                 ) : (
@@ -582,7 +584,7 @@ export default function BookingFlow({
                         <button
                           key={slot}
                           onClick={() => setSelectedTime(slot)}
-                          className="px-3 py-2 rounded-[var(--r)] text-sm text-center transition-all"
+                          className="px-3 py-2 rounded-[var(--r)] text-base text-center transition-all"
                           style={{
                             background: selected ? "var(--ac-bg)" : "var(--bg2)",
                             border: selected ? "1px solid var(--ac)" : "1px solid var(--bds)",
@@ -606,7 +608,7 @@ export default function BookingFlow({
             <h2 className="font-display text-xl font-medium mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}>
               Add products
             </h2>
-            <p className="text-sm mb-4" style={{ color: "var(--tx3)" }}>
+            <p className="text-base mb-4" style={{ color: "var(--tx3)" }}>
               Take home something from our shop — optional.
             </p>
             <div className="flex flex-col gap-2">
@@ -635,10 +637,10 @@ export default function BookingFlow({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: "var(--tx)" }}>
+                      <p className="text-base font-medium truncate" style={{ color: "var(--tx)" }}>
                         {p.name}
                       </p>
-                      <p className="text-xs" style={{ color: qty > 0 ? "var(--ac)" : "var(--tx3)" }}>
+                      <p className="text-sm" style={{ color: qty > 0 ? "var(--ac)" : "var(--tx3)" }}>
                         {formatPrice(p.priceInPesewas)}
                       </p>
                     </div>
@@ -652,7 +654,7 @@ export default function BookingFlow({
                           >
                             <Minus size={12} />
                           </button>
-                          <span className="w-5 text-center text-sm font-semibold" style={{ color: "var(--tx)" }}>
+                          <span className="w-5 text-center text-base font-semibold" style={{ color: "var(--tx)" }}>
                             {qty}
                           </span>
                           <button
@@ -666,7 +668,7 @@ export default function BookingFlow({
                       ) : (
                         <button
                           onClick={() => setProductQty(p.id, 1)}
-                          className="text-xs font-medium px-3 py-1.5 rounded-[var(--r)]"
+                          className="text-sm font-medium px-3 py-1.5 rounded-[var(--r)]"
                           style={{ background: "var(--bg3)", color: "var(--tx2)" }}
                         >
                           Add
@@ -727,7 +729,7 @@ export default function BookingFlow({
             </h2>
 
             {error && (
-              <div className="px-3 py-2 mb-3 rounded-[var(--r)] text-sm" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
+              <div className="px-3 py-2 mb-3 rounded-[var(--r)] text-base" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
                 {error}
               </div>
             )}
@@ -736,21 +738,21 @@ export default function BookingFlow({
               <div className="flex flex-col gap-3">
                 {/* Customer */}
                 <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Customer</p>
-                  <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{customerName}</p>
-                  <p className="text-sm" style={{ color: "var(--tx2)" }}>{customerPhone}</p>
-                  <p className="text-sm" style={{ color: "var(--tx2)" }}>{customerEmail}</p>
-                  {customerNotes && <p className="text-xs mt-1" style={{ color: "var(--tx3)" }}>{customerNotes}</p>}
+                  <p className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Customer</p>
+                  <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{customerName}</p>
+                  <p className="text-base" style={{ color: "var(--tx2)" }}>{customerPhone}</p>
+                  <p className="text-base" style={{ color: "var(--tx2)" }}>{customerEmail}</p>
+                  {customerNotes && <p className="text-sm mt-1" style={{ color: "var(--tx3)" }}>{customerNotes}</p>}
                 </div>
 
                 {/* Services */}
                 <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Services</p>
+                  <p className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Services</p>
                   <div className="flex flex-col gap-1.5">
                     {selectedServices.map((svc) => (
                       <div key={svc.id} className="flex items-center justify-between">
-                        <span className="text-sm" style={{ color: "var(--tx)" }}>{svc.name}</span>
-                        <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(svc.priceInPesewas)}</span>
+                        <span className="text-base" style={{ color: "var(--tx)" }}>{svc.name}</span>
+                        <span className="text-base font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(svc.priceInPesewas)}</span>
                       </div>
                     ))}
                   </div>
@@ -758,13 +760,13 @@ export default function BookingFlow({
 
                 {/* Date / Staff */}
                 <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Appointment</p>
+                  <p className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Appointment</p>
                   {selectedDay && (
-                    <p className="text-sm" style={{ color: "var(--tx)" }}>
+                    <p className="text-base" style={{ color: "var(--tx)" }}>
                       {monthName} {selectedDay}, {calYear} · {selectedTime ? formatSlotLabel(selectedTime) : ""}
                     </p>
                   )}
-                  <p className="text-sm mt-1" style={{ color: "var(--tx2)" }}>
+                  <p className="text-base mt-1" style={{ color: "var(--tx2)" }}>
                     {selectedStaffId
                       ? staff.find((s) => s.id === selectedStaffId)?.name
                       : "No preference (auto-assign)"}
@@ -774,14 +776,14 @@ export default function BookingFlow({
                 {/* Products */}
                 {Object.keys(productQtys).length > 0 && (
                   <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Products</p>
+                    <p className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Products</p>
                     {Object.entries(productQtys).map(([id, qty]) => {
                       const p = products.find((x) => x.id === id);
                       if (!p) return null;
                       return (
                         <div key={id} className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: "var(--tx)" }}>{p.name} × {qty}</span>
-                          <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(p.priceInPesewas * qty)}</span>
+                          <span className="text-base" style={{ color: "var(--tx)" }}>{p.name} × {qty}</span>
+                          <span className="text-base font-medium" style={{ color: "var(--tx2)" }}>{formatPrice(p.priceInPesewas * qty)}</span>
                         </div>
                       );
                     })}
@@ -792,12 +794,12 @@ export default function BookingFlow({
               <div className="flex flex-col gap-3 mt-3 md:mt-0">
                 {/* Payment info */}
                 <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Payment</p>
+                  <p className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Payment</p>
                   {depositSetting === "None" ? (
-                    <p className="text-sm" style={{ color: "var(--tx2)" }}>Pay on arrival — no deposit required for this booking.</p>
+                    <p className="text-base" style={{ color: "var(--tx2)" }}>Pay on arrival — no deposit required for this booking.</p>
                   ) : (
                     <>
-                      <p className="text-sm mb-3" style={{ color: "var(--tx2)" }}>
+                      <p className="text-base mb-3" style={{ color: "var(--tx2)" }}>
                         A deposit of <strong style={{ color: "var(--tx)" }}>{formatPrice(depositAmountPesewas)}</strong> is required to secure this booking.
                       </p>
                       {paymentMethods.length > 0 && (
@@ -814,8 +816,8 @@ export default function BookingFlow({
                               }}
                             >
                               <div>
-                                <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{pm.label}</p>
-                                <p className="text-xs" style={{ color: "var(--tx3)" }}>{pm.accountName}</p>
+                                <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{pm.label}</p>
+                                <p className="text-sm" style={{ color: "var(--tx3)" }}>{pm.accountName}</p>
                               </div>
                               <div
                                 className="w-4 h-4 rounded-full border-2 flex-shrink-0"
@@ -831,7 +833,7 @@ export default function BookingFlow({
                     </>
                   )}
                   <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid var(--bds)" }}>
-                    <span className="text-sm font-semibold" style={{ color: "var(--tx)" }}>Total</span>
+                    <span className="text-base font-semibold" style={{ color: "var(--tx)" }}>Total</span>
                     <span className="font-display text-lg font-medium" style={{ fontFamily: "var(--font-display)", color: "var(--ac)" }}>
                       {formatPrice(totalCost)}
                     </span>
@@ -840,8 +842,8 @@ export default function BookingFlow({
 
                 {cancellationPolicy && (
                   <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Cancellation policy</p>
-                    <p className="text-sm" style={{ color: "var(--tx2)" }}>{cancellationPolicy}</p>
+                    <p className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>Cancellation policy</p>
+                    <p className="text-base" style={{ color: "var(--tx2)" }}>{cancellationPolicy}</p>
                   </div>
                 )}
               </div>
@@ -864,7 +866,7 @@ export default function BookingFlow({
       >
         <div className="w-full max-w-2xl lg:max-w-5xl mx-auto">
           {step === 0 && selectedServices.length > 0 && (
-            <p className="text-xs text-center mb-2" style={{ color: "var(--tx3)" }}>
+            <p className="text-sm text-center mb-2" style={{ color: "var(--tx3)" }}>
               {selectedServices.length} service{selectedServices.length > 1 ? "s" : ""} · Total{" "}
               <span style={{ color: "var(--ac)" }}>{formatPrice(totalServiceCost)}</span>
             </p>
@@ -893,7 +895,7 @@ export default function BookingFlow({
           {step === 3 && (
             <button
               onClick={() => setStep((s) => s + 1)}
-              className="w-full mt-2 text-sm py-2 text-center"
+              className="w-full mt-2 text-base py-2 text-center"
               style={{ color: "var(--tx3)" }}
             >
               Skip — no products
@@ -906,10 +908,11 @@ export default function BookingFlow({
           of the flow without ever competing with the Continue button. */}
       <StorefrontFooter
         vendorName={vendorName}
+        slug={slug}
         verified={verified}
         ownerName={ownerName}
-        ownerPhone={ownerPhone}
-        ownerEmail={ownerEmail}
+        hasOwnerPhone={hasOwnerPhone}
+        hasOwnerEmail={hasOwnerEmail}
       />
     </div>
   );

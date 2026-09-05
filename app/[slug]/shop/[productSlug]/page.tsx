@@ -109,7 +109,7 @@ export default async function ProductPage({ params }: PageProps) {
         />
         <Link
           href={storefrontHref(slug, isCustomDomain, "/shop")}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--r)] text-sm font-medium"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--r)] text-base font-medium"
           style={{ background: "var(--bg2)", color: "var(--tx)" }}
         >
           <ShoppingCart size={16} />
@@ -118,7 +118,7 @@ export default async function ProductPage({ params }: PageProps) {
       </div>
 
       <div className="px-4 md:px-8 py-6 max-w-4xl mx-auto">
-        <nav className="text-xs mb-6" style={{ color: "var(--tx3)" }}>
+        <nav className="text-sm mb-6" style={{ color: "var(--tx3)" }}>
           <Link href={storefrontHref(slug, isCustomDomain, "/shop")} className="hover:underline">Shop</Link>
           <span className="mx-1.5">/</span>
           <span style={{ color: "var(--tx2)" }}>{product.name}</span>
@@ -131,8 +131,9 @@ export default async function ProductPage({ params }: PageProps) {
         vendorName={vendorData.name}
         verified={vendorData.verificationStatus === "VERIFIED"}
         ownerName={vendorData.ownerName}
-        ownerPhone={vendorData.ownerPhone}
-        ownerEmail={vendorData.ownerEmail}
+        slug={vendorData.slug}
+        hasOwnerPhone={Boolean(vendorData.ownerPhone)}
+        hasOwnerEmail={Boolean(vendorData.ownerEmail)}
       />
 
       <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} />

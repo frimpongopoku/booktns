@@ -11,7 +11,7 @@ import BookingConfirmationActions from "@/components/storefront/BookingConfirmat
 import VendorContactCard from "@/components/storefront/VendorContactCard";
 import VendorWordmark from "@/components/storefront/VendorWordmark";
 import StartYourOwnShopLink from "@/components/shared/StartYourOwnShopLink";
-import type { VendorContactInfo } from "@/lib/vendor-contact";
+import { buildVendorContactMeta } from "@/lib/vendor-contact";
 import {
   CheckCircle2,
   Clock,
@@ -81,17 +81,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
   const isPending = booking.status === "pending";
   const staffName = booking.assignedStaffName ?? booking.staffPreferenceName;
 
-  const contact: VendorContactInfo = {
-    name: booking.vendor.name,
-    slug: booking.vendor.slug,
-    location: booking.vendor.location,
-    hours: booking.vendor.hours,
-    phone: booking.vendor.phone,
-    whatsapp: booking.vendor.whatsapp,
-    personalWhatsappNumber: booking.vendor.personalWhatsappNumber,
-    ownerPhone: booking.vendor.ownerPhone,
-    ownerEmail: booking.vendor.ownerEmail,
-  };
+  const contact = buildVendorContactMeta(booking.vendor);
 
   const whatsappMessage = `Hi ${booking.vendor.name}, I'd like to confirm my booking reference ${booking.slug}. Customer: ${booking.customerName}.`;
 
@@ -147,7 +137,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
             {booking.slug}
           </h1>
           {isPending && (
-            <p className="text-sm mt-2" style={{ color: "var(--tx3)" }}>
+            <p className="text-base mt-2" style={{ color: "var(--tx3)" }}>
               {booking.vendor.name} will confirm your booking via WhatsApp.
             </p>
           )}
@@ -157,24 +147,24 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
           <div className="flex flex-col gap-4">
             {/* Customer */}
             <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
                 Customer
               </p>
               <div className="flex items-center gap-3">
                 <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white"
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-base font-semibold text-white"
                   style={{ background: "var(--ac)" }}
                 >
                   {booking.customerName[0]}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--tx)" }}>{booking.customerName}</p>
-                  <p className="text-xs" style={{ color: "var(--tx3)" }}>{booking.customerPhone}</p>
-                  <p className="text-xs" style={{ color: "var(--tx3)" }}>{booking.customerEmail}</p>
+                  <p className="text-base font-semibold" style={{ color: "var(--tx)" }}>{booking.customerName}</p>
+                  <p className="text-sm" style={{ color: "var(--tx3)" }}>{booking.customerPhone}</p>
+                  <p className="text-sm" style={{ color: "var(--tx3)" }}>{booking.customerEmail}</p>
                 </div>
               </div>
               {booking.notes && (
-                <p className="text-xs mt-3 pt-3" style={{ color: "var(--tx3)", borderTop: "1px solid var(--bds)" }}>
+                <p className="text-sm mt-3 pt-3" style={{ color: "var(--tx3)", borderTop: "1px solid var(--bds)" }}>
                   {booking.notes}
                 </p>
               )}
@@ -182,14 +172,14 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
 
             {/* Services */}
             <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
                 Services
               </p>
               <div className="flex flex-col gap-2">
                 {booking.services.map((s) => (
                   <div key={s.id} className="flex items-center justify-between">
-                    <span className="text-sm" style={{ color: "var(--tx)" }}>{s.name}</span>
-                    <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>
+                    <span className="text-base" style={{ color: "var(--tx)" }}>{s.name}</span>
+                    <span className="text-base font-medium" style={{ color: "var(--tx2)" }}>
                       {formatPrice(s.priceAtBooking)}
                     </span>
                   </div>
@@ -198,7 +188,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
                   className="flex items-center justify-between pt-2 mt-1"
                   style={{ borderTop: "1px solid var(--bds)" }}
                 >
-                  <span className="text-xs font-semibold" style={{ color: "var(--tx3)" }}>Total</span>
+                  <span className="text-sm font-semibold" style={{ color: "var(--tx3)" }}>Total</span>
                   <span className="font-display text-lg font-medium" style={{ fontFamily: "var(--font-display)", color: "var(--ac)" }}>
                     {formatPrice(servicesTotal)}
                   </span>
@@ -209,14 +199,14 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
             {/* Products */}
             {booking.products.length > 0 && (
               <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
+                <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
                   Products flagged
                 </p>
                 <div className="flex flex-col gap-2">
                   {booking.products.map((p) => (
                     <div key={p.id} className="flex items-center justify-between">
-                      <span className="text-sm" style={{ color: "var(--tx)" }}>{p.name} × {p.quantity}</span>
-                      <span className="text-sm font-medium" style={{ color: "var(--tx2)" }}>
+                      <span className="text-base" style={{ color: "var(--tx)" }}>{p.name} × {p.quantity}</span>
+                      <span className="text-base font-medium" style={{ color: "var(--tx2)" }}>
                         {formatPrice(p.priceAtBooking * p.quantity)}
                       </span>
                     </div>
@@ -229,29 +219,29 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
           <div className="flex flex-col gap-4 mt-4 md:mt-0">
             {/* Appointment details */}
             <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
                 Appointment
               </p>
               <div className="flex flex-col gap-2.5">
                 <div className="flex items-center gap-2.5">
                   <Calendar size={15} style={{ color: "var(--tx3)" }} />
-                  <span className="text-sm" style={{ color: "var(--tx)" }}>{formatDateTime(booking.startTime)}</span>
+                  <span className="text-base" style={{ color: "var(--tx)" }}>{formatDateTime(booking.startTime)}</span>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Clock size={15} style={{ color: "var(--tx3)" }} />
-                  <span className="text-sm" style={{ color: "var(--tx)" }}>
+                  <span className="text-base" style={{ color: "var(--tx)" }}>
                     {formatTime(booking.startTime)} — {formatTime(booking.endTime)}
                   </span>
                 </div>
                 {staffName && (
                   <div className="flex items-center gap-2.5">
                     <User size={15} style={{ color: "var(--tx3)" }} />
-                    <span className="text-sm" style={{ color: "var(--tx)" }}>{staffName}</span>
+                    <span className="text-base" style={{ color: "var(--tx)" }}>{staffName}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2.5">
                   <MapPin size={15} style={{ color: "var(--tx3)" }} />
-                  <span className="text-sm" style={{ color: "var(--tx2)" }}>{booking.vendor.location}</span>
+                  <span className="text-base" style={{ color: "var(--tx2)" }}>{booking.vendor.location}</span>
                 </div>
               </div>
             </div>
@@ -259,16 +249,16 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
             {/* Deposit info */}
             {booking.depositAmountPesewas > 0 && (
               <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--amber-bg)", border: "1px solid var(--amber)" }}>
-                <p className="text-sm font-semibold mb-1" style={{ color: "var(--amber)" }}>
+                <p className="text-base font-semibold mb-1" style={{ color: "var(--amber)" }}>
                   Deposit required
                 </p>
-                <p className="text-sm" style={{ color: "var(--amber)" }}>
+                <p className="text-base" style={{ color: "var(--amber)" }}>
                   Please pay a deposit of{" "}
                   <span className="font-bold">{formatPrice(booking.depositAmountPesewas)}</span>{" "}
                   to confirm your booking.
                 </p>
                 {booking.depositReferenceCode && (
-                  <p className="text-sm mt-1" style={{ color: "var(--amber)" }}>
+                  <p className="text-base mt-1" style={{ color: "var(--amber)" }}>
                     Include reference <span className="font-bold">{booking.depositReferenceCode}</span> in your payment description.
                   </p>
                 )}
@@ -276,10 +266,10 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
                   <div className="mt-3 p-3 rounded-[var(--r)]" style={{ background: "var(--bg)" }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>{booking.paymentMethod.label}</p>
-                        <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{booking.paymentMethod.accountName}</p>
+                        <p className="text-xs uppercase tracking-wide" style={{ color: "var(--tx3)" }}>{booking.paymentMethod.label}</p>
+                        <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{booking.paymentMethod.accountName}</p>
                         {booking.paymentMethod.accountNumber && (
-                          <p className="text-sm font-bold tracking-wider" style={{ color: "var(--tx)" }}>{booking.paymentMethod.accountNumber}</p>
+                          <p className="text-base font-bold tracking-wider" style={{ color: "var(--tx)" }}>{booking.paymentMethod.accountNumber}</p>
                         )}
                       </div>
                       {booking.paymentMethod.accountNumber && <CopyButton text={booking.paymentMethod.accountNumber} />}
@@ -288,7 +278,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
                 ) : (
                   <Link
                     href={`/${booking.vendor.slug}/pay`}
-                    className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium"
+                    className="inline-flex items-center gap-1.5 mt-3 text-base font-medium"
                     style={{ color: "var(--amber)" }}
                   >
                     View payment details →
@@ -300,10 +290,10 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
             {/* Cancellation policy */}
             {booking.vendor.cancellationPolicy && (
               <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>
+                <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>
                   Cancellation policy
                 </p>
-                <p className="text-sm" style={{ color: "var(--tx2)" }}>{booking.vendor.cancellationPolicy}</p>
+                <p className="text-base" style={{ color: "var(--tx2)" }}>{booking.vendor.cancellationPolicy}</p>
               </div>
             )}
 
@@ -311,7 +301,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
                 booking emails' "reach out to them directly" can link
                 straight here — the customer has no account, so this page and
                 that email are the only things they keep. */}
-            <VendorContactCard id="contact" contact={contact} whatsappMessage={whatsappMessage} />
+            <VendorContactCard id="contact" contact={contact} whatsappMessage={whatsappMessage} bookingSlug={booking.slug} />
 
             <BookingConfirmationActions
               slug={booking.slug}
@@ -329,7 +319,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
         <div className="text-center pt-6">
           <Link
             href={`/${booking.vendor.slug}`}
-            className="text-sm"
+            className="text-base"
             style={{ color: "var(--tx3)" }}
           >
             ← Back to {booking.vendor.name}
@@ -364,10 +354,10 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
               />
             </a>
             <div className="min-w-0">
-              <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>
+              <p className="text-base font-medium" style={{ color: "var(--tx)" }}>
                 Recommending {booking.vendor.name}?
               </p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--tx3)" }}>
+              <p className="text-sm mt-0.5" style={{ color: "var(--tx3)" }}>
                 Show them this code — it opens the booking page straight away. Tap it to save or
                 share the full poster.
               </p>
@@ -381,7 +371,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
         style={{ borderTop: "1px solid var(--bds)" }}
       >
         <StartYourOwnShopLink variant="card" className="w-full max-w-sm" />
-        <Link href="/" className="text-xs" style={{ color: "var(--tx3)" }}>
+        <Link href="/" className="text-sm" style={{ color: "var(--tx3)" }}>
           Powered by{" "}
           <span className="font-medium" style={{ color: "var(--ac)" }}>Booktns</span>
         </Link>

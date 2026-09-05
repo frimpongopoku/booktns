@@ -90,7 +90,7 @@ export default function BookingConfirmationActions({
           href={calendarUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"
+          className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-base font-medium"
           style={{ background: "var(--bg2)", color: "var(--tx2)" }}
         >
           <CalendarPlus size={15} />
@@ -103,7 +103,7 @@ export default function BookingConfirmationActions({
           href={confirmedPdfUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"
+          className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-base font-medium"
           style={{ background: "var(--bg2)", color: "var(--tx2)" }}
         >
           <Download size={15} />
@@ -112,7 +112,7 @@ export default function BookingConfirmationActions({
       )}
 
       {error && (
-        <div className="px-3 py-2 rounded-[var(--r)] text-sm" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
+        <div className="px-3 py-2 rounded-[var(--r)] text-base" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
           {error}
         </div>
       )}
@@ -147,7 +147,7 @@ export default function BookingConfirmationActions({
       )}
 
       {isLockedByVendor && (
-        <p className="text-xs text-center" style={{ color: "var(--tx3)" }}>
+        <p className="text-sm text-center" style={{ color: "var(--tx3)" }}>
           To change or cancel this booking, contact {vendorName} directly.
         </p>
       )}

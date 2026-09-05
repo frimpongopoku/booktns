@@ -98,7 +98,7 @@ export default function VideoCard({ video, featured = false }: VideoCardProps) {
             before they tap, which matters most on mobile. */}
         {!previewing && platformLabel && (
           <div
-            className="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
+            className="absolute top-3 left-3 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide"
             style={{ background: "rgba(0,0,0,0.55)", color: "white" }}
           >
             {platformLabel}
@@ -108,7 +108,7 @@ export default function VideoCard({ video, featured = false }: VideoCardProps) {
         {/* Duration badge */}
         {!previewing && video.durationSeconds !== undefined && (
           <div
-            className="absolute bottom-3 right-3 px-2 py-0.5 rounded text-xs font-semibold"
+            className="absolute bottom-3 right-3 px-2 py-0.5 rounded text-sm font-semibold"
             style={{ background: "rgba(0,0,0,0.55)", color: "white" }}
           >
             {formatVideoDuration(video.durationSeconds)}
@@ -133,13 +133,13 @@ export default function VideoCard({ video, featured = false }: VideoCardProps) {
       {/* Info */}
       <div className="p-3.5" style={{ background: "var(--bg2)" }}>
         <p
-          className={featured ? "text-base font-semibold leading-snug" : "text-sm font-semibold leading-snug"}
+          className={featured ? "text-lg font-semibold leading-snug" : "text-base font-semibold leading-snug"}
           style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
         >
           {video.title}
         </p>
         {video.description && (
-          <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--tx3)" }}>
+          <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--tx3)" }}>
             {video.description}
           </p>
         )}

@@ -9,7 +9,7 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import VendorContactCard from "@/components/storefront/VendorContactCard";
 import VendorWordmark from "@/components/storefront/VendorWordmark";
 import StartYourOwnShopLink from "@/components/shared/StartYourOwnShopLink";
-import type { VendorContactInfo } from "@/lib/vendor-contact";
+import { buildVendorContactMeta } from "@/lib/vendor-contact";
 import {
   PackageCheck,
   Download,
@@ -70,17 +70,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
   const order = await getOrderBySlug(slug);
   if (!order) notFound();
 
-  const contact: VendorContactInfo = {
-    name: order.vendor.name,
-    slug: order.vendor.slug,
-    location: order.vendor.location,
-    hours: order.vendor.hours,
-    phone: order.vendor.phone,
-    whatsapp: order.vendor.whatsapp,
-    personalWhatsappNumber: order.vendor.personalWhatsappNumber,
-    ownerPhone: order.vendor.ownerPhone,
-    ownerEmail: order.vendor.ownerEmail,
-  };
+  const contact = buildVendorContactMeta(order.vendor);
 
   const whatsappMessage = `Hi ${order.vendor.name}, I placed order ${order.ref}. Customer: ${order.customerName}.`;
 
@@ -118,7 +108,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
             <PackageCheck size={32} style={{ color: "var(--green)" }} />
           </div>
           <p
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-3"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-base font-medium mb-3"
             style={{ background: "var(--green-bg)", color: "var(--green)" }}
           >
             Order Received
@@ -129,7 +119,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
           >
             {order.ref}
           </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--tx3)" }}>
+          <p className="text-base mt-1" style={{ color: "var(--tx3)" }}>
             {formatDate(order.createdAt)}
           </p>
         </div>
@@ -137,28 +127,28 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
         <div className="flex flex-col gap-4">
           {/* Customer */}
           <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>Customer</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>Customer</p>
             <div className="flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-base font-semibold text-white"
                 style={{ background: "var(--ac)" }}
               >
                 {order.customerName[0]}
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ color: "var(--tx)" }}>{order.customerName}</p>
-                <p className="text-xs" style={{ color: "var(--tx3)" }}>{order.customerPhone}</p>
+                <p className="text-base font-semibold" style={{ color: "var(--tx)" }}>{order.customerName}</p>
+                <p className="text-sm" style={{ color: "var(--tx3)" }}>{order.customerPhone}</p>
               </div>
             </div>
             <div className="flex items-center gap-4 mt-3 pt-3" style={{ borderTop: "1px solid var(--bds)" }}>
               <div>
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Preference</p>
-                <p className="text-sm" style={{ color: "var(--tx2)" }}>{order.deliveryPreference}</p>
+                <p className="text-xs uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Preference</p>
+                <p className="text-base" style={{ color: "var(--tx2)" }}>{order.deliveryPreference}</p>
               </div>
               {order.notes && (
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Notes</p>
-                  <p className="text-sm truncate" style={{ color: "var(--tx2)" }}>{order.notes}</p>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Notes</p>
+                  <p className="text-base truncate" style={{ color: "var(--tx2)" }}>{order.notes}</p>
                 </div>
               )}
             </div>
@@ -166,19 +156,19 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
 
           {/* Line items */}
           <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>Items</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>Items</p>
             <div className="flex flex-col gap-2">
               {/* Table header */}
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-[10px] font-semibold uppercase tracking-wide pb-2" style={{ color: "var(--tx3)", borderBottom: "1px solid var(--bds)" }}>
+              <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-xs font-semibold uppercase tracking-wide pb-2" style={{ color: "var(--tx3)", borderBottom: "1px solid var(--bds)" }}>
                 <span>Item</span>
                 <span className="text-right">Qty</span>
                 <span className="text-right">Price</span>
               </div>
               {order.items.map((item) => (
                 <div key={item.id} className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                  <span className="text-sm" style={{ color: "var(--tx)" }}>{item.name}</span>
-                  <span className="text-sm text-right" style={{ color: "var(--tx3)" }}>×{item.quantity}</span>
-                  <span className="text-sm font-medium text-right" style={{ color: "var(--tx2)" }}>
+                  <span className="text-base" style={{ color: "var(--tx)" }}>{item.name}</span>
+                  <span className="text-base text-right" style={{ color: "var(--tx3)" }}>×{item.quantity}</span>
+                  <span className="text-base font-medium text-right" style={{ color: "var(--tx2)" }}>
                     {formatPrice(item.priceSnapshot * item.quantity)}
                   </span>
                 </div>
@@ -188,11 +178,11 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                 style={{ borderTop: "1px solid var(--bds)" }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{ color: "var(--tx3)" }}>Subtotal</span>
-                  <span className="text-sm" style={{ color: "var(--tx2)" }}>{formatPrice(subtotal)}</span>
+                  <span className="text-sm" style={{ color: "var(--tx3)" }}>Subtotal</span>
+                  <span className="text-base" style={{ color: "var(--tx2)" }}>{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold" style={{ color: "var(--tx)" }}>Total</span>
+                  <span className="text-base font-semibold" style={{ color: "var(--tx)" }}>Total</span>
                   <span
                     className="font-display text-xl font-medium"
                     style={{ fontFamily: "var(--font-display)", color: "var(--ac)" }}
@@ -206,7 +196,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
 
           {/* Payment details */}
           <div className="p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>Pay via</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>Pay via</p>
             {order.paymentMethod ? (
               <>
                 <div className="flex items-center gap-3 mb-3">
@@ -216,7 +206,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                   >
                     <PaymentIcon type={order.paymentMethod.type} />
                   </div>
-                  <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{order.paymentMethod.label}</p>
+                  <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{order.paymentMethod.label}</p>
                 </div>
                 {order.paymentMethod.accountNumber && (
                   <div
@@ -224,7 +214,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                     style={{ background: "var(--bg3)" }}
                   >
                     <div>
-                      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
+                      <p className="text-xs uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
                         {order.paymentMethod.type === "momo" ? "MoMo Number" : "Account Number"}
                       </p>
                       <p className="text-base font-bold tracking-wider" style={{ color: "var(--tx)" }}>
@@ -239,12 +229,12 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                   style={{ background: "var(--bg3)" }}
                 >
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Account Name</p>
-                    <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{order.paymentMethod.accountName}</p>
+                    <p className="text-xs uppercase tracking-wide" style={{ color: "var(--tx3)" }}>Account Name</p>
+                    <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{order.paymentMethod.accountName}</p>
                   </div>
                   <CopyButton text={order.paymentMethod.accountName} />
                 </div>
-                <p className="text-xs mt-3" style={{ color: "var(--tx3)" }}>
+                <p className="text-sm mt-3" style={{ color: "var(--tx3)" }}>
                   Send{" "}
                   <span className="font-bold" style={{ color: "var(--tx)" }}>
                     {formatPrice(order.totalPesewas)}
@@ -253,7 +243,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                 </p>
               </>
             ) : (
-              <p className="text-sm" style={{ color: "var(--tx2)" }}>
+              <p className="text-base" style={{ color: "var(--tx2)" }}>
                 See{" "}
                 <Link href={`/${order.vendor.slug}/pay`} className="underline" style={{ color: "var(--ac)" }}>
                   {order.vendor.name}&apos;s payment options
@@ -267,7 +257,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
               order email's "reach out to them directly" can link straight
               here — the customer has no account, so this page is their
               record. */}
-          <VendorContactCard id="contact" contact={contact} whatsappMessage={whatsappMessage} className="mt-2" />
+          <VendorContactCard id="contact" contact={contact} whatsappMessage={whatsappMessage} className="mt-2" orderSlug={order.slug} />
 
           {/* Actions */}
           <div className="flex flex-col gap-2 mt-2">
@@ -278,7 +268,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
               href={apiUrl(`/orders/by-slug/${order.slug}/pdf`)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium"
+              className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-base font-medium"
               style={{ background: "var(--bg2)", color: "var(--tx2)" }}
             >
               <Download size={15} />
@@ -287,7 +277,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
           </div>
 
           <div className="text-center pt-2">
-            <Link href={`/${order.vendor.slug}/shop`} className="text-sm" style={{ color: "var(--tx3)" }}>
+            <Link href={`/${order.vendor.slug}/shop`} className="text-base" style={{ color: "var(--tx3)" }}>
               ← Back to shop
             </Link>
           </div>
@@ -299,7 +289,7 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
         style={{ borderTop: "1px solid var(--bds)" }}
       >
         <StartYourOwnShopLink variant="card" className="w-full max-w-sm" />
-        <Link href="/" className="text-xs" style={{ color: "var(--tx3)" }}>
+        <Link href="/" className="text-sm" style={{ color: "var(--tx3)" }}>
           Powered by{" "}
           <span className="font-medium" style={{ color: "var(--ac)" }}>Booktns</span>
         </Link>

@@ -1,27 +1,31 @@
-import { Mail, Phone } from "lucide-react";
 import PlatformCredit from "@/components/shared/PlatformCredit";
 import StartYourOwnShopLink from "@/components/shared/StartYourOwnShopLink";
 import FeedbackButton from "@/components/shared/FeedbackButton";
 import VerifiedBadge from "@/components/shared/VerifiedBadge";
+import OwnerContactRow from "@/components/storefront/OwnerContactRow";
 import { SITE_URL } from "@/lib/site";
 import { getFeedbackInboxEmail } from "@/lib/feedback";
 
 interface StorefrontFooterProps {
   vendorName: string;
+  slug: string;
   verified?: boolean;
   // Already redacted by lib/vendors.ts — a field that arrives undefined is
   // one the vendor chose not to publish, so this component never needs to
   // consult the show* flags itself.
   ownerName?: string;
-  ownerPhone?: string;
-  ownerEmail?: string;
+  // Presence only, not the value — the real phone/email are fetched
+  // client-side by OwnerContactRow so they never sit in this page's
+  // server-rendered HTML. See lib/vendor-contact.ts.
+  hasOwnerPhone?: boolean;
+  hasOwnerEmail?: boolean;
 }
 
 // The one footer every public storefront page renders, so the ownership and
 // contact line a vendor sets in Settings shows up everywhere rather than on
 // the home page alone.
-export default function StorefrontFooter({ vendorName, verified = false, ownerName, ownerPhone, ownerEmail }: StorefrontFooterProps) {
-  const hasOwnerDetails = Boolean(ownerName || ownerPhone || ownerEmail);
+export default function StorefrontFooter({ vendorName, slug, verified = false, ownerName, hasOwnerPhone = false, hasOwnerEmail = false }: StorefrontFooterProps) {
+  const hasOwnerDetails = Boolean(ownerName || hasOwnerPhone || hasOwnerEmail);
 
   return (
     <footer
@@ -31,36 +35,15 @@ export default function StorefrontFooter({ vendorName, verified = false, ownerNa
       {hasOwnerDetails && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           {ownerName && (
-            <p className="text-sm" style={{ color: "var(--tx2)" }}>
+            <p className="text-base" style={{ color: "var(--tx2)" }}>
               {vendorName} is owned by{" "}
               <span className="font-medium" style={{ color: "var(--tx)" }}>
                 {ownerName}
               </span>
             </p>
           )}
-          {(ownerPhone || ownerEmail) && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              {ownerPhone && (
-                <a
-                  href={`tel:${ownerPhone}`}
-                  className="flex items-center gap-1.5 text-sm hover:underline"
-                  style={{ color: "var(--tx2)" }}
-                >
-                  <Phone size={13} style={{ color: "var(--tx3)" }} />
-                  {ownerPhone}
-                </a>
-              )}
-              {ownerEmail && (
-                <a
-                  href={`mailto:${ownerEmail}`}
-                  className="flex items-center gap-1.5 text-sm hover:underline"
-                  style={{ color: "var(--tx2)" }}
-                >
-                  <Mail size={13} style={{ color: "var(--tx3)" }} />
-                  {ownerEmail}
-                </a>
-              )}
-            </div>
+          {(hasOwnerPhone || hasOwnerEmail) && (
+            <OwnerContactRow slug={slug} hasOwnerPhone={hasOwnerPhone} hasOwnerEmail={hasOwnerEmail} />
           )}
         </div>
       )}

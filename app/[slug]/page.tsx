@@ -16,7 +16,7 @@ import StorefrontFooter from "@/components/storefront/StorefrontFooter";
 import VendorContactCard from "@/components/storefront/VendorContactCard";
 import VendorWordmark from "@/components/storefront/VendorWordmark";
 import TrackView from "@/components/storefront/TrackView";
-import type { VendorContactInfo } from "@/lib/vendor-contact";
+import { buildVendorContactMeta } from "@/lib/vendor-contact";
 import { ANALYTICS_EVENTS } from "@/lib/analytics";
 import {
   MapPin,
@@ -215,17 +215,9 @@ export default async function StorefrontPage({ params }: PageProps) {
 
   // owner* fields are already redacted by lib/vendors.ts against the
   // vendor's show* flags — anything still set here is published on purpose.
-  const contact: VendorContactInfo = {
-    name: vendorData.name,
-    slug,
-    location: vendorData.location,
-    hours: vendorData.hours,
-    phone: vendorData.phone,
-    whatsapp: vendorData.whatsapp,
-    personalWhatsappNumber: vendorData.personalWhatsappNumber,
-    ownerPhone: vendorData.ownerPhone,
-    ownerEmail: vendorData.ownerEmail,
-  };
+  // Only presence flags cross into the rendered card; the real phone/email
+  // values are fetched client-side — see lib/vendor-contact.ts.
+  const contact = buildVendorContactMeta(vendorData);
 
   return (
     <div className="min-h-screen flex flex-col pb-16 md:pb-0" style={{ background: "var(--bg)" }}>
@@ -254,7 +246,7 @@ export default async function StorefrontPage({ params }: PageProps) {
 
       {isPreview && (
         <div
-          className="px-4 md:px-8 py-2.5 flex items-center justify-center gap-2 text-sm font-medium"
+          className="px-4 md:px-8 py-2.5 flex items-center justify-center gap-2 text-base font-medium"
           style={{ background: "var(--amber-bg)", color: "var(--amber)" }}
         >
           Preview mode — this storefront isn&apos;t published yet.
@@ -275,7 +267,7 @@ export default async function StorefrontPage({ params }: PageProps) {
         />
         <Link
           href={storefrontHref(slug, isCustomDomain, "/book")}
-          className="px-3.5 py-2 rounded-[var(--r)] text-sm font-medium text-white"
+          className="px-3.5 py-2 rounded-[var(--r)] text-base font-medium text-white"
           style={{
             background: "var(--ac)",
             boxShadow: "0 1px 3px color-mix(in srgb, var(--ac) 30%, transparent)",
@@ -300,7 +292,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               </div>
             )}
             <div
-              className="anim-fade-up inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-7"
+              className="anim-fade-up inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-7"
               style={{ background: "var(--green-bg)", color: "var(--green)" }}
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--green)" }} />
@@ -319,13 +311,13 @@ export default async function StorefrontPage({ params }: PageProps) {
             <div className="anim-fade-up anim-d2 flex flex-col gap-2 mb-8">
               <div className="flex items-center gap-2.5">
                 <MapPin size={13} style={{ color: "var(--tx3)" }} />
-                <span className="text-sm" style={{ color: "var(--tx2)" }}>
+                <span className="text-base" style={{ color: "var(--tx2)" }}>
                   {vendorData.location}
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Clock size={13} style={{ color: "var(--tx3)" }} />
-                <span className="text-sm" style={{ color: "var(--tx2)" }}>
+                <span className="text-base" style={{ color: "var(--tx2)" }}>
                   {vendorData.hours}
                 </span>
               </div>
@@ -333,7 +325,7 @@ export default async function StorefrontPage({ params }: PageProps) {
             <div className="flex gap-3">
               <Link
                 href={storefrontHref(slug, isCustomDomain, "/book")}
-                className="px-6 py-2.5 rounded-[var(--r)] text-white font-medium text-sm inline-flex items-center gap-2"
+                className="px-6 py-2.5 rounded-[var(--r)] text-white font-medium text-base inline-flex items-center gap-2"
                 style={{
                   background: "var(--ac)",
                   boxShadow: "0 1px 3px color-mix(in srgb, var(--ac) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)",
@@ -344,7 +336,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               </Link>
               <Link
                 href={storefrontHref(slug, isCustomDomain, "/shop")}
-                className="px-6 py-2.5 rounded-[var(--r)] font-medium text-sm inline-flex items-center gap-2"
+                className="px-6 py-2.5 rounded-[var(--r)] font-medium text-base inline-flex items-center gap-2"
                 style={{
                   background: "var(--bg3)",
                   color: "var(--tx)",
@@ -383,7 +375,7 @@ export default async function StorefrontPage({ params }: PageProps) {
             </h2>
             <Link
               href={storefrontHref(slug, isCustomDomain, "/book")}
-              className="text-sm font-medium inline-flex items-center gap-1"
+              className="text-base font-medium inline-flex items-center gap-1"
               style={{ color: "var(--ac)" }}
             >
               Book now <ArrowRight size={13} />
@@ -411,14 +403,14 @@ export default async function StorefrontPage({ params }: PageProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p
-                          className="text-sm font-semibold"
+                          className="text-base font-semibold"
                           style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
                         >
                           {svc.name}
                         </p>
                         {showFeaturedBadge && svc.featured && (
                           <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
                             style={{ background: "var(--ac-bg)", color: "var(--ac)" }}
                           >
                             <Star size={9} fill="currentColor" />
@@ -428,13 +420,13 @@ export default async function StorefrontPage({ params }: PageProps) {
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <Clock size={11} style={{ color: "var(--tx3)" }} />
-                        <span className="text-xs" style={{ color: "var(--tx3)" }}>
+                        <span className="text-sm" style={{ color: "var(--tx3)" }}>
                           {formatDuration(svc.durationMinutes)}
                         </span>
                       </div>
                     </div>
                     <p
-                      className="text-sm font-semibold flex-shrink-0"
+                      className="text-base font-semibold flex-shrink-0"
                       style={{ color: "var(--tx)" }}
                     >
                       {formatPrice(svc.priceInPesewas)}
@@ -445,7 +437,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               <div className="mt-5 text-center">
                 <Link
                   href={storefrontHref(slug, isCustomDomain, "/book")}
-                  className="text-sm font-medium inline-flex items-center gap-1.5"
+                  className="text-base font-medium inline-flex items-center gap-1.5"
                   style={{ color: "var(--ac)" }}
                 >
                   {displayedServices.length < vendorData.services.length
@@ -456,7 +448,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               </div>
             </>
           ) : (
-            <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
+            <p className="text-base text-center py-10" style={{ color: "var(--tx3)" }}>
               {vendorData.services.length > 0
                 ? "No featured services yet — check back shortly."
                 : "Services coming soon — check back shortly."}
@@ -474,7 +466,7 @@ export default async function StorefrontPage({ params }: PageProps) {
             </h2>
             <Link
               href={storefrontHref(slug, isCustomDomain, "/shop")}
-              className="text-sm font-medium inline-flex items-center gap-1"
+              className="text-base font-medium inline-flex items-center gap-1"
               style={{ color: "var(--ac)" }}
             >
               View all <ArrowRight size={13} />
@@ -491,7 +483,7 @@ export default async function StorefrontPage({ params }: PageProps) {
                 >
                   {showFeaturedBadge && p.featured && (
                     <span
-                      className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                      className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold"
                       style={{ background: "rgba(0,0,0,0.6)", color: "white" }}
                     >
                       <Star size={9} fill="currentColor" />
@@ -511,12 +503,12 @@ export default async function StorefrontPage({ params }: PageProps) {
                   </div>
                   <div className="p-3" style={{ background: "var(--bg2)" }}>
                     <p
-                      className="text-xs font-semibold mb-1 truncate"
+                      className="text-sm font-semibold mb-1 truncate"
                       style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
                     >
                       {p.name}
                     </p>
-                    <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>
+                    <p className="text-base font-semibold" style={{ color: "var(--ac)" }}>
                       {formatPrice(p.priceInPesewas)}
                     </p>
                   </div>
@@ -524,7 +516,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-center py-10" style={{ color: "var(--tx3)" }}>
+            <p className="text-base text-center py-10" style={{ color: "var(--tx3)" }}>
               {vendorData.products.length > 0
                 ? "No featured products yet — check back shortly."
                 : "Products coming soon — check back shortly."}
@@ -579,12 +571,12 @@ export default async function StorefrontPage({ params }: PageProps) {
                 </div>
                 <div>
                   <p
-                    className="text-sm font-semibold mb-1.5"
+                    className="text-base font-semibold mb-1.5"
                     style={{ color: "var(--tx)", letterSpacing: "-0.01em" }}
                   >
                     {item.title}
                   </p>
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--tx2)" }}>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--tx2)" }}>
                     {item.desc}
                   </p>
                 </div>
@@ -608,7 +600,7 @@ export default async function StorefrontPage({ params }: PageProps) {
             <h2 className="text-xl font-semibold mb-2" style={{ color: "var(--tx)" }}>
               Get in touch
             </h2>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--tx2)" }}>
+            <p className="text-base leading-relaxed" style={{ color: "var(--tx2)" }}>
               Questions about a service, a booking, or an order you&apos;ve already placed?
               Message {vendorData.name} directly — we usually reply the same day.
             </p>
@@ -641,13 +633,13 @@ export default async function StorefrontPage({ params }: PageProps) {
               >
                 Ready to book?
               </p>
-              <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+              <p className="text-base mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>
                 Pick your service and book in under 2 minutes.
               </p>
             </div>
             <Link
               href={storefrontHref(slug, isCustomDomain, "/book")}
-              className="relative flex-shrink-0 px-6 py-3 rounded-[var(--r)] font-semibold text-sm inline-flex items-center gap-2"
+              className="relative flex-shrink-0 px-6 py-3 rounded-[var(--r)] font-semibold text-base inline-flex items-center gap-2"
               style={{
                 background: "white",
                 color: "var(--brand-accent-light)",
@@ -666,8 +658,9 @@ export default async function StorefrontPage({ params }: PageProps) {
         vendorName={vendorData.name}
         verified={vendorData.verificationStatus === "VERIFIED"}
         ownerName={vendorData.ownerName}
-        ownerPhone={vendorData.ownerPhone}
-        ownerEmail={vendorData.ownerEmail}
+        slug={vendorData.slug}
+        hasOwnerPhone={Boolean(vendorData.ownerPhone)}
+        hasOwnerEmail={Boolean(vendorData.ownerEmail)}
       />
 
       <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} />

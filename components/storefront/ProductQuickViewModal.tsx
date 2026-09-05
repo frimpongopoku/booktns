@@ -47,7 +47,7 @@ export default function ProductQuickViewModal({ product, vendorSlug, isCustomDom
         <div className="p-5 flex-shrink-0" style={{ borderTop: "1px solid var(--bd)" }}>
           <Link
             href={storefrontHref(vendorSlug, isCustomDomain, `/shop/${product.slug}`)}
-            className="w-full block text-center py-2.5 rounded-[var(--r)] text-sm font-medium"
+            className="w-full block text-center py-2.5 rounded-[var(--r)] text-base font-medium"
             style={{ background: "var(--bg2)", color: "var(--tx)" }}
             onClick={close}
           >

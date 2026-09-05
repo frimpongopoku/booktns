@@ -41,7 +41,7 @@ export default function StorefrontUnavailable({ reason, vendorName }: Storefront
             : "We couldn't find that shop"}
       </h1>
 
-      <p className="text-sm max-w-sm mb-8 leading-relaxed" style={{ color: "var(--tx2)" }}>
+      <p className="text-base max-w-sm mb-8 leading-relaxed" style={{ color: "var(--tx2)" }}>
         {isNotPublished
           ? "This storefront isn't open to the public yet — the owner is still setting things up. Check back soon."
           : reason === "suspended"
@@ -51,7 +51,7 @@ export default function StorefrontUnavailable({ reason, vendorName }: Storefront
 
       <Link
         href="/"
-        className="px-5 py-2.5 rounded-[var(--r)] text-sm font-medium"
+        className="px-5 py-2.5 rounded-[var(--r)] text-base font-medium"
         style={{ background: "var(--bg3)", color: "var(--tx)" }}
       >
         Go to booktns

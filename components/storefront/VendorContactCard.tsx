@@ -1,8 +1,11 @@
+"use client";
+
 import { Clock, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
-import { whatsappLink, type VendorContactInfo } from "@/lib/vendor-contact";
+import { whatsappLink, type VendorContactMeta } from "@/lib/vendor-contact";
+import { useVendorContactDetails } from "@/hooks/useVendorContactDetails";
 
 interface VendorContactCardProps {
-  contact: VendorContactInfo;
+  contact: VendorContactMeta;
   // Prefilled WhatsApp text, so a customer messaging about a specific
   // booking or order never has to retype their reference code.
   whatsappMessage?: string;
@@ -11,6 +14,10 @@ interface VendorContactCardProps {
   // surrounding <section> instead, and leaves this undefined.
   id?: string;
   className?: string;
+  // Lets contact info keep loading even if the vendor unpublishes after this
+  // booking/order was placed — see useVendorContactDetails.
+  bookingSlug?: string;
+  orderSlug?: string;
 }
 
 interface ChannelRow {
@@ -18,33 +25,63 @@ interface ChannelRow {
   icon: React.ReactNode;
   label: string;
   value: string;
-  href?: string;
+  href: string;
+}
+
+function ValueSkeleton() {
+  return <span className="inline-block h-4 w-28 rounded animate-pulse" style={{ background: "var(--bg3)" }} />;
 }
 
 // The single block that answers "how do I reach this shop?" — rendered on
 // the storefront's #contact section, the booking confirmation page, and the
 // order confirmation page, so all three list the same channels in the same
 // order however the customer arrived.
-export default function VendorContactCard({ contact, whatsappMessage, id, className = "" }: VendorContactCardProps) {
-  const rows: ChannelRow[] = [];
+//
+// A client component on purpose: the actual phone numbers and email address
+// are never part of this page's server-rendered HTML (see
+// useVendorContactDetails) — a scraper reading page source finds nothing to
+// harvest. `contact` only carries which channels exist, not their values;
+// the real values arrive a moment after mount and fill in below a brief
+// skeleton, same trick browsers already do for lazy images.
+export default function VendorContactCard({ contact, whatsappMessage, id, className = "", bookingSlug, orderSlug }: VendorContactCardProps) {
+  const details = useVendorContactDetails(contact.slug, { bookingSlug, orderSlug });
 
-  // The shop's own line first, then the owner's — a customer should try the
-  // business number before someone's personal one.
-  if (contact.phone) {
-    rows.push({ key: "phone", icon: <Phone size={15} />, label: "Call", value: contact.phone, href: `tel:${contact.phone}` });
+  const rows: ChannelRow[] = [];
+  if (contact.hasPhone) {
+    rows.push({
+      key: "phone",
+      icon: <Phone size={16} />,
+      label: "Call",
+      value: details?.phone ?? "",
+      href: details?.phone ? `tel:${details.phone}` : "",
+    });
   }
-  if (contact.ownerPhone && contact.ownerPhone !== contact.phone) {
-    rows.push({ key: "owner-phone", icon: <Phone size={15} />, label: "Call the owner", value: contact.ownerPhone, href: `tel:${contact.ownerPhone}` });
+  if (contact.hasDistinctOwnerPhone) {
+    rows.push({
+      key: "owner-phone",
+      icon: <Phone size={16} />,
+      label: "Call the owner",
+      value: details?.ownerPhone ?? "",
+      href: details?.ownerPhone ? `tel:${details.ownerPhone}` : "",
+    });
   }
-  if (contact.ownerEmail) {
-    rows.push({ key: "email", icon: <Mail size={15} />, label: "Email", value: contact.ownerEmail, href: `mailto:${contact.ownerEmail}` });
+  if (contact.hasOwnerEmail) {
+    rows.push({
+      key: "email",
+      icon: <Mail size={16} />,
+      label: "Email",
+      value: details?.ownerEmail ?? "",
+      href: details?.ownerEmail ? `mailto:${details.ownerEmail}` : "",
+    });
   }
   if (contact.location) {
-    rows.push({ key: "location", icon: <MapPin size={15} />, label: "Visit", value: contact.location });
+    rows.push({ key: "location", icon: <MapPin size={16} />, label: "Visit", value: contact.location, href: "" });
   }
   if (contact.hours) {
-    rows.push({ key: "hours", icon: <Clock size={15} />, label: "Open", value: contact.hours });
+    rows.push({ key: "hours", icon: <Clock size={16} />, label: "Open", value: contact.hours, href: "" });
   }
+
+  const whatsappHref = details ? whatsappLink(details.whatsappNumber, whatsappMessage) : undefined;
 
   return (
     <div
@@ -52,20 +89,26 @@ export default function VendorContactCard({ contact, whatsappMessage, id, classN
       className={`p-4 rounded-[var(--rl)] scroll-mt-20 ${className}`}
       style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
+      <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--tx3)" }}>
         Contact {contact.name}
       </p>
 
       {/* WhatsApp is the channel every vendor has and the one they actually
-          answer on, so it stays the button while everything else is a row. */}
+          answer on, so it stays the button while everything else is a row.
+          href is only ever real once the number has loaded — before that
+          it's inert rather than pointing at a placeholder. */}
       <a
-        href={whatsappLink(contact, whatsappMessage)}
+        href={whatsappHref ?? undefined}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-sm font-medium w-full"
-        style={{ background: "var(--green-bg)", color: "var(--green)" }}
+        aria-disabled={!whatsappHref}
+        onClick={(e) => {
+          if (!whatsappHref) e.preventDefault();
+        }}
+        className="flex items-center justify-center gap-2 py-3 rounded-[var(--r)] text-base font-medium w-full"
+        style={{ background: "var(--green-bg)", color: "var(--green)", opacity: whatsappHref ? 1 : 0.6 }}
       >
-        <MessageCircle size={15} />
+        <MessageCircle size={16} />
         Message on WhatsApp
       </a>
 
@@ -77,13 +120,15 @@ export default function VendorContactCard({ contact, whatsappMessage, id, classN
                 {row.icon}
               </span>
               <div className="min-w-0">
-                <p className="text-[11px]" style={{ color: "var(--tx3)" }}>{row.label}</p>
+                <p className="text-xs" style={{ color: "var(--tx3)" }}>{row.label}</p>
                 {row.href ? (
-                  <a href={row.href} className="text-sm hover:underline break-words" style={{ color: "var(--tx)" }}>
+                  <a href={row.href} className="text-base hover:underline break-words" style={{ color: "var(--tx)" }}>
                     {row.value}
                   </a>
+                ) : row.value ? (
+                  <p className="text-base break-words" style={{ color: "var(--tx)" }}>{row.value}</p>
                 ) : (
-                  <p className="text-sm break-words" style={{ color: "var(--tx)" }}>{row.value}</p>
+                  <ValueSkeleton />
                 )}
               </div>
             </div>

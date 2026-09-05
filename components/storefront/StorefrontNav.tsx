@@ -28,7 +28,7 @@ export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCusto
     >
       <VendorWordmark name={vendorName} href={href()} logoUrl={vendorLogoUrl} verified={verified} />
 
-      <nav className="flex items-center gap-6 text-sm" style={{ color: "var(--tx2)" }}>
+      <nav className="flex items-center gap-6 text-base" style={{ color: "var(--tx2)" }}>
         <Link href={href()} className="hover:text-[var(--tx)] transition-colors">
           Home
         </Link>
@@ -57,7 +57,7 @@ export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCusto
         <ThemeToggle />
         <Link
           href={href("/book")}
-          className="px-4 py-2 rounded-[var(--r)] text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="px-4 py-2 rounded-[var(--r)] text-base font-medium text-white transition-opacity hover:opacity-90"
           style={{ background: "var(--ac)" }}
         >
           Book Now

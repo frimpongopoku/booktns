@@ -1,6 +1,6 @@
 {
   "name": "booktns-api",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "private": true,
   "description": "Booktns backend — NestJS API, deployed separately from the Next.js frontend",
   "scripts": {
@@ -12,6 +12,7 @@
     "postinstall": "prisma generate",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
+    "seed:demo-vendor": "tsx prisma/seed-demo-vendor.ts",
     "bootstrap:superadmin": "tsx prisma/bootstrap-superadmin.ts"
   },
   "dependencies": {

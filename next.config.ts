@@ -14,11 +14,15 @@ function getBuildNumber(): string {
 }
 
 const nextConfig: NextConfig = {
-  // @resvg/resvg-js ships a native binary via platform-specific optional
-  // dependencies (e.g. @resvg/resvg-js-darwin-arm64) — the bundler can't
-  // resolve those statically, so it must be loaded via Node's real require
-  // at runtime instead of being bundled.
-  serverExternalPackages: ["@resvg/resvg-js"],
+  // @resvg/resvg-js and sharp both ship a native binary via platform-specific
+  // optional dependencies (e.g. @resvg/resvg-js-darwin-arm64, @img/sharp-linux-x64)
+  // — the bundler can't resolve those statically, so they must be loaded via
+  // Node's real require at runtime instead of being bundled. Without sharp
+  // here, Turbopack tried to bundle it anyway and shipped the wrong
+  // platform's binary, crashing every request under app/[slug]/icon.tsx and
+  // apple-icon.tsx (which Next invokes automatically for the favicon on
+  // every storefront page) with ERR_DLOPEN_FAILED on libvips-cpp.so.
+  serverExternalPackages: ["@resvg/resvg-js", "sharp"],
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
     NEXT_PUBLIC_BUILD_NUMBER: getBuildNumber(),

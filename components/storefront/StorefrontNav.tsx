@@ -28,27 +28,27 @@ export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCusto
     >
       <VendorWordmark name={vendorName} href={href()} logoUrl={vendorLogoUrl} verified={verified} />
 
-      <nav className="flex items-center gap-6 text-base" style={{ color: "var(--tx2)" }}>
-        <Link href={href()} className="hover:text-[var(--tx)] transition-colors">
+      <nav className="flex items-center gap-1 text-base font-medium" style={{ color: "var(--tx2)" }}>
+        <Link href={href()} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
           Home
         </Link>
-        <Link href={href("#services")} className="hover:text-[var(--tx)] transition-colors">
+        <Link href={href("#services")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
           Services
         </Link>
         {/* Only rendered when the section it jumps to is actually on the
             page — this nav only ever appears on the storefront home. */}
         {showVideos && (
-          <Link href={href("#videos")} className="hover:text-[var(--tx)] transition-colors">
+          <Link href={href("#videos")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
             Videos
           </Link>
         )}
-        <Link href={href("/shop")} className="hover:text-[var(--tx)] transition-colors">
+        <Link href={href("/shop")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
           Shop
         </Link>
-        <Link href={href("/pay")} className="hover:text-[var(--tx)] transition-colors">
+        <Link href={href("/pay")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
           Pay
         </Link>
-        <Link href={href("#contact")} className="hover:text-[var(--tx)] transition-colors">
+        <Link href={href("#contact")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
           Contact
         </Link>
       </nav>

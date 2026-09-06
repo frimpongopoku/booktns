@@ -41,7 +41,12 @@ function landingPage(): string {
 <meta name="description" content="The Booktns API — the backend behind every storefront, the vendor dashboard, and the platform console." />
 <!-- Not a page anyone should find in search results. -->
 <meta name="robots" content="noindex, nofollow" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2309090B'/><text x='16' y='23' font-family='system-ui,sans-serif' font-size='19' font-weight='700' fill='%23D43D50' text-anchor='middle'>b</text></svg>" />
+<!-- Same mark as the frontend's favicon (lib/og-image.tsx's renderIconMark)
+     — a bold "B" on the brand red gradient. This page is served by the
+     NestJS API directly, a separate process from the Next.js frontend, so
+     it can't share that Satori-rendered file and gets its own inline SVG
+     copy instead. Keep the two in sync by eye if the mark ever changes. -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='32' y2='32' gradientUnits='userSpaceOnUse'><stop offset='0%25' stop-color='%23C0283A'/><stop offset='100%25' stop-color='%238C1827'/></linearGradient></defs><rect width='32' height='32' rx='7' fill='url(%23g)'/><text x='16' y='22.5' font-family='system-ui,sans-serif' font-size='19' font-weight='700' fill='white' text-anchor='middle'>B</text></svg>" />
 <style>
   :root {
     --bg: #FAFAFA; --bg2: #F4F4F5; --bd: rgba(0,0,0,0.12);

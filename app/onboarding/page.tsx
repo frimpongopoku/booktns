@@ -18,6 +18,7 @@ import {
   Sparkles,
   AlertCircle,
   Crown,
+  ArrowLeft,
 } from "lucide-react";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,6 +30,62 @@ const STEPS = [
   "Payment",
   "Go Live",
 ];
+
+// A refresh mid-signup used to lose everything — five steps of typed-in
+// business info, staff emails, and services, gone. Saved as one blob rather
+// than per-field keys so restoring is one read instead of five, and so
+// clearing it (on a successful submit) can't miss a key.
+const DRAFT_KEY = "booktns-onboarding-draft";
+
+interface OnboardingDraft {
+  step: number;
+  businessInfo: BusinessInfoData | null;
+  staffList: StaffEntry[];
+  services: ServiceEntry[];
+  paymentMethods: PaymentEntry[];
+}
+
+function loadOnboardingDraft(): OnboardingDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as OnboardingDraft) : null;
+  } catch {
+    // Corrupt JSON or storage blocked (private browsing) — just start fresh.
+    return null;
+  }
+}
+
+function saveOnboardingDraft(draft: OnboardingDraft): void {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Storage full or blocked — the wizard still works, it just won't survive a refresh.
+  }
+}
+
+function clearOnboardingDraft(): void {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // Nothing to do if storage is inaccessible.
+  }
+}
+
+// The small "← Back" link steps 2-4 show above their main action row — step
+// 1 has nothing before it to go back to within the wizard (the header's
+// "Back to booktns.com" link covers that case instead).
+function StepBackLink({ onBack }: { onBack: () => void }) {
+  return (
+    <button
+      onClick={onBack}
+      className="flex items-center gap-1 text-sm font-medium self-start transition-opacity hover:opacity-70"
+      style={{ color: "var(--tx2)" }}
+    >
+      <ArrowLeft size={14} />
+      Back
+    </button>
+  );
+}
 
 interface ServiceEntry {
   name: string;
@@ -83,15 +140,17 @@ type SlugStatus = "idle" | "checking" | "available" | "taken" | "error";
 // Step 1: Business Info
 function BusinessInfoStep({
   onNext,
+  initialValues,
 }: {
   onNext: (data: BusinessInfoData) => void;
+  initialValues?: BusinessInfoData | null;
 }) {
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
-  const [hours, setHours] = useState("Mon–Sat 9am–7pm");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(initialValues?.name ?? "");
+  const [slug, setSlug] = useState(initialValues?.slug ?? "");
+  const [description, setDescription] = useState(initialValues?.description ?? "");
+  const [location, setLocation] = useState(initialValues?.location ?? "");
+  const [hours, setHours] = useState(initialValues?.hours ?? "Mon–Sat 9am–7pm");
+  const [phone, setPhone] = useState(initialValues?.phone ?? "");
   const [loading, setLoading] = useState(false);
   const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
 
@@ -142,10 +201,10 @@ function BusinessInfoStep({
 
   return (
     <div className="flex flex-col gap-4">
-      <Input label="Business name" placeholder="e.g. Glam by Rose" value={name} onChange={(e) => handleSlugify(e.target.value)} />
+      <Input label="Business name" placeholder="e.g. Glam by Akosua" value={name} onChange={(e) => handleSlugify(e.target.value)} />
       <Input
         label="Storefront URL slug"
-        placeholder="glambyrose"
+        placeholder="glambyakosua"
         value={slug}
         onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
         hint={slugHint}
@@ -163,10 +222,18 @@ function BusinessInfoStep({
 }
 
 // Step 2: Add Services
-function AddServicesStep({ onNext }: { onNext: (data: ServiceEntry[]) => void }) {
-  const [services, setServices] = useState<ServiceEntry[]>([
-    { name: "", duration: "60", price: "", category: "Hair" },
-  ]);
+function AddServicesStep({
+  onNext,
+  onBack,
+  initialValues,
+}: {
+  onNext: (data: ServiceEntry[]) => void;
+  onBack: () => void;
+  initialValues?: ServiceEntry[];
+}) {
+  const [services, setServices] = useState<ServiceEntry[]>(
+    initialValues && initialValues.length > 0 ? initialValues : [{ name: "", duration: "60", price: "", category: "Hair" }]
+  );
   const [loading, setLoading] = useState(false);
 
   const addService = () => {
@@ -239,7 +306,8 @@ function AddServicesStep({ onNext }: { onNext: (data: ServiceEntry[]) => void })
         Add another service
       </button>
 
-      <div className="flex gap-3 mt-2">
+      <StepBackLink onBack={onBack} />
+      <div className="flex gap-3 -mt-2">
         <Button variant="ghost" size="lg" onClick={handleNext} className="flex-1">
           Skip for now
         </Button>
@@ -252,10 +320,18 @@ function AddServicesStep({ onNext }: { onNext: (data: ServiceEntry[]) => void })
 }
 
 // Step 3: Add Staff
-function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
-  const [staffList, setStaffList] = useState<StaffEntry[]>([
-    { name: "", email: "", role: "Owner" },
-  ]);
+function AddStaffStep({
+  onNext,
+  onBack,
+  initialValues,
+}: {
+  onNext: (data: StaffEntry[]) => void;
+  onBack: () => void;
+  initialValues?: StaffEntry[];
+}) {
+  const [staffList, setStaffList] = useState<StaffEntry[]>(
+    initialValues && initialValues.length > 0 ? initialValues : [{ name: "", email: "", role: "Owner" }]
+  );
   const [loading, setLoading] = useState(false);
 
   const addStaff = () => setStaffList((prev) => [...prev, { name: "", email: "", role: "Service" }]);
@@ -296,7 +372,7 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
         <div className="flex flex-col gap-3">
           <Input
             label="Full name"
-            placeholder="e.g. Rose Mensah"
+            placeholder="e.g. Akosua Mensah"
             value={owner.name}
             onChange={(e) => updateStaff(0, "name", e.target.value)}
           />
@@ -324,7 +400,7 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
               <X size={14} />
             </button>
             <div className="flex flex-col gap-3">
-              <Input label="Full name" placeholder="e.g. Akosua Boateng" value={member.name} onChange={(e) => updateStaff(i, "name", e.target.value)} />
+              <Input label="Full name" placeholder="e.g. Ama Owusu" value={member.name} onChange={(e) => updateStaff(i, "name", e.target.value)} />
               <div className="grid grid-cols-2 gap-3">
                 <Input
                   label="Google email"
@@ -355,7 +431,8 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
         <Plus size={14} />
         Add another staff member
       </button>
-      <Button size="lg" loading={loading} onClick={handleNext} disabled={!isValid} className="mt-2">
+      <StepBackLink onBack={onBack} />
+      <Button size="lg" loading={loading} onClick={handleNext} disabled={!isValid} className="-mt-2">
         Continue
       </Button>
     </div>
@@ -363,10 +440,18 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
 }
 
 // Step 4: Payment Methods
-function PaymentStep({ onNext }: { onNext: (data: PaymentEntry[]) => void }) {
-  const [methods, setMethods] = useState<PaymentEntry[]>([
-    { type: "momo", label: "MTN MoMo", number: "", name: "" },
-  ]);
+function PaymentStep({
+  onNext,
+  onBack,
+  initialValues,
+}: {
+  onNext: (data: PaymentEntry[]) => void;
+  onBack: () => void;
+  initialValues?: PaymentEntry[];
+}) {
+  const [methods, setMethods] = useState<PaymentEntry[]>(
+    initialValues && initialValues.length > 0 ? initialValues : [{ type: "momo", label: "MTN MoMo", number: "", name: "" }]
+  );
   const [loading, setLoading] = useState(false);
 
   const addMethod = () => setMethods((prev) => [...prev, { type: "bank", label: "", number: "", name: "" }]);
@@ -427,7 +512,8 @@ function PaymentStep({ onNext }: { onNext: (data: PaymentEntry[]) => void }) {
         <Plus size={14} />
         Add payment method
       </button>
-      <div className="flex gap-3 mt-2">
+      <StepBackLink onBack={onBack} />
+      <div className="flex gap-3 -mt-2">
         <Button variant="ghost" size="lg" onClick={handleNext} className="flex-1">Skip</Button>
         <Button size="lg" loading={loading} onClick={handleNext} className="flex-1">Continue</Button>
       </div>
@@ -540,7 +626,7 @@ function GoLiveStep({ status, slug, error, onRetry }: GoLiveStepProps) {
       <div className="mt-8 p-4 rounded-[var(--rl)] text-left" style={{ background: "var(--ac-bg)", border: "1px solid var(--ac)" }}>
         <div className="flex items-center gap-2 mb-2">
           <Sparkles size={14} style={{ color: "var(--ac)" }} />
-          <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>What's next</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--ac)" }}>What&apos;s next</p>
         </div>
         <p className="text-xs leading-relaxed" style={{ color: "var(--ac2)" }}>
           After signing in, your public storefront page still won&apos;t be live yet — preview it anytime from the dashboard, then publish it from Settings once you&apos;re happy with how it looks.
@@ -559,8 +645,38 @@ export default function OnboardingPage() {
   const [submitStatus, setSubmitStatus] = useState<"creating" | "done" | "error">("creating");
   const [createdSlug, setCreatedSlug] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // True only once the mount-time draft restore has run — gates the persist
+  // effect below so it can't fire with this render's still-empty initial
+  // state and stomp a real saved draft before it's even been read back in.
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Restored in an effect rather than as each useState's initializer: that
+  // would make the server's first render (no localStorage) disagree with
+  // the client's hydration render (real draft), which React flags as a
+  // hydration mismatch. Running after mount means one extra render but a
+  // guaranteed-consistent first paint.
+  useEffect(() => {
+    const draft = loadOnboardingDraft();
+    if (draft) {
+      if (draft.businessInfo) setBusinessInfo(draft.businessInfo);
+      if (draft.staffList?.length) setStaffList(draft.staffList);
+      if (draft.services?.length) setServices(draft.services);
+      if (draft.paymentMethods?.length) setPaymentMethods(draft.paymentMethods);
+      // A draft saved mid- or post-submission (step 4) is restored to step 3
+      // instead — "creating"/"done"/"error" isn't state worth resurrecting,
+      // and step 3's Continue re-submits cleanly with the restored data.
+      if (typeof draft.step === "number") setStep(Math.min(draft.step, 3));
+    }
+    setDraftRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftRestored || step >= 4) return;
+    saveOnboardingDraft({ step, businessInfo, staffList, services, paymentMethods });
+  }, [draftRestored, step, businessInfo, staffList, services, paymentMethods]);
 
   const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const handleBusinessInfoNext = (data: BusinessInfoData) => {
     setBusinessInfo(data);
@@ -595,6 +711,7 @@ export default function OnboardingPage() {
         if (result.ok) {
           setCreatedSlug(result.slug);
           setSubmitStatus("done");
+          clearOnboardingDraft();
         } else {
           setSubmitError(result.error);
           setSubmitStatus("error");
@@ -620,6 +737,13 @@ export default function OnboardingPage() {
         {/* Header */}
         <div className="flex flex-col items-center mb-8">
           <Logo size="md" href="/" />
+          <Link
+            href="/"
+            className="text-xs mt-2 transition-opacity hover:opacity-70"
+            style={{ color: "var(--tx3)" }}
+          >
+            ← Back to booktns.com
+          </Link>
           <div className="mt-6 mb-4">
             <StepDots current={step} total={STEPS.length} />
           </div>
@@ -637,10 +761,10 @@ export default function OnboardingPage() {
         </div>
 
         {/* Step content */}
-        {step === 0 && <BusinessInfoStep onNext={handleBusinessInfoNext} />}
-        {step === 1 && <AddServicesStep onNext={handleServicesNext} />}
-        {step === 2 && <AddStaffStep onNext={handleStaffNext} />}
-        {step === 3 && <PaymentStep onNext={handlePaymentNext} />}
+        {step === 0 && <BusinessInfoStep onNext={handleBusinessInfoNext} initialValues={businessInfo} />}
+        {step === 1 && <AddServicesStep onNext={handleServicesNext} onBack={goBack} initialValues={services} />}
+        {step === 2 && <AddStaffStep onNext={handleStaffNext} onBack={goBack} initialValues={staffList} />}
+        {step === 3 && <PaymentStep onNext={handlePaymentNext} onBack={goBack} initialValues={paymentMethods} />}
         {step === 4 && (
           <GoLiveStep
             status={submitStatus}

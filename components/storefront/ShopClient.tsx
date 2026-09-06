@@ -212,7 +212,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
         </div>
       </div>
 
-      <div className="px-4 md:px-8 py-6 max-w-4xl mx-auto">
+      <div className="px-4 md:px-8 py-6 max-w-6xl mx-auto">
         <h1
           className="font-display text-2xl font-medium mb-6"
           style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
@@ -252,19 +252,23 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
             return (
               <div
                 key={product.id}
-                className="rounded-[var(--rl)] overflow-hidden"
+                className="group rounded-[var(--rl)] overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
                 style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}
               >
                 {/* Image */}
                 <button
                   onClick={() => setQuickViewProduct(product)}
-                  className="w-full aspect-square flex items-center justify-center relative"
+                  className="w-full aspect-square flex items-center justify-center relative overflow-hidden"
                   style={{ background: "var(--bg3)" }}
                   aria-label={`Quick view ${product.name}`}
                 >
                   {product.images[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={product.images[0].url} alt={product.name} className="w-full h-full object-cover object-top" />
+                    <img
+                      src={product.images[0].url}
+                      alt={product.name}
+                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                    />
                   ) : (
                     <ShoppingBag size={32} style={{ color: "var(--tx3)" }} />
                   )}
@@ -295,7 +299,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => updateQty(product.id, qty - 1)}
-                        className="w-7 h-7 rounded-full flex items-center justify-center"
+                        className="w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
                         style={{ background: "var(--bg3)", color: "var(--tx)" }}
                       >
                         <Minus size={12} />
@@ -305,7 +309,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                       </span>
                       <button
                         onClick={() => addToCart(product)}
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-white"
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-white transition-transform hover:scale-110 active:scale-95"
                         style={{ background: "var(--ac)" }}
                       >
                         <Plus size={12} />
@@ -314,8 +318,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                   ) : (
                     <button
                       onClick={() => addToCart(product)}
-                      className="w-full py-2 rounded-[var(--r)] text-sm font-medium transition-colors"
-                      style={{ background: "var(--bg3)", color: "var(--tx2)" }}
+                      className="w-full py-2 rounded-[var(--r)] text-sm font-medium transition-colors bg-[var(--bg3)] text-[var(--tx2)] hover:bg-[var(--ac)] hover:text-white"
                     >
                       Add to cart
                     </button>

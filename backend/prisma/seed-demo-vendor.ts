@@ -2,9 +2,14 @@ import "dotenv/config";
 import { db } from "../src/common/lib/prisma-client";
 import { vendor, staff, services, products, paymentMethods, videos } from "../src/common/lib/data";
 
-// Creates the platform's public demo vendor ("Glam by Rose") — the one
+// Creates the platform's public demo vendor ("Glam by Akosua") — the one
 // referenced by DEMO_VENDOR_SLUGS (excluded from superadmin platform stats)
 // so it's meant to exist in production, not just local dev.
+//
+// Renaming the demo vendor (a change to the data above) does NOT rename an
+// existing row in a database this already ran against — matched by slug, a
+// changed slug reads as a brand-new vendor to create, leaving the old one
+// behind alongside it. Use rename-demo-vendor.ts for that instead.
 //
 // This is deliberately NOT `prisma/seed.ts` reborn — that script (deleted in
 // the NestJS cutover) started with deleteMany() calls that wiped every

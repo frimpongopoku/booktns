@@ -146,7 +146,7 @@ const journeySteps = [
     tag: "1. Discover",
     title: "A customer finds your storefront",
     desc: "Services, prices, and your shop — laid out clearly, no account required to look around.",
-    url: "booktns.com/glambyrose",
+    url: "booktns.com/glambyakosua",
     tone: "storefront" as const,
     image: "/landing/storefront.png",
   },
@@ -154,7 +154,7 @@ const journeySteps = [
     tag: "2. Book",
     title: "They book in under two minutes",
     desc: "Pick a service, a preferred stylist, a real open slot, and pay a deposit if you require one.",
-    url: "booktns.com/glambyrose/book",
+    url: "booktns.com/glambyakosua/book",
     tone: "booking" as const,
     image: "/landing/booking-datetime.png",
   },
@@ -224,7 +224,7 @@ export default function HomePage() {
                 style={{ background: "var(--ac-bg)", color: "var(--ac)" }}
               >
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--ac)" }} />
-                Demo storefront: Glam by Rose
+                Demo storefront: Glam by Akosua
               </div>
               <h1
                 className="anim-fade-up anim-d1 text-4xl md:text-6xl font-semibold leading-[1.1] mb-6"
@@ -254,7 +254,7 @@ export default function HomePage() {
                   <ArrowRight size={15} />
                 </Link>
                 <Link
-                  href="/glambyrose"
+                  href="/glambyakosua"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-[var(--r)] font-medium text-sm"
                   style={{ background: "var(--bg3)", color: "var(--tx)", boxShadow: "var(--shadow-sm)" }}
                 >
@@ -266,7 +266,7 @@ export default function HomePage() {
             {/* Layered screenshot stack */}
             <div className="relative">
               <div className="hidden md:block absolute -top-6 -right-6 w-[85%] opacity-70 -z-10">
-                <BrowserWindow url="booktns.com/glambyrose/book" label="The booking flow">
+                <BrowserWindow url="booktns.com/glambyakosua/book" label="The booking flow">
                   <ScreenshotPlaceholder
                     tone="booking"
                     src="/landing/booking-datetime.png"
@@ -274,11 +274,11 @@ export default function HomePage() {
                   />
                 </BrowserWindow>
               </div>
-              <BrowserWindow url="booktns.com/glambyrose" label="A vendor's live storefront">
+              <BrowserWindow url="booktns.com/glambyakosua" label="A vendor's live storefront">
                 <ScreenshotPlaceholder
                   tone="storefront"
                   src="/landing/storefront.png"
-                  alt="Glam by Rose's live storefront, a Booktns demo vendor"
+                  alt="Glam by Akosua's live storefront, a Booktns demo vendor"
                 />
               </BrowserWindow>
             </div>

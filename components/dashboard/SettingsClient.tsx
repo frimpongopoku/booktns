@@ -677,7 +677,7 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
 
           <OwnerDetailField
             label="Owner name"
-            placeholder="e.g. Rose Mensah"
+            placeholder="e.g. Akosua Mensah"
             value={ownerName}
             onValueChange={setOwnerName}
             shown={showOwnerName}
@@ -1287,7 +1287,7 @@ function WhatsAppTab() {
             R
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>Rose Mensah</p>
+            <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>Akosua Mensah</p>
             <p className="text-xs" style={{ color: "var(--tx3)" }}>+233241234567 · Owner</p>
           </div>
           <div

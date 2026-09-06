@@ -6,7 +6,7 @@ import { db } from "./prisma-client";
 // including it would make the platform's own metrics quietly lie.
 //
 // Set DEMO_VENDOR_SLUGS to a comma-separated list to exclude more.
-const DEMO_VENDOR_SLUGS = (process.env.DEMO_VENDOR_SLUGS ?? "glambyrose")
+const DEMO_VENDOR_SLUGS = (process.env.DEMO_VENDOR_SLUGS ?? "glambyakosua")
   .split(",")
   .map((slug) => slug.trim())
   .filter(Boolean);

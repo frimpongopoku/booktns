@@ -105,8 +105,13 @@ export default async function StatusPage() {
             </p>
           </div>
 
-          {/* The web app gets its own row: if this page rendered at all, the
-              frontend is up. Everything below it is a real round trip. */}
+          {/* One section for everything the Next.js app itself owns. The
+              synthetic first row is a freebie: if this page rendered at
+              all, the frontend is up. Database, media/ID storage,
+              transactional email/SMS, Google sign-in verification, and
+              custom domains are all NestJS API concerns now — see the link
+              to the API's own status below rather than duplicating them
+              here as checks the frontend can no longer actually verify. */}
           <section className="mt-10">
             <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--tx3)" }}>
               Web app
@@ -119,16 +124,17 @@ export default async function StatusPage() {
                 ms: 0,
               }}
             />
-          </section>
-
-          <section className="mt-8">
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--tx3)" }}>
-              Services
-            </p>
             {report.checks.map((check) => (
               <CheckRow key={check.name} check={check} />
             ))}
           </section>
+
+          <p className="text-sm mt-6" style={{ color: "var(--tx3)" }}>
+            API and infrastructure status:{" "}
+            <a href={`${process.env.NEXT_PUBLIC_API_URL}/api/health`} target="_blank" rel="noopener noreferrer" className="underline">
+              booktns-api status
+            </a>
+          </p>
 
           <p className="text-xs mt-6" style={{ color: "var(--tx3)" }}>
             Checked {new Date(report.checkedAt).toUTCString()} · {report.totalMs}ms total ·{" "}

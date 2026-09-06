@@ -1,6 +1,5 @@
 import { cache } from "react";
-import { db } from "@/lib/db";
-import { serializeBooking } from "@/lib/serialize";
+import { apiPublicOrNull } from "@/lib/api-client";
 import type { Booking, StorefrontTheme } from "@/types";
 
 export interface BookingWithVendor extends Booking {
@@ -29,39 +28,11 @@ export interface BookingWithVendor extends Booking {
 }
 
 // Public confirmation page lookup — a bare booking slug, no vendor scoping in
-// the URL (booking slugs are globally unique), so this is the only key needed.
+// the URL (booking slugs are globally unique), so this is the only key
+// needed. Backed by the NestJS API's GET /storefront/booking/:bookingSlug,
+// whose service logic is byte-identical to what this file used to do
+// directly against Prisma.
 export const getBookingBySlug = cache(async (slug: string): Promise<BookingWithVendor | null> => {
-  const booking = await db.booking.findUnique({
-    where: { slug },
-    include: {
-      services: true,
-      products: { include: { product: { select: { slug: true } } } },
-      staffPreference: { select: { name: true } },
-      assignedStaff: { select: { name: true } },
-      paymentMethod: true,
-      vendor: true,
-    },
-  });
-
-  if (!booking) return null;
-
-  return {
-    ...serializeBooking(booking),
-    vendor: {
-      id: booking.vendor.id,
-      name: booking.vendor.name,
-      slug: booking.vendor.slug,
-      location: booking.vendor.location,
-      hours: booking.vendor.hours,
-      phone: booking.vendor.phone,
-      whatsapp: booking.vendor.whatsapp,
-      personalWhatsappNumber: booking.vendor.personalWhatsappNumber ?? undefined,
-      logoUrl: booking.vendor.logoUrl ?? undefined,
-      storefrontPublished: booking.vendor.storefrontPublished,
-      cancellationPolicy: booking.vendor.cancellationPolicy ?? undefined,
-      storefrontTheme: booking.vendor.storefrontTheme,
-      ownerPhone: booking.vendor.showOwnerPhone ? booking.vendor.ownerPhone ?? undefined : undefined,
-      ownerEmail: booking.vendor.showOwnerEmail ? booking.vendor.ownerEmail ?? undefined : undefined,
-    },
-  };
+  const result = await apiPublicOrNull<{ booking: BookingWithVendor }>(`/storefront/booking/${slug}`);
+  return result?.booking ?? null;
 });

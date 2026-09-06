@@ -1,17 +1,19 @@
-# Backend separation — status and how to finish it
+# Backend separation — status
 
-The frontend now talks to the NestJS API for the entire vendor dashboard,
-authentication, and every guest-facing write (booking, checkout, self-service
-edit/cancel). The Next.js routes for all of that are deleted — this API is
-no longer a parallel, unused system sitting next to the old one.
+**The migration is complete.** The frontend now talks to the NestJS API for
+everything: the vendor dashboard, authentication, every guest-facing write
+(booking, checkout, self-service edit/cancel), the public storefront read
+path, vendor onboarding, and the superadmin console. The matching Next.js
+route or direct-Prisma helper for each of these is **deleted**, not just
+unused — `lib/db.ts`, the frontend's `prisma/` directory, and its generated
+Prisma client are gone. The frontend holds zero database credentials.
 
-**What is left on Next.js:** the superadmin console (7 routes, its own
-parked token space), the public storefront *read* path (`app/[slug]/*`,
-`app/booking/[slug]`, `app/order/[slug]`, sitemap/robots/OG images — all
-still query Prisma directly), the QR code route, and vendor onboarding
-(`app/onboarding/actions.ts`, which creates the first Vendor + owner Staff
-row directly — CLAUDE.md documents this as the one deliberate exception to
-"Google Sign-In never creates a Staff record").
+Vendor onboarding (`app/onboarding/actions.ts`) is a thin proxy to
+`POST /onboarding` on this API — CLAUDE.md documents the Vendor-plus-owner-
+Staff row it creates as the one deliberate exception to "Google Sign-In
+never creates a Staff record." The QR code route and the OG-image/favicon
+generators (`next/og` is Next-only, so those stay on the frontend) now read
+through `lib/vendors.ts`, which itself calls this API rather than Prisma.
 
 ## What actually moved
 
@@ -24,7 +26,7 @@ unused:
 | Auth | sign-in, /auth/me, memberships, switch-vendor (cookie-blind — see below) |
 | Bookings | create (guest), list + mark-seen, PATCH (status/reassign/reschedule), self-service edit/cancel by slug |
 | Orders | create (guest), list + mark-seen, status update, PDF receipt |
-| Storefront reads | vendor read, slugs, resolve-domain, booking/order by slug |
+| Storefront reads | vendor read, slugs, product-slugs, resolve-domain, per-vendor icon, booking/order by slug, staff preview of an unpublished storefront |
 | Catalog | services, products (CRUD), low-stock names |
 | Staff | CRUD (Owner), list (Owner + Management — see note below) |
 | Payments | payment methods CRUD, Owner-only |
@@ -36,11 +38,13 @@ unused:
 | Support | platform support messages |
 | Calendar | ICS subscription feed |
 | Overview | the dashboard home page's ten-query summary, in one call |
+| Onboarding | vendor sign-up (Vendor + owner Staff + BusinessHours + optional Services/PaymentMethods, one transaction) |
+| Superadmin | overview, admins CRUD, vendor suspend/verify, verification review + photo streaming |
 | Feedback, health, ping, landing page | (already covered) |
 
-**Superadmin console (7 routes) is the one deliberate gap.** Lower traffic,
-separate token space already built (`@SuperAdminOnly()`), and porting it
-doesn't block anything a vendor or shopper does.
+Superadmin's token architecture (`@SuperAdminOnly()`, `CurrentSuperAdmin()`,
+a separate `SUPERADMIN_JWT_SECRET`) was built well before its controllers
+were — see "Two token spaces, two secrets" below.
 
 **The staff list is intentionally not Owner-only**, unlike every other staff
 mutation. "Manage bookings" (Owner AND Management, per spec §7.4) means
@@ -128,10 +132,10 @@ Write that down as the invariant. Everything else follows from it.
 
 - The NestJS API never sets `Set-Cookie`. `/auth/session` and
   `/auth/switch-vendor` return a signed JWT **in the JSON body**.
-- Next.js route handlers (`app/api/auth/session-v2`, `.../switch-vendor-v2`)
-  are the only things that call `cookies().set()`. They mint an **httpOnly,
-  host-only cookie with no `domain` attribute** — scoped to whatever host the
-  browser is currently on.
+- Next.js route handlers (`app/api/auth/session`, `.../switch-vendor`,
+  `app/api/superadmin/auth/session`) are the only things that call
+  `cookies().set()`. They mint an **httpOnly, host-only cookie with no
+  `domain` attribute** — scoped to whatever host the browser is currently on.
 - Every other authenticated browser call goes through the BFF proxy at
   `app/api/admin/[...path]/route.ts`, which reads the cookie server-side and
   re-attaches it as `Authorization: Bearer`. **Browser JavaScript never holds
@@ -192,13 +196,6 @@ route that forgets to check is still safe.
   `vendors` helpers — it only memoises within a React render. Repeated calls in
   one request now hit the database more than once. Add request-scoped caching
   if a hot path shows up.
-- **OG image and favicon generation stayed on the frontend** (`next/og` is
-  Next-only). They still query Prisma directly and will need the storefront
-  endpoint instead.
-- **`proxy.ts` still queries Prisma directly** for custom-domain routing. It
-  should call `GET /api/storefront/resolve-domain`, which exists for exactly
-  this — but that adds a network hop to a large share of requests, so it wants
-  a cache in front of it.
 - **No tests.** The port was verified by typecheck, build, boot, and manual
   calls against the dev database. The serializable booking transaction in
   particular deserves a concurrency test before it takes real traffic.

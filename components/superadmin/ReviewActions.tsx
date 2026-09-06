@@ -2,14 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import Button from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { Check, X } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 export default function ReviewActions({ applicationId }: { applicationId: string }) {
   const router = useRouter();
@@ -22,18 +18,10 @@ export default function ReviewActions({ applicationId }: { applicationId: string
     setBusy(kind);
     setError(null);
     try {
-      const res = await fetch(`/api/superadmin/verifications/${applicationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(errBody?.error ?? "Something went wrong. Please try again.");
-      }
+      await apiBrowser(`/superadmin/verifications/${applicationId}`, { method: "PATCH", body });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setBusy(null);
     }

@@ -246,3 +246,18 @@ export interface VendorVideo {
   thumbnailUrl?: string;
   displayOrder: number;
 }
+
+// One Google email can be Staff at several vendors, each a separate
+// membership with its own role — the sidebar's shop switcher and the
+// dashboard layout's auth check both key off this shape. The value itself
+// now comes from the NestJS API (GET /auth/memberships); this used to live
+// in lib/memberships.ts alongside the Prisma query that produced it.
+export interface StaffMembership {
+  staffId: string;
+  vendorId: string;
+  vendorName: string;
+  vendorSlug: string;
+  vendorLogoUrl: string | null;
+  role: StaffRole;
+  staffName: string;
+}

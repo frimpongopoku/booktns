@@ -1,53 +1,33 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { db } from "@/lib/db";
-import { createSuperAdminSession, clearSuperAdminSession } from "@/lib/superadmin-auth";
-import { verifyFirebaseIdToken } from "@/lib/firebase-admin";
+import { apiPublic, ApiError } from "@/lib/api-client";
+import { setSuperAdminCookie, clearSuperAdminCookie } from "@/lib/session-cookie";
 
-const bodySchema = z.object({ idToken: z.string().min(1) });
-
-// Identical wording whether the email is unknown, belongs to an ordinary
-// vendor, or was removed as a superadmin. It must never confirm whether an
-// account exists anywhere in the system.
-const NOT_AUTHORIZED = {
-  error: "This Google account is not authorized for the superadmin console.",
-  code: "not_authorized",
-};
-
-// Same identity provider as the vendor login — the *allowlist table* is what
-// differs, not the provider. There is deliberately no signup route: a row in
-// SuperAdmin is the only way in, created by the bootstrap script or by an
-// existing admin's invite.
+// Sign-in against the NestJS API, then mint the cookie here — same split as
+// app/api/auth/session/route.ts. The API verifies the Google identity,
+// checks the SuperAdmin allowlist, and mints a JWT, but returns it in the
+// response body and sets nothing. This route turns it into an httpOnly
+// cookie. There is deliberately no signup path anywhere in this chain: a row
+// in SuperAdmin (bootstrap script, or another admin's invite) is the only
+// way in.
 export async function POST(request: Request) {
-  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Missing or invalid idToken", code: "invalid_request" }, { status: 400 });
+  const body = await request.json().catch(() => null);
+
+  try {
+    const result = await apiPublic<{ token: string }>("/superadmin/auth/session", { method: "POST", body });
+    await setSuperAdminCookie(result.token);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
+    }
+    return NextResponse.json(
+      { error: "Couldn't reach the sign-in service. Please try again.", code: "upstream_unreachable" },
+      { status: 502 },
+    );
   }
-
-  const verified = await verifyFirebaseIdToken(parsed.data.idToken);
-  if (!verified || !verified.emailVerified) {
-    return NextResponse.json({ error: "Google sign-in could not be verified", code: "invalid_token" }, { status: 401 });
-  }
-
-  const admin = await db.superAdmin.findFirst({
-    where: { email: { equals: verified.email, mode: "insensitive" } },
-  });
-
-  if (!admin) {
-    return NextResponse.json(NOT_AUTHORIZED, { status: 403 });
-  }
-
-  // Stamped on first successful sign-in, so the console can show which
-  // invitations have actually been taken up.
-  if (!admin.acceptedAt) {
-    await db.superAdmin.update({ where: { id: admin.id }, data: { acceptedAt: new Date() } });
-  }
-
-  await createSuperAdminSession(admin);
-  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE() {
-  await clearSuperAdminSession();
+  await clearSuperAdminCookie();
   return NextResponse.json({ ok: true });
 }

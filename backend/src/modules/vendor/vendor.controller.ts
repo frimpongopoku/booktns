@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, Delete, Get, Patch, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
 import { CurrentSession, Public, Roles } from "../../common/decorators";
 import { ZodValidationPipe } from "../../common/zod.pipe";
 import { config } from "../../common/config";
 import type { SessionPayload } from "../../common/session.types";
+import { getStorefrontVendorForPreview } from "../../common/lib/vendors";
 import { VendorService } from "./vendor.service";
 import { updateVendorSchema, updateHoursSchema, addDomainSchema, checkSlugSchema, type UpdateVendorDto, type UpdateHoursDto } from "./vendor.schemas";
 
@@ -14,6 +15,20 @@ export class VendorController {
   @Get("dashboard-context")
   dashboardContext(@CurrentSession() session: SessionPayload) {
     return this.vendor.dashboardContext(session.vendorId);
+  }
+
+  // A vendor's own staff previewing their storefront before publishing it.
+  // Any role, not just Owner — Management/Service staff can preview too.
+  // Deliberately NOT on the public StorefrontController: this is the one
+  // path that skips the storefront-published gate, so it must verify the
+  // caller's session vendorId matches the slug being requested, every time.
+  @Get("storefront-preview/:slug")
+  async storefrontPreview(@Param("slug") slug: string, @CurrentSession() session: SessionPayload) {
+    const vendor = await getStorefrontVendorForPreview(slug);
+    if (!vendor || vendor.id !== session.vendorId) {
+      throw new NotFoundException({ error: "Shop not found", code: "not_found" });
+    }
+    return { vendor };
   }
 
   @Roles("Owner")

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cache } from "react";
-import { db } from "@/lib/db";
-import { findVendorOwner } from "@/lib/verification";
+import { ApiError } from "@/lib/api-client.server";
+import { apiSuperAdminOrRedirect } from "@/lib/superadmin-auth";
+import type { VerificationStatus } from "@/types";
 import StatusBadge from "@/components/superadmin/StatusBadge";
 import ReviewActions from "@/components/superadmin/ReviewActions";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
@@ -13,18 +13,19 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-const REQUEST_TO_VENDOR_STATUS = {
-  PENDING: "PENDING",
-  APPROVED: "VERIFIED",
-  REJECTED: "REJECTED",
-} as const;
-
-const getApplication = cache(async (id: string) =>
-  db.verificationRequest.findUnique({
-    where: { id },
-    include: { vendor: { select: { id: true, name: true, slug: true, verificationStatus: true } } },
-  })
-);
+interface ApplicationDetail {
+  id: string;
+  legalName: string;
+  ghanaCardNumber: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  vendorStatus: VerificationStatus;
+  vendorId: string;
+  rejectionReason: string | null;
+  submittedAt: string;
+  reviewedAt: string | null;
+  hasSelfiePhoto: boolean;
+  vendor: { id: string; name: string; slug: string; verificationStatus: VerificationStatus };
+}
 
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
@@ -44,10 +45,17 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 
 export default async function VerificationReviewPage({ params }: PageProps) {
   const { id } = await params;
-  const application = await getApplication(id);
-  if (!application) notFound();
 
-  const owner = await findVendorOwner(application.vendorId);
+  let result;
+  try {
+    result = await apiSuperAdminOrRedirect<{ application: ApplicationDetail; ownerEmail: string | null }>(
+      `/superadmin/verifications/${id}`,
+    );
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
+  const { application, ownerEmail } = result;
 
   return (
     <div className="flex flex-col gap-7 max-w-2xl">
@@ -68,7 +76,7 @@ export default async function VerificationReviewPage({ params }: PageProps) {
             </Link>
           </p>
         </div>
-        <StatusBadge status={REQUEST_TO_VENDOR_STATUS[application.status]} />
+        <StatusBadge status={application.vendorStatus} />
       </div>
 
       <div
@@ -77,10 +85,10 @@ export default async function VerificationReviewPage({ params }: PageProps) {
       >
         <Field label="Legal name" value={application.legalName} />
         <Field label="Ghana Card number" value={application.ghanaCardNumber} mono />
-        <Field label="Owner account" value={owner?.email ?? "No active owner"} />
+        <Field label="Owner account" value={ownerEmail ?? "No active owner"} />
         <Field
           label="Submitted"
-          value={application.submittedAt.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+          value={new Date(application.submittedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
         />
       </div>
 
@@ -102,13 +110,14 @@ export default async function VerificationReviewPage({ params }: PageProps) {
           Documents
         </p>
         <div className="grid sm:grid-cols-2 gap-3">
-          {/* Streamed through the authenticated route, which reads the private
-              bucket server-side. These are not public URLs and cannot be
-              opened without a superadmin session. */}
+          {/* Streamed through the generic backend proxy (/api/admin/superadmin/...),
+              which the API's own handler reads from the private bucket
+              server-side. These are not public URLs and cannot be opened
+              without a superadmin session. */}
           <figure className="m-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`/api/superadmin/verifications/${application.id}/photo/id`}
+              src={`/api/admin/superadmin/verifications/${application.id}/photo/id`}
               alt="Submitted Ghana Card"
               className="w-full rounded-[var(--r)]"
               style={{ background: "var(--bg3)", border: "1px solid var(--bds)" }}
@@ -116,11 +125,11 @@ export default async function VerificationReviewPage({ params }: PageProps) {
             <figcaption className="text-xs mt-1.5" style={{ color: "var(--tx3)" }}>Ghana Card</figcaption>
           </figure>
 
-          {application.selfiePhotoKey && (
+          {application.hasSelfiePhoto && (
             <figure className="m-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`/api/superadmin/verifications/${application.id}/photo/selfie`}
+                src={`/api/admin/superadmin/verifications/${application.id}/photo/selfie`}
                 alt="Submitted selfie"
                 className="w-full rounded-[var(--r)]"
                 style={{ background: "var(--bg3)", border: "1px solid var(--bds)" }}
@@ -141,7 +150,7 @@ export default async function VerificationReviewPage({ params }: PageProps) {
       ) : (
         <p className="text-sm pt-4" style={{ color: "var(--tx3)", borderTop: "1px solid var(--bd)" }}>
           Reviewed{" "}
-          {application.reviewedAt?.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}. To change
+          {application.reviewedAt && new Date(application.reviewedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}. To change
           this decision, use the verify/unverify controls on the vendor.
         </p>
       )}

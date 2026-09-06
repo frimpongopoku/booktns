@@ -20,17 +20,15 @@ import { CalendarModule } from "./modules/calendar/calendar.module";
 import { VerificationModule } from "./modules/verification/verification.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { OverviewModule } from "./modules/overview/overview.module";
+import { OnboardingModule } from "./modules/onboarding/onboarding.module";
+import { SuperAdminModule } from "./modules/superadmin/superadmin.module";
 
-// Superadmin console (7 routes) is the one deliberate gap — see
-// MIGRATION.md. Everything else the vendor dashboard and storefront need is
-// here; the Next.js API routes for these are now dead code, kept only until
-// the frontend cutover (see lib/api-client.ts consumers) is verified in
-// production.
 @Module({
   imports: [
     PrismaModule, RootModule, AuthModule, BookingsModule, StorefrontModule, HealthModule, FeedbackModule,
     CatalogModule, StaffModule, PaymentsModule, VideosModule, MediaModule, VendorModule, AvailabilityModule,
-    SupportModule, CalendarModule, VerificationModule, OrdersModule, OverviewModule,
+    SupportModule, CalendarModule, VerificationModule, OrdersModule, OverviewModule, OnboardingModule,
+    SuperAdminModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: SessionGuard },

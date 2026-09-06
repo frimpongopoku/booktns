@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { getSuperAdminSession } from "@/lib/superadmin-auth";
-import AdminsClient from "@/components/superadmin/AdminsClient";
+import { getSuperAdminSession, apiSuperAdminOrRedirect } from "@/lib/superadmin-auth";
+import AdminsClient, { type AdminRow } from "@/components/superadmin/AdminsClient";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +10,7 @@ export default async function AdminsPage() {
   const session = await getSuperAdminSession();
   if (!session) redirect("/superadmin/login");
 
-  const admins = await db.superAdmin.findMany({ orderBy: { invitedAt: "asc" } });
+  const { admins } = await apiSuperAdminOrRedirect<{ admins: AdminRow[] }>("/superadmin/admins");
 
   return (
     <div className="flex flex-col gap-6">
@@ -25,16 +24,9 @@ export default async function AdminsPage() {
         </p>
       </div>
 
-      <AdminsClient
-        currentAdminId={session.sub}
-        admins={admins.map((admin) => ({
-          id: admin.id,
-          email: admin.email,
-          name: admin.name,
-          invitedAt: admin.invitedAt.toISOString(),
-          acceptedAt: admin.acceptedAt?.toISOString() ?? null,
-        }))}
-      />
+      {/* Dates already arrive as ISO strings — this is a JSON API response,
+          not a Prisma row, so no .toISOString() call is needed here. */}
+      <AdminsClient currentAdminId={session.sub} admins={admins} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { VerificationStatus } from "@/lib/generated/prisma/enums";
+import type { VerificationStatus } from "@/types";
 
 // Green = verified, amber = pending, red = rejected. That mapping is fixed
 // across the whole product — status page, this console, storefront badges —

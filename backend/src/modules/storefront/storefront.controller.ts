@@ -1,6 +1,9 @@
 import { Controller, Get, NotFoundException, Param, Query } from "@nestjs/common";
 import { Public } from "../../common/decorators";
-import { getStorefrontVendor, getVendorPublicMeta, getAllActiveVendorSlugs, getVendorSlugByCustomDomain } from "../../common/lib/vendors";
+import {
+  getStorefrontVendor, getVendorPublicMeta, getAllActiveVendorSlugs, getVendorSlugByCustomDomain,
+  getAllActiveProductSlugs, getVendorIconLogoUrl,
+} from "../../common/lib/vendors";
 import { getBookingBySlug } from "../../common/lib/bookings";
 import { getOrderBySlug } from "../../common/lib/orders";
 
@@ -21,6 +24,16 @@ export class StorefrontController {
   async slugs() {
     // Feeds generateStaticParams and sitemap.ts on the frontend.
     return { slugs: await getAllActiveVendorSlugs() };
+  }
+
+  // Registered before the :slug route below — a literal segment, so route
+  // order isn't strictly load-bearing here, but kept first anyway so the
+  // relationship to "slugs" above reads clearly (same convention as
+  // ProductsController.lowStock in catalog.controller.ts).
+  @Get("product-slugs")
+  async productSlugs() {
+    // Feeds app/sitemap.ts's per-vendor product pages.
+    return { slugs: await getAllActiveProductSlugs() };
   }
 
   // Middleware calls this to map a Host header to a vendor. Kept separate
@@ -50,6 +63,15 @@ export class StorefrontController {
   // requires a session whose vendorId matches, so it lives on the
   // authenticated /vendor route instead. Putting it under @Public() would
   // hand anonymous callers every unpublished shop's catalogue.
+
+  // Just the logo, for the per-vendor favicon routes (app/[slug]/icon.tsx
+  // and apple-icon.tsx) — a browser asks for these on every single page
+  // load, so this deliberately does NOT reuse the full vendor() handler
+  // above, which pulls every service/product/video/staff/hours row.
+  @Get(":slug/icon")
+  async icon(@Param("slug") slug: string) {
+    return { logoUrl: await getVendorIconLogoUrl(slug) };
+  }
 
   @Get("booking/:bookingSlug")
   async booking(@Param("bookingSlug") bookingSlug: string) {

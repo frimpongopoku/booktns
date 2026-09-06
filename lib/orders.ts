@@ -1,6 +1,5 @@
 import { cache } from "react";
-import { db } from "@/lib/db";
-import { serializeOrder } from "@/lib/serialize";
+import { apiPublicOrNull } from "@/lib/api-client";
 import type { Order, StorefrontTheme } from "@/types";
 
 export interface OrderWithVendor extends Order {
@@ -24,30 +23,11 @@ export interface OrderWithVendor extends Order {
 }
 
 // Public confirmation page lookup — a bare order slug, no vendor scoping in
-// the URL (order slugs are globally unique), so this is the only key needed.
+// the URL (order slugs are globally unique), so this is the only key
+// needed. Backed by the NestJS API's GET /storefront/order/:orderSlug,
+// whose service logic is byte-identical to what this file used to do
+// directly against Prisma.
 export const getOrderBySlug = cache(async (slug: string): Promise<OrderWithVendor | null> => {
-  const order = await db.order.findUnique({
-    where: { slug },
-    include: { items: true, paymentMethod: true, vendor: true },
-  });
-
-  if (!order) return null;
-
-  return {
-    ...serializeOrder(order),
-    vendor: {
-      id: order.vendor.id,
-      name: order.vendor.name,
-      slug: order.vendor.slug,
-      location: order.vendor.location,
-      hours: order.vendor.hours,
-      phone: order.vendor.phone,
-      whatsapp: order.vendor.whatsapp,
-      personalWhatsappNumber: order.vendor.personalWhatsappNumber ?? undefined,
-      logoUrl: order.vendor.logoUrl ?? undefined,
-      storefrontTheme: order.vendor.storefrontTheme,
-      ownerPhone: order.vendor.showOwnerPhone ? order.vendor.ownerPhone ?? undefined : undefined,
-      ownerEmail: order.vendor.showOwnerEmail ? order.vendor.ownerEmail ?? undefined : undefined,
-    },
-  };
+  const result = await apiPublicOrNull<{ order: OrderWithVendor }>(`/storefront/order/${slug}`);
+  return result?.order ?? null;
 });

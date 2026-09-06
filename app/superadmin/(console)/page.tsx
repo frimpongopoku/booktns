@@ -1,13 +1,30 @@
 import Link from "next/link";
 import { formatPrice } from "@/lib/data";
-import { getPlatformOverview } from "@/lib/superadmin";
+import { apiSuperAdminOrRedirect } from "@/lib/superadmin-auth";
 import StatCard from "@/components/superadmin/StatCard";
 import { ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+// Matches backend/src/common/lib/superadmin.ts's PlatformOverview exactly —
+// declared here rather than imported from the (now backend-only) lib/
+// module that used to compute this directly against Prisma.
+interface PlatformOverview {
+  vendorCount: number;
+  publishedCount: number;
+  suspendedCount: number;
+  staffCount: number;
+  bookingCount: number;
+  orderCount: number;
+  grossPesewas: number;
+  pendingVerifications: number;
+  verifiedVendors: number;
+  signupsByDay: { date: string; count: number }[];
+  demoVendorsExcluded: number;
+}
+
 export default async function SuperAdminOverviewPage() {
-  const stats = await getPlatformOverview();
+  const { overview: stats } = await apiSuperAdminOrRedirect<{ overview: PlatformOverview }>("/superadmin/overview");
   const peak = Math.max(1, ...stats.signupsByDay.map((d) => d.count));
 
   return (

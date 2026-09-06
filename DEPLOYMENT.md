@@ -11,11 +11,11 @@ Three services:
 Both Railway services live in **one Railway project** so the database can be
 reached over the private network.
 
-> **The migration is partial and that is fine.** Most of the app still uses
-> the Next.js API routes and queries Prisma directly from server components.
-> The NestJS API runs alongside them. Deploying it changes nothing about how
-> the app behaves today — see `backend/MIGRATION.md`. The frontend needs a
-> live database of its own regardless.
+> **The migration is complete.** Every read and write — dashboard, auth,
+> guest bookings/checkout, the public storefront, vendor onboarding, and the
+> superadmin console — goes through the NestJS API now. The frontend holds
+> no database credentials, no Prisma schema, and no `DATABASE_URL` at all;
+> it is a pure API consumer. See `backend/MIGRATION.md`.
 
 ---
 
@@ -69,10 +69,10 @@ Not optional, and the second one especially:
 - **Private bucket** (`CLOUDFLARE_R2_PRIVATE_BUCKET`) — government ID scans
   for vendor verification. **No public access, no custom domain.**
 
-> ⚠️ Without `CLOUDFLARE_R2_PRIVATE_BUCKET`, `lib/private-storage.ts` falls
-> back to writing ID documents to local disk. Both Vercel and a Railway
-> container wipe that on every deploy. Verification would appear to work and
-> then lose the documents. The code logs a loud warning; heed it.
+> ⚠️ Without `CLOUDFLARE_R2_PRIVATE_BUCKET`, `backend/src/common/lib/private-storage.ts`
+> falls back to writing ID documents to local disk. A Railway container wipes
+> that on every deploy. Verification would appear to work and then lose the
+> documents. The code logs a loud warning; heed it.
 
 ### 4. Vercel — the frontend
 
@@ -88,18 +88,21 @@ Use `.env.example` as the checklist.
 
 | Variable | Value |
 |---|---|
-| `DATABASE_URL` | Railway's **public** URL |
 | `JWT_SECRET` | **the same string as Railway** |
+| `SUPERADMIN_JWT_SECRET` | **the same string as Railway's** (falls back to `JWT_SECRET` if unset, but set it explicitly) |
 | `NEXT_PUBLIC_APP_URL` | your production URL, no trailing slash |
 | `NEXT_PUBLIC_API_URL` | the Railway API URL from step 2.5 |
-| `NEXT_PUBLIC_FIREBASE_*` | Firebase → Web app config |
-| `FIREBASE_ADMIN_*` | same service-account key as the API |
+| `NEXT_PUBLIC_FIREBASE_*` | Firebase → Web app config (client-side Google Sign-In popup only) |
 
-**Needed before real vendors sign up:** `CLOUDFLARE_R2_*` (both buckets),
-`RESEND_API_KEY` / `EMAIL_FROM`, `SUPPORT_INBOX_EMAIL`.
+**No `DATABASE_URL`, no `FIREBASE_ADMIN_*`, no `RESEND_API_KEY`/`EMAIL_FROM`,
+no `CLOUDFLARE_R2_*` on Vercel at all.** The frontend has no database
+connection and no server-side credentials for any of these — it never
+verifies a Google ID token, sends an email/SMS, or touches storage directly
+anymore. Every one of those lives only in Railway's variables (step 2). If a
+Vercel build ever fails asking for one of these, that's the bug — not a
+missing variable to add.
 
-**Optional:** `AFRICAS_TALKING_*`, `SENTRY_*`, `NEXT_PUBLIC_POSTHOG_*`,
-`PLATFORM_APEX_IP` / `PLATFORM_CNAME_TARGET`, `DEMO_VENDOR_SLUGS`.
+**Optional:** `SENTRY_*`, `NEXT_PUBLIC_POSTHOG_*`.
 
 ### 6. Firebase — authorised domains
 
@@ -132,25 +135,29 @@ email are built from it.
 
 ---
 
-## Migrations — one owner only
+## Migrations — manual, from the backend, always
 
-Both projects carry an identical `prisma/migrations/`. **Only one may apply
-them.**
+The frontend has no Prisma schema anymore, so it structurally cannot run
+migrations — there is no `prisma/` directory left at the repo root to run
+them from. `backend/prisma/` is the only copy that exists.
 
-The Vercel build already does, via `scripts/migrate-if-production.mjs`, which
-runs `prisma migrate deploy` **only** when `VERCEL_ENV === "production"`. That
-guard exists because Vercel builds every branch and preview deployments
-inherit production environment variables — without it, any open PR could
-migrate your production database.
-
-**So: do not add a release command to the Railway API service.** Leave
-migrations to the Vercel production build.
-
-To run them by hand instead:
+**There is no automatic migration step on either deploy.** Railway's Docker
+build does not run migrations (see `backend/Dockerfile`/`railway.toml`), and
+Vercel never did either now that it has nothing to run them with. Run them
+deliberately, by hand, after a schema change lands:
 
 ```bash
+cd backend
 DATABASE_URL="<railway public url>" npm run db:deploy
 ```
+
+This used to be automatic on Vercel's production builds, guarded by
+`VERCEL_ENV === "production"` so a preview deployment could never touch the
+production database. That guard no longer has anywhere to live, which is
+fine: a human explicitly running one command with the production URL in
+hand is at least as safe as an implicit per-deploy step, and it means a
+schema change and the code that depends on it can land as two independently
+timed actions instead of being coupled to whenever Vercel happens to build.
 
 > **Check this before the first deploy:** migration
 > `20260903120000_staff_multi_vendor_membership` drops the global unique index
@@ -170,9 +177,11 @@ mints and stores the cookie; the API verifies the token inside it. A mismatch
 logs everyone out with no error anywhere — it just looks like sign-in silently
 failing.
 
-**2. Use the right `DATABASE_URL` in each place.** Railway's private
-`*.railway.internal` host only resolves inside Railway. The API uses it;
-Vercel and your laptop need the public one.
+**2. Use the right `DATABASE_URL` — there's only one place it belongs now.**
+Railway's private `*.railway.internal` host (only resolves inside Railway)
+goes on the API service's own variables. Vercel doesn't get a `DATABASE_URL`
+at all. Your laptop only needs the **public** URL when running
+`db:deploy`/`bootstrap:superadmin` by hand from `backend/`.
 
 **3. Point liveness probes at `/api/ping`, not `/api/health`.** Already
 configured in `railway.toml`. `/api/health` is safe to hit — it's cached and

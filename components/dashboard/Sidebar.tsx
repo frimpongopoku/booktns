@@ -25,9 +25,8 @@ import Logo from "@/components/shared/Logo";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 import FeedbackButton from "@/components/shared/FeedbackButton";
 import VendorSwitcher from "@/components/dashboard/VendorSwitcher";
-import type { StaffMembership } from "@/lib/memberships";
 import { getFirebaseAuth } from "@/lib/firebase-client";
-import type { StaffRole } from "@/types";
+import type { StaffRole, StaffMembership } from "@/types";
 import clsx from "clsx";
 
 interface NavItem {

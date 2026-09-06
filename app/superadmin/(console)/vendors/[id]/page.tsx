@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
+import { ApiError } from "@/lib/api-client.server";
+import { apiSuperAdminOrRedirect } from "@/lib/superadmin-auth";
 import { formatPrice } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
+import type { VerificationStatus, StaffRole } from "@/types";
 import StatusBadge from "@/components/superadmin/StatusBadge";
 import StatCard from "@/components/superadmin/StatCard";
 import VendorActions from "@/components/superadmin/VendorActions";
@@ -14,24 +16,32 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+interface VendorDetail {
+  id: string;
+  name: string;
+  slug: string;
+  verificationStatus: VerificationStatus;
+  suspended: boolean;
+  suspendedAt: string | null;
+  suspendedReason: string | null;
+  staff: { id: string; name: string; email: string; role: StaffRole; verified: boolean }[];
+  verificationRequest: { id: string; status: string; legalName: string } | null;
+  _count: { bookings: number; orders: number; services: number; products: number };
+}
+
 export default async function VendorDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  const vendor = await db.vendor.findUnique({
-    where: { id },
-    include: {
-      staff: { where: { active: true }, orderBy: { role: "asc" } },
-      verificationRequest: { select: { id: true, status: true, legalName: true } },
-      _count: { select: { bookings: true, orders: true, services: true, products: true } },
-    },
-  });
-  if (!vendor) notFound();
+  let result;
+  try {
+    result = await apiSuperAdminOrRedirect<{ vendor: VendorDetail; completedValuePesewas: number }>(`/superadmin/vendors/${id}`);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
+  const { vendor, completedValuePesewas } = result;
 
   const owner = vendor.staff.find((s) => s.role === "Owner");
-  const completedOrders = await db.order.aggregate({
-    where: { vendorId: vendor.id, status: "completed" },
-    _sum: { totalPesewas: true },
-  });
 
   return (
     <div className="flex flex-col gap-7 max-w-2xl">
@@ -66,7 +76,7 @@ export default async function VendorDetailPage({ params }: PageProps) {
           <Ban size={15} className="mt-0.5 flex-shrink-0" style={{ color: "#F87171" }} />
           <div>
             <p className="text-xs font-semibold" style={{ color: "#F87171" }}>
-              Suspended{vendor.suspendedAt ? ` on ${vendor.suspendedAt.toLocaleDateString("en-GB", { dateStyle: "medium" })}` : ""}
+              Suspended{vendor.suspendedAt ? ` on ${new Date(vendor.suspendedAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}` : ""}
             </p>
             <p className="text-sm mt-1" style={{ color: "var(--tx2)" }}>{vendor.suspendedReason}</p>
           </div>
@@ -77,7 +87,7 @@ export default async function VendorDetailPage({ params }: PageProps) {
         <StatCard label="Bookings" value={vendor._count.bookings} />
         <StatCard label="Orders" value={vendor._count.orders} />
         <StatCard label="Services" value={vendor._count.services} />
-        <StatCard label="Completed value" value={formatPrice(completedOrders._sum.totalPesewas ?? 0)} />
+        <StatCard label="Completed value" value={formatPrice(completedValuePesewas)} />
       </div>
 
       <div>

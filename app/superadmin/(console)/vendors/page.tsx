@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { realVendorsFilter } from "@/lib/superadmin";
+import { apiSuperAdminOrRedirect } from "@/lib/superadmin-auth";
+import type { VerificationStatus } from "@/types";
 import StatusBadge from "@/components/superadmin/StatusBadge";
 import { ChevronRight, Ban } from "lucide-react";
 
@@ -10,35 +10,23 @@ interface PageProps {
   searchParams: Promise<{ q?: string }>;
 }
 
+interface VendorRow {
+  id: string;
+  name: string;
+  slug: string;
+  location: string;
+  suspended: boolean;
+  storefrontPublished: boolean;
+  verificationStatus: VerificationStatus;
+  _count: { bookings: number; orders: number };
+}
+
 export default async function VendorsPage({ searchParams }: PageProps) {
   const query = (await searchParams).q?.trim() ?? "";
 
-  const vendors = await db.vendor.findMany({
-    where: {
-      ...realVendorsFilter,
-      ...(query
-        ? {
-            OR: [
-              { name: { contains: query, mode: "insensitive" as const } },
-              { slug: { contains: query, mode: "insensitive" as const } },
-              { location: { contains: query, mode: "insensitive" as const } },
-            ],
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      location: true,
-      suspended: true,
-      storefrontPublished: true,
-      verificationStatus: true,
-      _count: { select: { bookings: true, orders: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const { vendors } = await apiSuperAdminOrRedirect<{ vendors: VendorRow[] }>(
+    `/superadmin/vendors${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+  );
 
   return (
     <div className="flex flex-col gap-6">

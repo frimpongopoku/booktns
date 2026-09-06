@@ -12,7 +12,7 @@ export default tseslint.config(
       // flag a large share of otherwise-correct existing code for no
       // real safety gain here.
       "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
 );

@@ -1,23 +1,22 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { apiSuperAdminOrRedirect } from "@/lib/superadmin-auth";
+import type { VerificationStatus } from "@/types";
 import StatusBadge from "@/components/superadmin/StatusBadge";
 import { ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-const REQUEST_TO_VENDOR_STATUS = {
-  PENDING: "PENDING",
-  APPROVED: "VERIFIED",
-  REJECTED: "REJECTED",
-} as const;
+interface VerificationRow {
+  id: string;
+  legalName: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  vendorStatus: VerificationStatus;
+  submittedAt: string;
+  vendor: { name: string; slug: string };
+}
 
 export default async function VerificationsPage() {
-  const applications = await db.verificationRequest.findMany({
-    include: { vendor: { select: { name: true, slug: true } } },
-    // Pending first, then most recent — a reviewer opening this page wants
-    // the queue, not a chronological log.
-    orderBy: [{ status: "asc" }, { submittedAt: "desc" }],
-  });
+  const { applications } = await apiSuperAdminOrRedirect<{ applications: VerificationRow[] }>("/superadmin/verifications");
 
   const pending = applications.filter((a) => a.status === "PENDING");
   const reviewed = applications.filter((a) => a.status !== "PENDING");
@@ -69,10 +68,10 @@ export default async function VerificationsPage() {
                         </p>
                         <p className="text-xs truncate" style={{ color: "var(--tx3)" }}>
                           {application.vendor.name} · submitted{" "}
-                          {application.submittedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                          {new Date(application.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                         </p>
                       </div>
-                      <StatusBadge status={REQUEST_TO_VENDOR_STATUS[application.status]} />
+                      <StatusBadge status={application.vendorStatus} />
                       <ChevronRight size={15} style={{ color: "var(--tx3)" }} />
                     </Link>
                   ))}

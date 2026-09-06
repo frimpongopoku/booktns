@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronsUpDown, Plus, Store } from "lucide-react";
-import type { StaffMembership } from "@/lib/memberships";
+import type { StaffMembership } from "@/types";
 
 interface VendorSwitcherProps {
   memberships: StaffMembership[];

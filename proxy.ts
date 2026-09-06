@@ -3,12 +3,30 @@ import { getVendorSlugByCustomDomain } from "@/lib/vendors";
 import { CUSTOM_DOMAIN_HEADER } from "@/lib/request-context";
 
 // No `runtime` config here — Proxy (Next 16's renamed Middleware) defaults
-// to the Node.js runtime already, which is what Prisma (lib/db.ts) needs;
-// setting `runtime` explicitly is not just unnecessary but throws an error
-// on a Proxy file.
+// to the Node.js runtime already; setting `runtime` explicitly is not just
+// unnecessary but throws an error on a Proxy file.
 export const config = {
   matcher: ["/((?!_next/static|_next/image).*)"],
 };
+
+// getVendorSlugByCustomDomain now makes a real HTTP call to the NestJS API
+// (see lib/vendors.ts) instead of a local Prisma query, and this runs on
+// every request to every custom domain — the cheapest request on the
+// platform doesn't deserve a network round trip every single time. A short
+// TTL cache in front of it keeps a slow-or-unreachable backend from making
+// every custom-domain pageview slower; 60s is short enough that a vendor
+// re-verifying their domain or a slug change shows up almost immediately.
+const DOMAIN_CACHE_TTL_MS = 60_000;
+const domainSlugCache = new Map<string, { slug: string | null; expiresAt: number }>();
+
+async function resolveVendorSlugCached(hostname: string): Promise<string | null> {
+  const cached = domainSlugCache.get(hostname);
+  if (cached && cached.expiresAt > Date.now()) return cached.slug;
+
+  const slug = await getVendorSlugByCustomDomain(hostname);
+  domainSlugCache.set(hostname, { slug, expiresAt: Date.now() + DOMAIN_CACHE_TTL_MS });
+  return slug;
+}
 
 const platformHostname = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665").hostname;
 const KNOWN_PLATFORM_HOSTS = new Set([platformHostname, "localhost", "127.0.0.1"]);
@@ -40,7 +58,7 @@ async function handle(request: NextRequest) {
   if (isExcludedPath(pathname)) return NextResponse.next();
 
   try {
-    const slug = await getVendorSlugByCustomDomain(hostname);
+    const slug = await resolveVendorSlugCached(hostname);
     if (!slug) return NextResponse.next();
 
     const requestHeaders = new Headers(request.headers);
@@ -58,7 +76,7 @@ async function handle(request: NextRequest) {
     url.pathname = pathname === "/" ? `/${slug}` : `/${slug}${pathname}`;
     return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   } catch {
-    // Never let a broken custom domain or a transient DB error break the
+    // Never let a broken custom domain or an unreachable API break the
     // platform-domain path or throw a 500 — fall through unrewritten.
     return NextResponse.next();
   }

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { getSuperAdminSession } from "@/lib/superadmin-auth";
-import { countPendingVerifications } from "@/lib/superadmin";
+import { getSuperAdminSession, apiSuperAdminOrRedirect } from "@/lib/superadmin-auth";
 import SuperAdminShell from "@/components/superadmin/SuperAdminShell";
 
 // The single auth gate for the whole console. Every page under this route
@@ -16,7 +15,8 @@ export default async function SuperAdminConsoleLayout({ children }: { children: 
   const admin = await getSuperAdminSession();
   if (!admin) redirect("/superadmin/login");
 
-  const pendingVerifications = await countPendingVerifications();
+  const { overview } = await apiSuperAdminOrRedirect<{ overview: { pendingVerifications: number } }>("/superadmin/overview");
+  const pendingVerifications = overview.pendingVerifications;
 
   return (
     <SuperAdminShell admin={admin} pendingVerifications={pendingVerifications}>

@@ -2,15 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import Button from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Ban, CheckCircle2, RotateCcw, ShieldOff } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 interface VendorActionsProps {
   vendorId: string;
@@ -30,20 +26,12 @@ export default function VendorActions({ vendorId, suspended, verified }: VendorA
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/superadmin/vendors/${vendorId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(errBody?.error ?? "Something went wrong. Please try again.");
-      }
+      await apiBrowser(`/superadmin/vendors/${vendorId}`, { method: "PATCH", body });
       setSuspending(false);
       setReason("");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setBusy(false);
       setConfirming(null);

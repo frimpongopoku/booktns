@@ -2,15 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiBrowser, ApiError } from "@/lib/api-client";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Plus, Trash2, ShieldCheck } from "lucide-react";
-
-interface ApiErrorBody {
-  error: string;
-  code: string;
-}
 
 export interface AdminRow {
   id: string;
@@ -38,21 +34,16 @@ export default function AdminsClient({ admins, currentAdminId }: AdminsClientPro
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/superadmin/admins", {
+      await apiBrowser("/superadmin/admins", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined }),
+        body: { email: email.trim(), name: name.trim() || undefined },
       });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(body?.error ?? "Something went wrong. Please try again.");
-      }
       setEmail("");
       setName("");
       setInviting(false);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -61,14 +52,10 @@ export default function AdminsClient({ admins, currentAdminId }: AdminsClientPro
   const handleRemove = async (admin: AdminRow) => {
     setError(null);
     try {
-      const res = await fetch(`/api/superadmin/admins/${admin.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-        throw new Error(body?.error ?? "Something went wrong. Please try again.");
-      }
+      await apiBrowser(`/superadmin/admins/${admin.id}`, { method: "DELETE" });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setRemoving(null);
     }

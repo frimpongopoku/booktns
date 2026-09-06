@@ -1,6 +1,6 @@
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, type PDFPage } from "pdf-lib";
 import type { Booking, Order } from "../../types";
 import { formatPrice } from "../lib/data";
 import { fetchImageAsPngDataUri } from "../lib/image";
@@ -140,8 +140,16 @@ function documentHeader(vendor: VendorPdfInfo, logoDataUri: string | null) {
 // The owner credit line only appears on paperwork if the vendor also chose
 // to show it publicly (showOwnerName) — the PDF is a document the customer
 // keeps, so it must not leak a detail they kept off the storefront.
+//
+// The growth line below it is deliberate: whoever's holding this document
+// isn't necessarily the vendor's customer forever — they might run their own
+// beauty business and never have heard of Booktns before this receipt. The
+// URL is printed as real, readable text (not just a link) because this is a
+// flattened image inside the PDF — see addFooterLinkAnnotation for the
+// actual clickable overlay, which a printed copy obviously can't carry.
 function documentFooter(leftText: string, vendor: VendorPdfInfo) {
   const ownedBy = vendor.showOwnerName && vendor.ownerName ? `${vendor.name} is owned by ${vendor.ownerName}` : null;
+  const bareSiteUrl = SITE_URL.replace(/^https?:\/\//, "");
 
   return {
     type: "div",
@@ -161,9 +169,39 @@ function documentFooter(leftText: string, vendor: VendorPdfInfo) {
         ...(ownedBy
           ? [{ type: "span", props: { style: { display: "flex", fontSize: 12, color: "#A1A1AA", marginTop: 6 }, children: ownedBy } }]
           : []),
+        {
+          type: "span",
+          props: {
+            style: { display: "flex", fontSize: 11, color: "#A1A1AA", marginTop: 10 },
+            children: `Run a beauty business too? Set up your own free booking page at ${bareSiteUrl}`,
+          },
+        },
       ],
     },
   };
+}
+
+// The footer above is one flattened image by the time it reaches the PDF —
+// this overlays a real clickable Link annotation across the bottom band
+// where that text renders, so a reader in an actual PDF viewer (Preview,
+// Acrobat, Chrome) can tap straight through instead of having to retype the
+// URL. pdf-lib has no high-level "add a link" helper, so this builds the
+// annotation dictionary directly — the documented approach for this library.
+function addFooterLinkAnnotation(page: PDFPage, pageWidth: number, url: string): void {
+  const linkAnnotation = page.doc.context.obj({
+    Type: "Annot",
+    Subtype: "Link",
+    Rect: [0, 0, pageWidth, 90],
+    Border: [0, 0, 0],
+    A: { Type: "Action", S: "URI", URI: PDFString.of(url) },
+  });
+  const linkRef = page.doc.context.register(linkAnnotation);
+  const existingAnnots = page.node.Annots();
+  if (existingAnnots) {
+    existingAnnots.push(linkRef);
+  } else {
+    page.node.set(PDFName.of("Annots"), page.doc.context.obj([linkRef]));
+  }
 }
 
 // Renders the Confirmed Booking PDF — vendor logo, confirmation status,
@@ -324,6 +362,7 @@ export async function generateConfirmedBookingPdf(booking: Booking, vendor: Vend
   const pngImage = await pdfDoc.embedPng(png);
   const page = pdfDoc.addPage([PAGE_WIDTH, pageHeight]);
   page.drawImage(pngImage, { x: 0, y: 0, width: PAGE_WIDTH, height: pageHeight });
+  addFooterLinkAnnotation(page, PAGE_WIDTH, SITE_URL);
 
   return Buffer.from(await pdfDoc.save());
 }
@@ -485,6 +524,7 @@ export async function generateOrderConfirmationPdf(order: Order, vendor: VendorP
   const pngImage = await pdfDoc.embedPng(png);
   const page = pdfDoc.addPage([PAGE_WIDTH, pageHeight]);
   page.drawImage(pngImage, { x: 0, y: 0, width: PAGE_WIDTH, height: pageHeight });
+  addFooterLinkAnnotation(page, PAGE_WIDTH, SITE_URL);
 
   return Buffer.from(await pdfDoc.save());
 }

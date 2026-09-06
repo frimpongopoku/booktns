@@ -7,24 +7,39 @@ interface LogoProps {
 
 export default function Logo({ size = "md", href = "/" }: LogoProps) {
   const sizes = {
-    sm: { text: "text-base", dot: "w-1.5 h-1.5" },
-    md: { text: "text-lg",   dot: "w-2 h-2" },
-    lg: { text: "text-2xl",  dot: "w-2.5 h-2.5" },
+    sm: { text: "text-base", mark: 20 },
+    md: { text: "text-lg", mark: 24 },
+    lg: { text: "text-2xl", mark: 30 },
   };
 
   const s = sizes[size];
 
   const inner = (
     <span
-      className={`font-semibold tracking-tight ${s.text} flex items-center gap-0.5`}
+      className={`font-semibold tracking-tight ${s.text} flex items-center gap-1.5`}
       style={{ color: "var(--tx)", letterSpacing: "-0.03em" }}
     >
-      <span style={{ color: "var(--ac)" }}>book</span>
-      <span>tns</span>
+      {/* Same mark as the favicon/app icon (lib/og-image.tsx's
+          renderIconMark) — a bold "B" on the brand gradient chip, so the
+          mark is identical everywhere Booktns shows up rather than this
+          being its own one-off. */}
       <span
-        className={`rounded-full inline-block ${s.dot} mb-px`}
-        style={{ background: "var(--ac)" }}
-      />
+        aria-hidden="true"
+        className="flex items-center justify-center font-bold"
+        style={{
+          flexShrink: 0,
+          width: s.mark,
+          height: s.mark,
+          borderRadius: s.mark * 0.22,
+          background: "linear-gradient(135deg, var(--ac), var(--ac2))",
+          color: "#fff",
+          fontSize: s.mark * 0.56,
+          lineHeight: 1,
+        }}
+      >
+        B
+      </span>
+      booktns
     </span>
   );
 

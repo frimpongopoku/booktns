@@ -31,6 +31,14 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  // Google Search Console's "HTML tag" domain-ownership method — paste the
+  // content value it gives you (not the whole <meta> tag) into
+  // GOOGLE_SITE_VERIFICATION and this renders <meta name="google-site-
+  // verification" ...> in <head> automatically. Left out entirely when
+  // unset, rather than rendering an empty tag.
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {

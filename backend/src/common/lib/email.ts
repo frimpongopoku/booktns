@@ -120,6 +120,11 @@ function emailShell(vendor: VendorEmailInfo, bodyHtml: string, showContact = tru
       <div style="padding: 16px 0; text-align: center; color: #A1A1AA; font-size: 11px;">
         Powered by <span style="color: #C0283A; font-weight: 600;">Book</span>tns
       </div>
+      <div style="padding: 0 16px 20px; text-align: center;">
+        <a href="${APP_URL}" style="color: #A1A1AA; font-size: 11px; text-decoration: underline;">
+          Run a beauty business too? Set up your own free booking page
+        </a>
+      </div>
     </div>
   `;
 }
@@ -535,6 +540,50 @@ export async function sendVerificationRejectedEmail(params: {
       <p style="font-size: 14px; color: #52525B; margin: 0;">
         You can fix this and submit again any time from Settings → Verification in your dashboard.
         Nothing else about your account has changed.
+      </p>
+    `),
+  });
+}
+
+// Sent once, right after onboarding creates the vendor — plain platform
+// shell like the verification/invite emails above, not the vendor-branded
+// emailShell: the recipient's relationship here is with Booktns, not with
+// their own not-yet-published shop.
+export async function sendVendorWelcomeEmail(params: {
+  to: string;
+  ownerName: string;
+  vendorName: string;
+  vendorSlug: string;
+}): Promise<void> {
+  const client = getResendClient();
+  if (!client) {
+    console.warn("RESEND_API_KEY not configured — skipping sendVendorWelcomeEmail");
+    return;
+  }
+
+  const loginUrl = `${APP_URL}/login`;
+  const storefrontUrl = `${APP_URL}/${params.vendorSlug}`;
+
+  await sendOrThrow(client, {
+    from: EMAIL_FROM,
+    to: params.to,
+    subject: `Welcome to Booktns, ${params.vendorName}!`,
+    html: platformShell(`
+      <h1 style="font-size: 20px; margin: 0 0 12px;">Welcome to Booktns</h1>
+      <p style="font-size: 14px; color: #52525B; margin: 0 0 16px;">
+        Hi ${params.ownerName}, your account for <strong>${params.vendorName}</strong> is ready.
+      </p>
+      <p style="margin: 0 0 20px;">
+        <a href="${loginUrl}" style="display: inline-block; padding: 10px 20px; background: #C0283A; color: #fff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
+          Sign in to your dashboard
+        </a>
+      </p>
+      <p style="font-size: 14px; color: #52525B; margin: 0 0 16px;">
+        Sign in with the same Google account you just registered (${params.to}) — there's no password, ever.
+      </p>
+      <p style="font-size: 14px; color: #52525B; margin: 0;">
+        Your storefront preview is already live at <a href="${storefrontUrl}" style="color:#C0283A;">${storefrontUrl}</a>,
+        but customers can't book yet — publish it from Settings &rarr; Storefront in your dashboard whenever you're ready.
       </p>
     `),
   });

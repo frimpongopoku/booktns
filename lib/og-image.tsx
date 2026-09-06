@@ -150,8 +150,14 @@ interface IconMarkOptions {
   size: number;
 }
 
+// A bold, uppercase "B" in Inter on the brand gradient — checked at a real
+// 16px browser-tab render, not just at a large preview size, since that's
+// the size this actually has to hold up at. The slight translateY nudges
+// the glyph down from Satori's default vertical centering, which otherwise
+// reads a hair high because of Inter's cap-height/baseline metrics.
 export async function renderIconMark({ size }: IconMarkOptions) {
   const fonts = await loadInterFonts();
+
   return new ImageResponse(
     (
       <div
@@ -161,12 +167,22 @@ export async function renderIconMark({ size }: IconMarkOptions) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#09090B",
+          background: "linear-gradient(135deg, #C0283A 0%, #8C1827 100%)",
           borderRadius: Math.round(size * 0.22),
         }}
       >
-        <span style={{ display: "flex", fontSize: Math.round(size * 0.58), fontWeight: 700, color: "#D43D50" }}>
-          b
+        <span
+          style={{
+            display: "flex",
+            fontFamily: "Inter",
+            fontWeight: 700,
+            fontSize: Math.round(size * 0.56),
+            color: "#FFFFFF",
+            lineHeight: 1,
+            transform: `translateY(${Math.round(size * 0.02)}px)`,
+          }}
+        >
+          B
         </span>
       </div>
     ),

@@ -2,6 +2,8 @@ import { BadRequestException, ConflictException, Injectable } from "@nestjs/comm
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { Prisma } from "../../generated/prisma/client";
 import { normalizePhone } from "../../common/lib/phone";
+import { sendVendorWelcomeEmail } from "../../common/lib/email";
+import { logger } from "../../common/lib/logger";
 import type { StaffRole, ServiceCategory, PaymentMethodType } from "../../types";
 import type { CreateOnboardingDto } from "./onboarding.schemas";
 
@@ -130,6 +132,18 @@ export class OnboardingService {
 
         return createdVendor;
       });
+
+      // Fire-and-forget, same pattern as every other transactional send in
+      // this codebase (see bookings.service.ts) — a flaky Resend call must
+      // never fail the onboarding request itself, since the account already
+      // exists by this point regardless of whether the email goes out.
+      const owner = validStaff.find((s) => s.role === "Owner")!;
+      sendVendorWelcomeEmail({
+        to: owner.email.trim().toLowerCase(),
+        ownerName: owner.name.trim(),
+        vendorName: vendor.name,
+        vendorSlug: vendor.slug,
+      }).catch((err) => logger.error("sendVendorWelcomeEmail failed", { vendorId: vendor.id, err }));
 
       return { slug: vendor.slug };
     } catch (err) {

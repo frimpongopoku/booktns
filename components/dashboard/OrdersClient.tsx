@@ -11,7 +11,7 @@ import { X, ChevronRight, Calendar, Hash, Copy, Download } from "lucide-react";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-NG", { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-GH", { month: "short", day: "numeric", year: "numeric" });
 }
 
 const ORDER_STATUSES: OrderStatus[] = ["new", "processing", "ready", "completed", "cancelled"];

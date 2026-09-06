@@ -26,7 +26,7 @@ interface PageProps {
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-NG", {
+  return d.toLocaleDateString("en-GH", {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -37,7 +37,7 @@ function formatDateTime(iso: string): string {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC" });
+  return d.toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC" });
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

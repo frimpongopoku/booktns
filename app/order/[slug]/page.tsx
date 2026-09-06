@@ -24,7 +24,7 @@ interface PageProps {
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-NG", { month: "long", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-GH", { month: "long", day: "numeric", year: "numeric" });
 }
 
 function PaymentIcon({ type }: { type: string }) {

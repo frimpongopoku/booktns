@@ -18,11 +18,11 @@ import {
 // Both take an ISO string now — the API serializes every timestamp to JSON,
 // unlike the Prisma Date objects this page used to receive directly.
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return new Date(iso).toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-GH", { month: "short", day: "numeric" });
 }
 
 interface OverviewBooking {

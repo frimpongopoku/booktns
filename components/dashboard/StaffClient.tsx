@@ -116,16 +116,16 @@ function StaffModal({ staff, onClose, onSaved }: StaffModalProps) {
               {error}
             </div>
           )}
-          <Input label="Full name" placeholder="e.g. Chioma Okafor" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input label="Full name" placeholder="e.g. Akosua Boateng" value={name} onChange={(e) => setName(e.target.value)} />
           <Input
             label="Email"
             type="email"
-            placeholder="chioma@example.com"
+            placeholder="akosua@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             hint="Becomes their Google Sign-In login — they must sign in with this exact address"
           />
-          <Input label="Phone number (optional)" type="tel" placeholder="+234 800 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Input label="Phone number (optional)" type="tel" placeholder="+233 24 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Role</label>
             <select

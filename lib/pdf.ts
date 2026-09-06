@@ -37,12 +37,12 @@ const BASE_HEIGHT = 480;
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-NG", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return d.toLocaleDateString("en-GH", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC" });
+  return d.toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC" });
 }
 
 function row(label: string, value: string) {
@@ -312,7 +312,7 @@ export async function generateConfirmedBookingPdf(booking: Booking, vendor: Vend
               { type: "div", props: { style: { display: "flex", fontSize: 13, color: "#52525B", lineHeight: 1.5 }, children: vendor.cancellationPolicy } },
             ]
           : []),
-        documentFooter(`Confirmed ${new Date().toLocaleDateString("en-NG", { timeZone: "UTC" })}`, vendor),
+        documentFooter(`Confirmed ${new Date().toLocaleDateString("en-GH", { timeZone: "UTC" })}`, vendor),
       ],
     },
   };

@@ -30,12 +30,12 @@ import {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC" });
+  return d.toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC" });
 }
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  return d.toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 const CALENDAR_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -69,7 +69,7 @@ function toDateKey(d: Date): string {
 }
 
 function formatWeekDayLabel(d: Date): string {
-  return d.toLocaleDateString("en-NG", { month: "short", day: "numeric", timeZone: "UTC" });
+  return d.toLocaleDateString("en-GH", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 interface BookingDrawerProps {

@@ -152,9 +152,9 @@ function BusinessInfoStep({
         error={slugError}
       />
       <Textarea label="Description" placeholder="Tell customers what makes you special…" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-      <Input label="Location" placeholder="e.g. Lekki Phase 1, Lagos" value={location} onChange={(e) => setLocation(e.target.value)} />
+      <Input label="Location" placeholder="e.g. East Legon, Accra" value={location} onChange={(e) => setLocation(e.target.value)} />
       <Input label="Business hours" placeholder="Mon–Sat 9am–7pm" value={hours} onChange={(e) => setHours(e.target.value)} />
-      <Input label="Contact phone / WhatsApp" type="tel" placeholder="+234 800 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      <Input label="Contact phone / WhatsApp" type="tel" placeholder="+233 24 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
       <Button size="lg" loading={loading} onClick={handleNext} disabled={!canContinue} className="mt-2">
         Continue
       </Button>
@@ -296,7 +296,7 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
         <div className="flex flex-col gap-3">
           <Input
             label="Full name"
-            placeholder="e.g. Rose Adebayo"
+            placeholder="e.g. Rose Mensah"
             value={owner.name}
             onChange={(e) => updateStaff(0, "name", e.target.value)}
           />
@@ -324,7 +324,7 @@ function AddStaffStep({ onNext }: { onNext: (data: StaffEntry[]) => void }) {
               <X size={14} />
             </button>
             <div className="flex flex-col gap-3">
-              <Input label="Full name" placeholder="e.g. Chioma Okafor" value={member.name} onChange={(e) => updateStaff(i, "name", e.target.value)} />
+              <Input label="Full name" placeholder="e.g. Akosua Boateng" value={member.name} onChange={(e) => updateStaff(i, "name", e.target.value)} />
               <div className="grid grid-cols-2 gap-3">
                 <Input
                   label="Google email"

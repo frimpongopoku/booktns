@@ -52,8 +52,8 @@ async function sendOrThrowSms(client: AfricasTalkingSms, options: SMSOptions): P
 
 function formatCompactDateTime(iso: string): string {
   const d = new Date(iso);
-  const date = d.toLocaleDateString("en-NG", { month: "short", day: "numeric", timeZone: "UTC" });
-  const time = d.toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
+  const date = d.toLocaleDateString("en-GH", { month: "short", day: "numeric", timeZone: "UTC" });
+  const time = d.toLocaleTimeString("en-GH", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
   return `${date}, ${time}`;
 }
 

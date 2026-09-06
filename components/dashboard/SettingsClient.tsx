@@ -914,8 +914,12 @@ function DomainTab() {
                   )}
                 </div>
               ))}
-              <p className="text-xs" style={{ color: "var(--tx3)" }}>
-                DNS changes can take a while to propagate. Recheck once you&apos;ve added these records.
+              <p className="text-xs leading-relaxed" style={{ color: "var(--tx3)" }}>
+                This isn&apos;t instant. Once you&apos;ve added these records at your domain registrar,
+                they usually show up within a few minutes to a couple of hours — but DNS changes can
+                occasionally take up to 24-48 hours to fully propagate, depending on your provider.
+                After that, an SSL certificate is issued automatically, which can add a few more
+                minutes on top. Hit Recheck any time — there&apos;s no need to keep this page open and wait.
               </p>
               <Button variant="secondary" size="sm" loading={checking} onClick={handleRecheck} className="w-fit">
                 Recheck

@@ -37,9 +37,27 @@ export class VercelDomainProvider implements DomainProvider {
     const projectId = process.env.VERCEL_PROJECT_ID;
     const instructions = generateDnsInstructions(domain);
 
-    const statusRes = await fetch(`${API_BASE}/v9/projects/${projectId}/domains/${domain}${teamQuery()}`, {
+    let statusRes = await fetch(`${API_BASE}/v9/projects/${projectId}/domains/${domain}${teamQuery()}`, {
       headers: authHeaders(),
     });
+
+    // Self-heals a domain this project doesn't actually know about yet — the
+    // real gap this closes: a vendor whose domain was added back when
+    // VERCEL_API_TOKEN/VERCEL_PROJECT_ID weren't set yet (ManualDnsDomainProvider
+    // was active, whose addDomain() is a no-op) has a domain sitting in our
+    // own DB that Vercel has never heard of, and no code path ever retries
+    // registering it once these credentials are added later — every future
+    // Recheck would 404 forever. A 404 here specifically means "not
+    // registered with this project," not "misconfigured," so it's safe to
+    // register it now and re-check; any other failure falls through to the
+    // generic not-verified return below instead of risking a spurious add.
+    if (statusRes.status === 404) {
+      await this.addDomain(domain).catch(() => undefined);
+      statusRes = await fetch(`${API_BASE}/v9/projects/${projectId}/domains/${domain}${teamQuery()}`, {
+        headers: authHeaders(),
+      });
+    }
+
     if (!statusRes.ok) return { verified: false, instructions };
     const statusData = await statusRes.json();
 

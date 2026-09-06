@@ -64,7 +64,11 @@ export function renderHealthPage(report: HealthReport): string {
 <title>Booktns status</title>
 <meta name="description" content="Live status of the Booktns API and the services it depends on." />
 <meta name="robots" content="noindex, nofollow" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2309090B'/><text x='16' y='23' font-family='system-ui,sans-serif' font-size='19' font-weight='700' fill='%23D43D50' text-anchor='middle'>b</text></svg>" />
+<!-- Same mark as the frontend's favicon and the API root page
+     (root.controller.ts) — a bold "B" on the brand red gradient. Each of
+     the three HTML pages this API serves carries its own inline copy since
+     they're independent responses, not a shared template. -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='32' y2='32' gradientUnits='userSpaceOnUse'><stop offset='0%25' stop-color='%23C0283A'/><stop offset='100%25' stop-color='%238C1827'/></linearGradient></defs><rect width='32' height='32' rx='7' fill='url(%23g)'/><text x='16' y='22.5' font-family='system-ui,sans-serif' font-size='19' font-weight='700' fill='white' text-anchor='middle'>B</text></svg>" />
 <style>
   :root {
     --bg:#FAFAFA; --bg2:#F4F4F5; --bd:rgba(0,0,0,0.12);

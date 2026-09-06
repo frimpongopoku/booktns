@@ -124,20 +124,20 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
         {/* Status */}
         <div className="text-center mb-8">
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 anim-pop"
             style={{ background: isPending ? "var(--amber-bg)" : "var(--green-bg)" }}
           >
             <CheckCircle2 size={32} style={{ color: isPending ? "var(--amber)" : "var(--green)" }} />
           </div>
-          <div className="mb-3">{bookingStatusBadge(booking.status)}</div>
+          <div className="mb-3 anim-fade-up anim-d1">{bookingStatusBadge(booking.status)}</div>
           <h1
-            className="font-display text-2xl font-medium"
+            className="font-display text-2xl font-medium anim-fade-up anim-d2"
             style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
           >
             {booking.slug}
           </h1>
           {isPending && (
-            <p className="text-base mt-2" style={{ color: "var(--tx3)" }}>
+            <p className="text-base mt-2 anim-fade-up anim-d2" style={{ color: "var(--tx3)" }}>
               {booking.vendor.name} will confirm your booking via WhatsApp.
             </p>
           )}

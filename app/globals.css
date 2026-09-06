@@ -288,6 +288,20 @@ input, textarea, select, button {
   from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Success beat — a small overshoot so a confirmation reads as a "pop", not
+   just a fade. Used on checkmarks/success icons, never on routine content. */
+@keyframes bk-pop {
+  0%   { opacity: 0; transform: scale(0.5); }
+  60%  { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+/* Failure beat — a quick horizontal shake for validation/submit errors. */
+@keyframes bk-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
 
 .anim-fade-in         { animation: bk-fade-in           0.18s ease                           both; }
 .anim-fade-out        { animation: bk-fade-out           0.20s ease                           both; }
@@ -296,12 +310,27 @@ input, textarea, select, button {
 .anim-slide-right     { animation: bk-slide-in-right     0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .anim-slide-out-right { animation: bk-slide-out-right    0.24s cubic-bezier(0.4,  0, 1,   1) both; }
 .anim-fade-up         { animation: bk-fade-up            0.38s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-pop             { animation: bk-pop                0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-shake           { animation: bk-shake              0.4s  ease-in-out                   both; }
 
 /* Stagger helpers — sequence sibling entrances */
 .anim-d1 { animation-delay:  60ms; }
 .anim-d2 { animation-delay: 120ms; }
 .anim-d3 { animation-delay: 180ms; }
 .anim-d4 { animation-delay: 240ms; }
+
+/* Respect the OS-level motion preference — the whole point of these entrance/
+   exit/feedback animations is polish, not something a reduced-motion user
+   should be forced to sit through. Fade stays (it's a visibility change, not
+   motion) but every transform-driven animation collapses to an instant cut. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-scale-in, .anim-scale-out,
+  .anim-slide-right, .anim-slide-out-right,
+  .anim-fade-up, .anim-pop, .anim-shake {
+    animation-duration: 0.001ms;
+    animation-iteration-count: 1;
+  }
+}
 .anim-d5 { animation-delay: 300ms; }
 
 /* ─────────────────────────────────────────────────────────

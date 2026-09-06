@@ -102,24 +102,24 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
         {/* Status */}
         <div className="text-center mb-8">
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 anim-pop"
             style={{ background: "var(--green-bg)" }}
           >
             <PackageCheck size={32} style={{ color: "var(--green)" }} />
           </div>
           <p
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-base font-medium mb-3"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-base font-medium mb-3 anim-fade-up anim-d1"
             style={{ background: "var(--green-bg)", color: "var(--green)" }}
           >
             Order Received
           </p>
           <h1
-            className="font-display text-2xl font-medium"
+            className="font-display text-2xl font-medium anim-fade-up anim-d2"
             style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
           >
             {order.ref}
           </h1>
-          <p className="text-base mt-1" style={{ color: "var(--tx3)" }}>
+          <p className="text-base mt-1 anim-fade-up anim-d2" style={{ color: "var(--tx3)" }}>
             {formatDate(order.createdAt)}
           </p>
         </div>

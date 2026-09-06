@@ -8,7 +8,7 @@ import { apiPublic, ApiError } from "@/lib/api-client";
 import { getCart, setCart as persistCart, clearCart } from "@/lib/cart";
 import { captureEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
 import type { Product, CartItem, PaymentMethod, OrderDeliveryPreference } from "@/types";
-import { ShoppingBag, Plus, Minus, X, ShoppingCart, ArrowLeft } from "lucide-react";
+import { ShoppingBag, Plus, Minus, X, ShoppingCart, ArrowLeft, Check } from "lucide-react";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import VendorWordmark from "@/components/storefront/VendorWordmark";
 import ProductQuickViewModal from "@/components/storefront/ProductQuickViewModal";
@@ -42,6 +42,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [drawerExiting, setDrawerExiting] = useState(false);
   const [view, setView] = useState<DrawerView>("cart");
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
@@ -51,7 +52,19 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
   const [notes, setNotes] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState<string | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorNonce, setErrorNonce] = useState(0);
+
+  // Mirrors ConfirmDialog/ProductQuickViewModal's exit pattern: play the
+  // slide/fade-out first, then actually unmount once it's finished.
+  const closeDrawer = () => {
+    setDrawerExiting(true);
+    setTimeout(() => {
+      setCartOpen(false);
+      setDrawerExiting(false);
+    }, 210);
+  };
 
   // Cart persists across navigation/refresh (per product decision — not the
   // v1 default described in the spec) until the order is actually submitted.
@@ -158,9 +171,11 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
 
       clearCart(slug);
       setCart([]);
-      router.push(`/order/${order.slug}`);
+      setSuccess(true);
+      setTimeout(() => router.push(`/order/${order.slug}`), 550);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
+      setErrorNonce((n) => n + 1);
       setSubmitting(false);
     }
   };
@@ -185,7 +200,8 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
             <ShoppingCart size={16} />
             {cartCount > 0 && (
               <span
-                className="text-sm font-bold px-1.5 py-0.5 rounded-full text-white"
+                key={cartCount}
+                className="text-sm font-bold px-1.5 py-0.5 rounded-full text-white anim-pop"
                 style={{ background: "var(--ac)" }}
               >
                 {cartCount}
@@ -332,15 +348,19 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
       {/* Cart / checkout sidebar */}
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 cursor-pointer" style={{ background: "rgba(0,0,0,0.3)" }} onClick={() => setCartOpen(false)} />
           <div
-            className="w-full max-w-sm flex flex-col"
+            className={`flex-1 cursor-pointer ${drawerExiting ? "anim-fade-out" : "anim-fade-in"}`}
+            style={{ background: "rgba(0,0,0,0.3)" }}
+            onClick={closeDrawer}
+          />
+          <div
+            className={`w-full max-w-sm flex flex-col ${drawerExiting ? "anim-slide-out-right" : "anim-slide-right"}`}
             style={{ background: "var(--bg)", borderLeft: "1px solid var(--bd)" }}
           >
             <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--bd)" }}>
               <div className="flex items-center gap-2">
                 {view === "checkout" && (
-                  <button onClick={() => setView("cart")} className="p-1 -ml-1 rounded-full hover:bg-[var(--bg3)]" style={{ color: "var(--tx3)" }} aria-label="Back to cart">
+                  <button onClick={() => setView("cart")} className="p-1 -ml-1 rounded-full hover:bg-[var(--bg3)] transition-colors" style={{ color: "var(--tx3)" }} aria-label="Back to cart">
                     <ArrowLeft size={16} />
                   </button>
                 )}
@@ -348,7 +368,7 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                   {view === "cart" ? `Your Cart (${cartCount})` : "Checkout"}
                 </h2>
               </div>
-              <button onClick={() => setCartOpen(false)} className="p-1.5 rounded-full hover:bg-[var(--bg3)]" style={{ color: "var(--tx3)" }}>
+              <button onClick={closeDrawer} className="p-1.5 rounded-full hover:bg-[var(--bg3)] transition-colors" style={{ color: "var(--tx3)" }}>
                 <X size={16} />
               </button>
             </div>
@@ -410,7 +430,11 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
               <>
                 <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
                   {error && (
-                    <div className="px-3 py-2 rounded-[var(--r)] text-base" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
+                    <div
+                      key={errorNonce}
+                      className="px-3 py-2 rounded-[var(--r)] text-base anim-shake"
+                      style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}
+                    >
                       {error}
                     </div>
                   )}
@@ -508,6 +532,25 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
           onClose={() => setQuickViewProduct(null)}
           onAddToCart={(product, quantity) => addToCart(product, quantity)}
         />
+      )}
+
+      {/* Success beat before handoff to the order confirmation page — see
+          the matching one in BookingFlow.tsx for why this pause exists. */}
+      {success && (
+        <div
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center anim-fade-in"
+          style={{ background: "var(--bg)" }}
+        >
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-4 anim-pop"
+            style={{ background: "var(--green-bg)" }}
+          >
+            <Check size={32} style={{ color: "var(--green)" }} />
+          </div>
+          <p className="text-lg font-semibold anim-fade-up anim-d1" style={{ color: "var(--tx)" }}>
+            Order placed!
+          </p>
+        </div>
       )}
     </div>
   );

@@ -142,7 +142,11 @@ export default function BookingFlow({
   const [paymentMethodId, setPaymentMethodId] = useState<string | undefined>(undefined);
 
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bumped on every new error so the shake replays even when the message
+  // (and therefore the JSX) is identical to the last failed attempt.
+  const [errorNonce, setErrorNonce] = useState(0);
 
   const totalServiceCost = selectedServices.reduce((s, svc) => s + svc.priceInPesewas, 0);
   const totalDurationMinutes = selectedServices.reduce((s, svc) => s + svc.durationMinutes, 0);
@@ -240,9 +244,14 @@ export default function BookingFlow({
         deep_linked: initialServices.length > 0,
       });
 
-      router.push(`/booking/${booking.slug}`);
+      // A brief success beat before handing off to the confirmation page —
+      // long enough to read as a celebration, short enough not to eat into
+      // the "book in under 2 minutes" budget.
+      setSuccess(true);
+      setTimeout(() => router.push(`/booking/${booking.slug}`), 550);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
+      setErrorNonce((n) => n + 1);
       setSubmitting(false);
     }
   };
@@ -354,7 +363,11 @@ export default function BookingFlow({
             overflow. Also moved from md to lg: at exactly 768px a 320px
             sidebar left the main column too narrow to use. */}
         <div className={step < 5 ? "lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start" : ""}>
-        <div>
+        {/* Keyed by step so each step's content remounts (rather than
+            patching in place) and replays its entrance animation — that's
+            what makes advancing through the flow feel like it's actually
+            going somewhere instead of just swapping text. */}
+        <div key={step} className="anim-fade-up">
         {/* Step 0: Select Services */}
         {step === 0 && (
           <div>
@@ -729,7 +742,11 @@ export default function BookingFlow({
             </h2>
 
             {error && (
-              <div className="px-3 py-2 mb-3 rounded-[var(--r)] text-base" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
+              <div
+                key={errorNonce}
+                className="px-3 py-2 mb-3 rounded-[var(--r)] text-base anim-shake"
+                style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}
+              >
                 {error}
               </div>
             )}
@@ -914,6 +931,26 @@ export default function BookingFlow({
         hasOwnerPhone={hasOwnerPhone}
         hasOwnerEmail={hasOwnerEmail}
       />
+
+      {/* Success beat — covers the flow for the ~550ms before handoff to the
+          confirmation page, so the moment the booking actually succeeds
+          reads as a moment rather than an instant blank redirect. */}
+      {success && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center anim-fade-in"
+          style={{ background: "var(--bg)" }}
+        >
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-4 anim-pop"
+            style={{ background: "var(--green-bg)" }}
+          >
+            <Check size={32} style={{ color: "var(--green)" }} />
+          </div>
+          <p className="text-lg font-semibold anim-fade-up anim-d1" style={{ color: "var(--tx)" }}>
+            Booking confirmed!
+          </p>
+        </div>
+      )}
     </div>
   );
 }

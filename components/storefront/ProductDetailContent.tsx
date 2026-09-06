@@ -132,9 +132,9 @@ export default function ProductDetailContent({
             style={{ background: "var(--ac)" }}
           >
             {added ? (
-              <>
+              <span key="added" className="flex items-center gap-2 anim-pop">
                 <Check size={14} /> Added
-              </>
+              </span>
             ) : (
               "Add to cart"
             )}

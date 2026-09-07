@@ -6,21 +6,27 @@ import { signOut } from "firebase/auth";
 import { Store, ExternalLink, LogOut } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { getFirebaseAuth } from "@/lib/firebase-client";
+import VendorSwitcher from "@/components/dashboard/VendorSwitcher";
+import type { StaffMembership } from "@/types";
 
 interface MobileTopStripProps {
   storefrontUrl: string;
   storefrontLabel: string;
   storefrontPublished: boolean;
+  memberships: StaffMembership[];
+  currentVendorId: string;
 }
 
-// The sidebar's storefront link AND its logout button are both desktop-only
-// (Sidebar.tsx is `hidden lg:flex`), and the mobile bottom nav
-// (components/dashboard/MobileNav.tsx) has no free slot for either — Log
-// out isn't a navigation destination anyway. Mobile gets this one strip
-// instead of losing both entirely; every role sees it regardless of which
-// bottom-nav tabs they have (Settings, where a desktop user might otherwise
-// look for logout, is Owner-only in the mobile nav).
-export default function MobileTopStrip({ storefrontUrl, storefrontLabel, storefrontPublished }: MobileTopStripProps) {
+// The sidebar's storefront link, its logout button, AND its vendor switcher
+// are all desktop-only (Sidebar.tsx is `hidden lg:flex`), and the mobile
+// bottom nav (components/dashboard/MobileNav.tsx) has no free slot for any
+// of them — none of the three are navigation destinations anyway. Mobile
+// gets this one strip instead of losing all three entirely; every role sees
+// it regardless of which bottom-nav tabs they have (Settings, where a
+// desktop user might otherwise look for logout, is Owner-only in the mobile
+// nav). VendorSwitcher renders nothing itself for the single-shop case, so
+// this strip needs no extra guard around it.
+export default function MobileTopStrip({ storefrontUrl, storefrontLabel, storefrontPublished, memberships, currentVendorId }: MobileTopStripProps) {
   const router = useRouter();
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
@@ -51,6 +57,7 @@ export default function MobileTopStrip({ storefrontUrl, storefrontLabel, storefr
           </span>
           <ExternalLink size={12} style={{ color: "var(--tx3)" }} />
         </a>
+        <VendorSwitcher memberships={memberships} currentVendorId={currentVendorId} variant="compact" />
         <button
           onClick={() => setConfirmingLogout(true)}
           className="p-1.5 rounded-md hover:bg-[var(--bg3)] transition-colors flex-shrink-0"

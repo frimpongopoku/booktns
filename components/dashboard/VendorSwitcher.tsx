@@ -9,6 +9,13 @@ import type { StaffMembership } from "@/types";
 interface VendorSwitcherProps {
   memberships: StaffMembership[];
   currentVendorId: string;
+  // "sidebar" (default): the full two-line trigger this started as, sized
+  // for the desktop sidebar's width. "compact": a single icon button for
+  // MobileTopStrip, which has no room for two lines of text next to the
+  // storefront link and logout button already living there. Same dropdown,
+  // same switching logic either way — only the trigger and the panel's
+  // anchoring change.
+  variant?: "sidebar" | "compact";
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -24,7 +31,7 @@ const ROLE_LABEL: Record<string, string> = {
 //
 // Renders nothing at all for the overwhelmingly common single-shop case:
 // a switcher with one entry is just noise in the sidebar.
-export default function VendorSwitcher({ memberships, currentVendorId }: VendorSwitcherProps) {
+export default function VendorSwitcher({ memberships, currentVendorId, variant = "sidebar" }: VendorSwitcherProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
@@ -93,34 +100,56 @@ export default function VendorSwitcher({ memberships, currentVendorId }: VendorS
 
   return (
     <div ref={containerRef} className="relative">
-      {/* Trigger: square brand tile, two stacked lines, chevron at the far
-          right — the shadcn sidebar switcher shape. Full-bleed and
-          borderless so it reads as part of the sidebar rather than as a
-          control sitting on top of it. */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-[var(--r)] transition-colors hover:bg-[var(--bg3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ac)] data-[open=true]:bg-[var(--bg3)]"
-        data-open={open}
-      >
-        <VendorTile name={current?.vendorName ?? ""} logoUrl={current?.vendorLogoUrl ?? null} size="md" />
-        <span className="flex-1 min-w-0 text-left leading-tight">
-          <span className="block text-sm font-semibold truncate" style={{ color: "var(--tx)" }}>
-            {current?.vendorName ?? "Choose a shop"}
+      {variant === "compact" ? (
+        // Icon-only, matching the size of the logout button next to it in
+        // MobileTopStrip — there's no room for two lines of shop name/role
+        // in that thin strip. The brand tile itself already carries the
+        // current shop's identity (logo or initial), so the icon just needs
+        // to read as "more shops live behind this."
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={`Switch shop (currently ${current?.vendorName ?? "none"})`}
+          title="Switch shop"
+          className="p-1.5 rounded-md hover:bg-[var(--bg3)] transition-colors flex-shrink-0 data-[open=true]:bg-[var(--bg3)]"
+          data-open={open}
+        >
+          <VendorTile name={current?.vendorName ?? ""} logoUrl={current?.vendorLogoUrl ?? null} size="sm" />
+        </button>
+      ) : (
+        // Trigger: square brand tile, two stacked lines, chevron at the far
+        // right — the shadcn sidebar switcher shape. Full-bleed and
+        // borderless so it reads as part of the sidebar rather than as a
+        // control sitting on top of it.
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-[var(--r)] transition-colors hover:bg-[var(--bg3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ac)] data-[open=true]:bg-[var(--bg3)]"
+          data-open={open}
+        >
+          <VendorTile name={current?.vendorName ?? ""} logoUrl={current?.vendorLogoUrl ?? null} size="md" />
+          <span className="flex-1 min-w-0 text-left leading-tight">
+            <span className="block text-sm font-semibold truncate" style={{ color: "var(--tx)" }}>
+              {current?.vendorName ?? "Choose a shop"}
+            </span>
+            <span className="block text-xs truncate" style={{ color: "var(--tx3)" }}>
+              {current ? ROLE_LABEL[current.role] ?? current.role : `${memberships.length} shops`}
+            </span>
           </span>
-          <span className="block text-xs truncate" style={{ color: "var(--tx3)" }}>
-            {current ? ROLE_LABEL[current.role] ?? current.role : `${memberships.length} shops`}
-          </span>
-        </span>
-        <ChevronsUpDown size={14} className="flex-shrink-0" style={{ color: "var(--tx3)" }} />
-      </button>
+          <ChevronsUpDown size={14} className="flex-shrink-0" style={{ color: "var(--tx3)" }} />
+        </button>
+      )}
 
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 right-0 top-full mt-1.5 z-50 p-1 rounded-[var(--rl)] flex flex-col max-h-[min(20rem,60vh)] overflow-y-auto"
+          className={`absolute top-full mt-1.5 z-50 p-1 rounded-[var(--rl)] flex flex-col max-h-[min(20rem,60vh)] overflow-y-auto ${
+            variant === "compact" ? "right-0 w-72 max-w-[85vw]" : "left-0 right-0"
+          }`}
           style={{ background: "var(--bg)", border: "1px solid var(--bd)", boxShadow: "var(--shadow-lg)" }}
         >
           <p

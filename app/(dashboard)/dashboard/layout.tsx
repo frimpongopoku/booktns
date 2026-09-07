@@ -100,6 +100,8 @@ export default async function DashboardLayout({
           storefrontUrl={storefrontUrl}
           storefrontLabel={storefrontLabel}
           storefrontPublished={vendor.storefrontPublished}
+          memberships={memberships}
+          currentVendorId={session.vendorId}
         />
 
         {/* The vendor's own view of a suspension. Shoppers see a neutral

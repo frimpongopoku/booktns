@@ -24,9 +24,155 @@ interface BrandCardOptions {
   facts?: string[];
 }
 
+// How much of the 1200-wide card the photo panel claims in the split
+// layout below — wide enough that the photo reads as the point of the
+// card, not a decoration next to the real content.
+const PHOTO_PANEL_WIDTH = 520;
+
+function Wordmark({ palette, size = 40 }: { palette: (typeof STOREFRONT_THEMES)[StorefrontTheme]; size?: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center" }}>
+      <span style={{ display: "flex", fontSize: size, fontWeight: 700, color: palette.dark2 }}>book</span>
+      <span style={{ display: "flex", fontSize: size, fontWeight: 700, color: "#FFFFFF" }}>tns</span>
+      <span
+        style={{
+          display: "flex",
+          width: size * 0.35,
+          height: size * 0.35,
+          borderRadius: 999,
+          background: palette.dark2,
+          marginLeft: 6,
+          marginBottom: size * 0.2,
+        }}
+      />
+    </div>
+  );
+}
+
+function FactPills({ facts }: { facts: string[] }) {
+  if (facts.length === 0) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", marginTop: 34 }}>
+      {facts.map((fact) => (
+        <div
+          key={fact}
+          style={{
+            display: "flex",
+            fontSize: 24,
+            color: "#FFFFFF",
+            background: "rgba(255,255,255,0.16)",
+            border: "1px solid rgba(255,255,255,0.28)",
+            borderRadius: 999,
+            padding: "10px 24px",
+            marginRight: 14,
+            marginTop: 12,
+          }}
+        >
+          {fact}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export async function renderBrandCard({ title, subtitle, theme = "Red", logoDataUri, coverDataUri, facts = [] }: BrandCardOptions) {
   const palette = STOREFRONT_THEMES[theme];
   const fonts = await loadInterFonts();
+  const infoGradient = `linear-gradient(160deg, ${palette.light} 0%, ${palette.light2} 55%, #09090B 100%)`;
+
+  // A vendor with a real photo (or, failing that, at least a logo) gets a
+  // proper two-panel card: the image full-bleed and undimmed on one side,
+  // everything else on the other — rather than the old approach of
+  // stretching the photo edge-to-edge behind the text and dimming it down
+  // to 34% opacity just so the title stayed readable, which buried the one
+  // asset a vendor actually uploaded to make their shop recognisable. A
+  // vendor with neither falls back to the plain gradient card unchanged.
+  if (coverDataUri || logoDataUri) {
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", fontFamily: "Inter" }}>
+          <div
+            style={{
+              width: PHOTO_PANEL_WIDTH,
+              height: "100%",
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              background: coverDataUri ? "#09090B" : `linear-gradient(160deg, ${palette.light} 0%, ${palette.dark2} 100%)`,
+            }}
+          >
+            {coverDataUri ? (
+              <img
+                src={coverDataUri}
+                width={PHOTO_PANEL_WIDTH}
+                height={ogImageSize.height}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              // No cover photo — the logo itself becomes the visual anchor
+              // instead of a small corner badge, so there's still something
+              // photographic to look at rather than gradient alone.
+              <img
+                src={logoDataUri!}
+                width={260}
+                height={260}
+                style={{ borderRadius: 40, objectFit: "cover", border: "6px solid rgba(255,255,255,0.9)" }}
+              />
+            )}
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              padding: "64px 64px",
+              background: infoGradient,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 40 }}>
+              {/* The logo already anchors the photo panel when there's no
+                  cover — showing it again here would be redundant. It only
+                  reappears as a small badge next to the wordmark when the
+                  cover photo took its usual spot. */}
+              {coverDataUri && logoDataUri && (
+                <img
+                  src={logoDataUri}
+                  width={56}
+                  height={56}
+                  style={{ borderRadius: 14, marginRight: 18, objectFit: "cover", border: "2px solid rgba(255,255,255,0.85)" }}
+                />
+              )}
+              <Wordmark palette={palette} />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 52,
+                fontWeight: 700,
+                color: "#FFFFFF",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.15,
+                maxWidth: 560,
+              }}
+            >
+              {title}
+            </div>
+            {subtitle && (
+              <div style={{ display: "flex", fontSize: 26, color: "rgba(255,255,255,0.7)", marginTop: 18 }}>
+                {subtitle}
+              </div>
+            )}
+            <FactPills facts={facts} />
+          </div>
+        </div>
+      ),
+      { ...ogImageSize, fonts }
+    );
+  }
 
   return new ImageResponse(
     (
@@ -40,58 +186,10 @@ export async function renderBrandCard({ title, subtitle, theme = "Red", logoData
           padding: "80px",
           background: `linear-gradient(135deg, ${palette.light} 0%, ${palette.light2} 45%, #09090B 100%)`,
           fontFamily: "Inter",
-          position: "relative",
         }}
       >
-        {/* The vendor's own cover photo, dimmed hard so the overlaid text
-            keeps its contrast whatever the photo happens to be. */}
-        {coverDataUri && (
-          <img
-            src={coverDataUri}
-            width={ogImageSize.width}
-            height={ogImageSize.height}
-            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.34 }}
-          />
-        )}
-        {coverDataUri && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              background: "linear-gradient(100deg, rgba(9,9,11,0.82) 0%, rgba(9,9,11,0.55) 48%, rgba(9,9,11,0.15) 100%)",
-            }}
-          />
-        )}
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 44 }}>
-          {logoDataUri && (
-            <img
-              src={logoDataUri}
-              width={92}
-              height={92}
-              style={{ borderRadius: 20, marginRight: 24, objectFit: "cover", border: "3px solid rgba(255,255,255,0.85)" }}
-            />
-          )}
-          <span style={{ display: "flex", fontSize: 40, fontWeight: 700, color: palette.dark2 }}>
-            book
-          </span>
-          <span style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#FFFFFF" }}>
-            tns
-          </span>
-          <span
-            style={{
-              display: "flex",
-              width: 14,
-              height: 14,
-              borderRadius: 999,
-              background: palette.dark2,
-              marginLeft: 6,
-              marginBottom: 8,
-            }}
-          />
+        <div style={{ display: "flex", marginBottom: 44 }}>
+          <Wordmark palette={palette} />
         </div>
         <div
           style={{
@@ -118,28 +216,7 @@ export async function renderBrandCard({ title, subtitle, theme = "Red", logoData
             {subtitle}
           </div>
         )}
-        {facts.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", marginTop: 34 }}>
-            {facts.map((fact) => (
-              <div
-                key={fact}
-                style={{
-                  display: "flex",
-                  fontSize: 24,
-                  color: "#FFFFFF",
-                  background: "rgba(255,255,255,0.16)",
-                  border: "1px solid rgba(255,255,255,0.28)",
-                  borderRadius: 999,
-                  padding: "10px 24px",
-                  marginRight: 14,
-                  marginTop: 12,
-                }}
-              >
-                {fact}
-              </div>
-            ))}
-          </div>
-        )}
+        <FactPills facts={facts} />
       </div>
     ),
     { ...ogImageSize, fonts }

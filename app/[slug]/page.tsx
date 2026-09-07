@@ -71,6 +71,19 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
+// Without this, a slug not in generateStaticParams's build-time list (any
+// vendor created, published, or edited after the last deploy) renders once
+// on its first-ever request and that exact result — including a false
+// "not found" if that first hit happened before the vendor was published —
+// is cached indefinitely, with nothing to ever refresh it short of a new
+// deploy. This is exactly what happened to a real vendor: their custom
+// domain (a different Host, so a separate cache entry that had never been
+// hit before) rendered correctly, while booktns.com/{slug} kept serving a
+// stale not-found from before they published. 60s matches the freshness
+// window already used elsewhere for the same tradeoff (proxy.ts's
+// custom-domain cache, lib/health.ts).
+export const revalidate = 60;
+
 const SCHEMA_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

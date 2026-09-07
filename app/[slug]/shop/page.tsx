@@ -17,6 +17,15 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
+// Without this, a slug not in generateStaticParams's build-time list (any
+// vendor created, published, or edited after the last deploy) renders once
+// on its first-ever request and that exact result — including a false
+// "not found" if that first hit happened before the vendor was published —
+// is cached indefinitely, with nothing to ever refresh it short of a new
+// deploy. 60s matches the freshness window already used elsewhere for the
+// same tradeoff (proxy.ts's custom-domain cache, lib/health.ts).
+export const revalidate = 60;
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const vendorData = await getStorefrontVendor(slug);

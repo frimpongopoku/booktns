@@ -764,7 +764,7 @@ interface DomainInfo {
   instructions: DnsInstruction[];
 }
 
-function DomainTab() {
+function DomainTab({ slug }: { slug: string }) {
   const [info, setInfo] = useState<DomainInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -835,6 +835,18 @@ function DomainTab() {
           Point your own domain at your storefront — customers see a clean URL like
           yourshop.com instead of the free booktns link.
         </p>
+      </div>
+
+      <div
+        className="px-3 py-2.5 rounded-[var(--r)] text-xs mb-5"
+        style={{ background: "var(--bg2)", color: "var(--tx3)" }}
+      >
+        Your shop is always reachable at{" "}
+        <a href={`/${slug}`} target="_blank" rel="noopener noreferrer" className="font-medium" style={{ color: "var(--tx2)" }}>
+          booktns.com/{slug}
+        </a>{" "}
+        no matter what state your custom domain is in below — connecting one is optional,
+        and never something customers have to wait on.
       </div>
 
       {error && (
@@ -1497,7 +1509,7 @@ export default function SettingsClient({ vendor, businessHours, initialVideos, c
       </div>
 
       {tab === "storefront" && <StorefrontTab vendor={vendor} businessHours={businessHours} initialVideos={initialVideos} />}
-      {tab === "domain" && <DomainTab />}
+      {tab === "domain" && <DomainTab slug={vendor.slug} />}
       {tab === "verification" && (
         <VerificationTab status={vendor.verificationStatus} application={verificationApplication} />
       )}

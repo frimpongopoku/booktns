@@ -28,7 +28,19 @@ async function resolveCustomDomainCached(hostname: string): Promise<CustomDomain
   return resolution;
 }
 
-const platformHostname = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665").hostname;
+// Stripped so this matches regardless of which of apex/www NEXT_PUBLIC_APP_URL
+// happens to be configured as, and regardless of which one a request arrives
+// as after any apex<->www redirect at the DNS/Vercel level. Getting this
+// wrong used to be harmless (an unrecognized host just fell through to
+// whatever was actually requested) but is no longer: an unrecognized host
+// now actively rewrites to the "shop not found" notice (see handle() below),
+// so the platform's own www variant being unrecognized took down the
+// homepage itself, not just a quiet no-op.
+function stripWww(host: string): string {
+  return host.startsWith("www.") ? host.slice(4) : host;
+}
+
+const platformHostname = stripWww(new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2665").hostname);
 const KNOWN_PLATFORM_HOSTS = new Set([platformHostname, "localhost", "127.0.0.1"]);
 
 // Routes that are already global/unprefixed on every host — never
@@ -73,7 +85,7 @@ export function proxy(request: NextRequest) {
 
 async function handle(request: NextRequest) {
   const hostname = (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
-  if (!hostname || KNOWN_PLATFORM_HOSTS.has(hostname)) return NextResponse.next();
+  if (!hostname || KNOWN_PLATFORM_HOSTS.has(stripWww(hostname))) return NextResponse.next();
 
   const { pathname } = request.nextUrl;
   if (isExcludedPath(pathname)) return NextResponse.next();

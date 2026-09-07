@@ -29,7 +29,7 @@ export type DepositSetting = "None" | "Fixed" | "Percentage";
 
 export type HeroCardMode = "CoverImage" | "Gallery" | "Video";
 
-export type StorefrontTheme = "Red" | "Emerald" | "Indigo" | "Orchid";
+export type StorefrontTheme = "Red" | "Emerald" | "Indigo" | "Orchid" | "Gold" | "RoseGold" | "Navy";
 
 export type VerificationStatus = "NONE" | "PENDING" | "VERIFIED" | "REJECTED";
 

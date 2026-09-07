@@ -3,7 +3,7 @@ import { z } from "zod";
 const DISPLAY_MODES = ["All", "FeaturedOnly", "AllWithFeaturedHighlighted"] as const;
 const DEPOSIT_SETTINGS = ["None", "Fixed", "Percentage"] as const;
 const HERO_CARD_MODES = ["CoverImage", "Gallery", "Video"] as const;
-const STOREFRONT_THEME_VALUES = ["Red", "Emerald", "Indigo", "Orchid"] as const;
+const STOREFRONT_THEME_VALUES = ["Red", "Emerald", "Indigo", "Orchid", "Gold", "RoseGold", "Navy"] as const;
 
 // Slug is deliberately excluded — changing it affects live URLs and the spec
 // calls it "editable once"; that needs its own careful flow, not a plain

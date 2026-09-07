@@ -110,6 +110,9 @@ enum StorefrontTheme {
   Emerald
   Indigo
   Orchid
+  Gold
+  RoseGold
+  Navy
 }
 
 model Vendor {

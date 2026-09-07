@@ -61,6 +61,33 @@
   --ac2:   var(--brand-accent-light-2);
   --ac-bg: color-mix(in srgb, var(--ac) 8%, white);
 }
+[data-storefront-theme="Gold"] {
+  --brand-accent-light:   #96721B;
+  --brand-accent-light-2: #6B5113;
+  --brand-accent-dark:    #D9AC4E;
+  --brand-accent-dark-2:  #F0D48F;
+  --ac:    var(--brand-accent-light);
+  --ac2:   var(--brand-accent-light-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 8%, white);
+}
+[data-storefront-theme="RoseGold"] {
+  --brand-accent-light:   #A65D57;
+  --brand-accent-light-2: #7A3F3A;
+  --brand-accent-dark:    #D68B84;
+  --brand-accent-dark-2:  #EFC0BA;
+  --ac:    var(--brand-accent-light);
+  --ac2:   var(--brand-accent-light-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 8%, white);
+}
+[data-storefront-theme="Navy"] {
+  --brand-accent-light:   #1E3A5F;
+  --brand-accent-light-2: #12253D;
+  --brand-accent-dark:    #4A7AB5;
+  --brand-accent-dark-2:  #9BC0E5;
+  --ac:    var(--brand-accent-light);
+  --ac2:   var(--brand-accent-light-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 8%, white);
+}
 
 html[data-theme="dark"] [data-storefront-theme="Emerald"] {
   --ac:    var(--brand-accent-dark);
@@ -73,6 +100,21 @@ html[data-theme="dark"] [data-storefront-theme="Indigo"] {
   --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
 }
 html[data-theme="dark"] [data-storefront-theme="Orchid"] {
+  --ac:    var(--brand-accent-dark);
+  --ac2:   var(--brand-accent-dark-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+}
+html[data-theme="dark"] [data-storefront-theme="Gold"] {
+  --ac:    var(--brand-accent-dark);
+  --ac2:   var(--brand-accent-dark-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+}
+html[data-theme="dark"] [data-storefront-theme="RoseGold"] {
+  --ac:    var(--brand-accent-dark);
+  --ac2:   var(--brand-accent-dark-2);
+  --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+}
+html[data-theme="dark"] [data-storefront-theme="Navy"] {
   --ac:    var(--brand-accent-dark);
   --ac2:   var(--brand-accent-dark-2);
   --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
@@ -90,6 +132,21 @@ html[data-theme="dark"] [data-storefront-theme="Orchid"] {
     --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
   }
   html:not([data-theme="light"]) [data-storefront-theme="Orchid"] {
+    --ac:    var(--brand-accent-dark);
+    --ac2:   var(--brand-accent-dark-2);
+    --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+  }
+  html:not([data-theme="light"]) [data-storefront-theme="Gold"] {
+    --ac:    var(--brand-accent-dark);
+    --ac2:   var(--brand-accent-dark-2);
+    --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+  }
+  html:not([data-theme="light"]) [data-storefront-theme="RoseGold"] {
+    --ac:    var(--brand-accent-dark);
+    --ac2:   var(--brand-accent-dark-2);
+    --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);
+  }
+  html:not([data-theme="light"]) [data-storefront-theme="Navy"] {
     --ac:    var(--brand-accent-dark);
     --ac2:   var(--brand-accent-dark-2);
     --ac-bg: color-mix(in srgb, var(--ac) 10%, transparent);

@@ -33,7 +33,7 @@ const HERO_MODE_OPTIONS: { value: HeroCardMode; label: string; desc: string }[] 
   { value: "Video", label: "Video", desc: "Plays one of your videos on a loop" },
 ];
 
-const THEME_OPTIONS: StorefrontTheme[] = ["Red", "Emerald", "Indigo", "Orchid"];
+const THEME_OPTIONS: StorefrontTheme[] = ["Red", "Emerald", "Indigo", "Orchid", "Gold", "RoseGold", "Navy"];
 
 type SettingsTab = "storefront" | "domain" | "verification" | "booking" | "share" | "calendar" | "whatsapp" | "billing" | "support";
 
@@ -502,7 +502,7 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
           <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>
             Storefront color <AutoSaveBadge />
           </label>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             {THEME_OPTIONS.map((t) => (
               <button
                 key={t}
@@ -510,7 +510,7 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
                 disabled={savingTheme}
                 onClick={() => handleThemeChange(t)}
                 className="flex flex-col items-center gap-1.5 disabled:opacity-60"
-                aria-label={t}
+                aria-label={STOREFRONT_THEMES[t].label}
               >
                 <span
                   className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -522,7 +522,7 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
                 >
                   {storefrontTheme === t && <Check size={14} color="white" />}
                 </span>
-                <span className="text-xs" style={{ color: "var(--tx3)" }}>{t}</span>
+                <span className="text-xs" style={{ color: "var(--tx3)" }}>{STOREFRONT_THEMES[t].label}</span>
               </button>
             ))}
           </div>

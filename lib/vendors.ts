@@ -92,7 +92,12 @@ export const getVendorPublicMeta = cache(async (slug: string): Promise<VendorPub
   return envelope.meta ?? null;
 });
 
-// Middleware-only lookup: resolves a request Host header to a vendor slug.
+export type CustomDomainResolution =
+  | { status: "resolved"; slug: string }
+  | { status: "not_found" }
+  | { status: "unavailable"; slug: string; vendorName: string; reason: "not_verified" | "not_published" | "suspended" };
+
+// Middleware-only lookup: resolves a request Host header to a vendor.
 // Deliberately NOT wrapped in React's cache() like its siblings above —
 // cache() dedupes within a single request's React render tree, and
 // middleware executes outside that tree entirely (before the request ever
@@ -101,9 +106,8 @@ export const getVendorPublicMeta = cache(async (slug: string): Promise<VendorPub
 // across unrelated requests in the middleware's long-lived process, which
 // would directly defeat the "always re-check live state" rule this feature
 // depends on.
-export async function getVendorSlugByCustomDomain(host: string): Promise<string | null> {
-  const { slug } = await apiPublic<{ slug: string | null }>(`/storefront/resolve-domain?host=${encodeURIComponent(host)}`);
-  return slug;
+export async function resolveCustomDomain(host: string): Promise<CustomDomainResolution> {
+  return apiPublic<CustomDomainResolution>(`/storefront/resolve-domain?host=${encodeURIComponent(host)}`);
 }
 
 // Just the logo, for the per-vendor favicon routes (app/[slug]/icon.tsx and

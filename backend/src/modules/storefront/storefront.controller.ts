@@ -1,7 +1,7 @@
 import { Controller, Get, NotFoundException, Param, Query } from "@nestjs/common";
 import { Public } from "../../common/decorators";
 import {
-  getStorefrontVendor, getVendorPublicMeta, getAllActiveVendorSlugs, getVendorSlugByCustomDomain,
+  getStorefrontVendor, getVendorPublicMeta, getAllActiveVendorSlugs, resolveCustomDomain,
   getAllActiveProductSlugs, getVendorIconLogoUrl,
 } from "../../common/lib/vendors";
 import { getBookingBySlug } from "../../common/lib/bookings";
@@ -38,11 +38,14 @@ export class StorefrontController {
 
   // Middleware calls this to map a Host header to a vendor. Kept separate
   // from the full vendor read because it runs on a large share of requests
-  // and only needs one column.
+  // and only needs a handful of columns. Returns a real reason rather than
+  // a bare null/slug pair — see CustomDomainResolution — so the middleware
+  // can show "this shop's domain isn't ready yet" instead of silently
+  // falling through to the platform's own homepage.
   @Get("resolve-domain")
   async resolveDomain(@Query("host") host: string) {
-    if (!host) return { slug: null };
-    return { slug: await getVendorSlugByCustomDomain(host) };
+    if (!host) return { status: "not_found" as const };
+    return resolveCustomDomain(host);
   }
 
   @Get(":slug")

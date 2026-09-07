@@ -126,7 +126,24 @@ export const getVendorPublicMeta = (async (slug: string): Promise<VendorPublicMe
   return { name: vendor.name, published: vendor.storefrontPublished, suspended: vendor.suspended };
 });
 
-// Middleware-only lookup: resolves a request Host header to a vendor slug.
+export type CustomDomainResolution =
+  | { status: "resolved"; slug: string }
+  // Nobody has ever registered this host — the platform genuinely has
+  // nothing to say about it (an unrelated domain accidentally pointed
+  // here, a typo, a long-removed vendor's leftover DNS).
+  | { status: "not_found" }
+  // Somebody DID register this host, but one of the conditions that must
+  // all hold before it's safe to actually serve their storefront on it
+  // isn't true yet — this is the case that used to just silently fall
+  // through to the platform's own homepage, which is confusing for a
+  // visitor and makes it look like the vendor's setup is broken rather
+  // than "still in progress." `slug` is included so the caller can offer a
+  // working link to the shop's regular booktns.com/{slug} URL in the
+  // meantime — the domain not being ready yet doesn't mean the shop isn't
+  // actually open for business.
+  | { status: "unavailable"; slug: string; vendorName: string; reason: "not_verified" | "not_published" | "suspended" };
+
+// Middleware-only lookup: resolves a request Host header to a vendor.
 // Deliberately NOT wrapped in React's cache() like its siblings above —
 // cache() dedupes within a single request's React render tree, and
 // middleware executes outside that tree entirely (before the request ever
@@ -135,12 +152,23 @@ export const getVendorPublicMeta = (async (slug: string): Promise<VendorPublicMe
 // across unrelated requests in the middleware's long-lived process, which
 // would directly defeat the "always re-check live state" rule this feature
 // depends on. Call Prisma directly.
-export async function getVendorSlugByCustomDomain(host: string): Promise<string | null> {
+//
+// Deliberately does NOT filter `active` in the query — an inactive vendor
+// is treated as "not_found" below rather than "unavailable", since active
+// is the one flag that means "this vendor shouldn't be discoverable at
+// all," not "temporarily not ready."
+export async function resolveCustomDomain(host: string): Promise<CustomDomainResolution> {
   const vendor = await db.vendor.findFirst({
-    where: { customDomain: host, customDomainVerified: true, active: true, storefrontPublished: true, suspended: false },
-    select: { slug: true },
+    where: { customDomain: host },
+    select: { slug: true, name: true, active: true, customDomainVerified: true, storefrontPublished: true, suspended: true },
   });
-  return vendor?.slug ?? null;
+  if (!vendor || !vendor.active) return { status: "not_found" };
+
+  if (vendor.suspended) return { status: "unavailable", slug: vendor.slug, vendorName: vendor.name, reason: "suspended" };
+  if (!vendor.customDomainVerified) return { status: "unavailable", slug: vendor.slug, vendorName: vendor.name, reason: "not_verified" };
+  if (!vendor.storefrontPublished) return { status: "unavailable", slug: vendor.slug, vendorName: vendor.name, reason: "not_published" };
+
+  return { status: "resolved", slug: vendor.slug };
 }
 
 // Just the logo, for the per-vendor favicon routes (app/[slug]/icon.tsx and

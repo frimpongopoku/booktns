@@ -22,12 +22,17 @@ export default function VendorWordmark({ name, href, logoUrl, verified = false, 
   return (
     <Link
       href={href}
-      className={`font-display text-lg font-medium inline-flex items-center gap-2 min-w-0 ${className}`}
-      style={{ fontFamily: "var(--font-display)", color: "var(--tx)" }}
+      // Was text-lg/font-medium — read as plain nav text, no different from
+      // the slug it sits next to in the URL bar. This is the one place a
+      // vendor's actual shop name gets to make a statement rather than just
+      // being a functional label, so it now gets the same weight/tracking
+      // treatment as Booktns's own wordmark (components/shared/Logo.tsx).
+      className={`font-display text-2xl font-semibold inline-flex items-center gap-2.5 min-w-0 ${className}`}
+      style={{ fontFamily: "var(--font-display)", color: "var(--tx)", letterSpacing: "-0.02em" }}
     >
       {logoUrl && (
         <span
-          className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0"
+          className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0"
           style={{ border: "1px solid var(--bd)" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -35,7 +40,7 @@ export default function VendorWordmark({ name, href, logoUrl, verified = false, 
         </span>
       )}
       <span className="truncate">{name}</span>
-      {verified && <VerifiedBadge size={16} />}
+      {verified && <VerifiedBadge size={17} />}
     </Link>
   );
 }

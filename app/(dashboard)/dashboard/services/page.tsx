@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { apiServer } from "@/lib/api-client.server";
 import ServicesClient from "@/components/dashboard/ServicesClient";
 import type { Service } from "@/types";
+
+export const metadata: Metadata = { title: "Services" };
 
 export default async function ServicesPage() {
   const session = await getSession();

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { apiServer } from "@/lib/api-client.server";
@@ -7,6 +8,8 @@ import type { Booking, Staff } from "@/types";
 interface DashboardContext {
   vendor: { slug: string; name: string; location: string };
 }
+
+export const metadata: Metadata = { title: "Bookings" };
 
 export default async function BookingsPage() {
   const session = await getSession();

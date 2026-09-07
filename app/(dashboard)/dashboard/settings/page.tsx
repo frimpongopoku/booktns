@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { apiServer } from "@/lib/api-client.server";
@@ -11,6 +12,8 @@ interface VerificationStatusResponse {
   verifiedAt: string | null;
   application: import("@/components/dashboard/VerificationTab").VerificationApplication | null;
 }
+
+export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const session = await getSession();

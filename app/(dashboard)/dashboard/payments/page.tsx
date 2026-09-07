@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { apiServer } from "@/lib/api-client.server";
@@ -8,6 +9,8 @@ import type { PaymentMethod } from "@/types";
 // /payment-methods route (@Roles("Owner")) and spec §7.4's "Payment
 // settings" row. This page inherited that rule from the Settings tab it
 // was lifted out of.
+export const metadata: Metadata = { title: "Payments" };
+
 export default async function PaymentsPage() {
   const session = await getSession();
   if (!session) redirect("/login");

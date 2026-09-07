@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { apiServer } from "@/lib/api-client.server";
@@ -7,6 +8,8 @@ import type { VendorVideo } from "@/types";
 interface DashboardContext {
   vendor: { showVideoSection: boolean; videoSectionTitle: string | null; videoSectionSubtitle: string | null };
 }
+
+export const metadata: Metadata = { title: "Videos" };
 
 export default async function VideosPage() {
   const session = await getSession();

@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { apiServer } from "@/lib/api-client.server";
 import OrdersClient from "@/components/dashboard/OrdersClient";
 import type { Order } from "@/types";
+
+export const metadata: Metadata = { title: "Orders" };
 
 export default async function OrdersPage() {
   const session = await getSession();

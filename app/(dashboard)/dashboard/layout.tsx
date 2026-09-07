@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getFeedbackInboxEmail } from "@/lib/feedback";
@@ -9,6 +10,24 @@ import MobileNav from "@/components/dashboard/MobileNav";
 import MobileTopStrip from "@/components/dashboard/MobileTopStrip";
 import { Ban } from "lucide-react";
 import PlatformCredit from "@/components/shared/PlatformCredit";
+
+// The browser tab for every dashboard page used to just say "Booktns —
+// Beauty Booking for Vendors" (the root layout's default) regardless of
+// which shop's dashboard you were in or which page — indistinguishable
+// tabs when a staff member has several shops open, or several dashboard
+// tabs open at once. vendorName comes straight off the session's JWT
+// payload (set at login, see lib/auth.ts), so this costs nothing extra —
+// no DB call, just the same cookie read every dashboard page already does.
+// Each page.tsx supplies its own `metadata.title` (a plain string, e.g.
+// "Bookings") which Next slots into the "%s" below; a page with no title of
+// its own falls back to `default`, not the template.
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await getSession();
+  if (!session) return { title: "Dashboard" };
+  return {
+    title: { template: `%s · ${session.vendorName}`, default: session.vendorName },
+  };
+}
 
 export default async function DashboardLayout({
   children,

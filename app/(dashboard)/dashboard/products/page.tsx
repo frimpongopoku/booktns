@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { apiServer } from "@/lib/api-client.server";
 import ProductsClient from "@/components/dashboard/ProductsClient";
 import type { Product } from "@/types";
+
+export const metadata: Metadata = { title: "Products" };
 
 export default async function ProductsPage() {
   const session = await getSession();

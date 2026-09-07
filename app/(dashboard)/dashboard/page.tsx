@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
@@ -14,6 +15,8 @@ import {
   Eye,
   Plus,
 } from "lucide-react";
+
+export const metadata: Metadata = { title: "Overview" };
 
 // Both take an ISO string now — the API serializes every timestamp to JSON,
 // unlike the Prisma Date objects this page used to receive directly.

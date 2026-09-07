@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, type AuthError } from "firebase/auth";
-import { getFirebaseAuth, googleProvider } from "@/lib/firebase-client";
+import { getFirebaseAuth, getFirebaseAuthReady, googleProvider } from "@/lib/firebase-client";
 import Button from "@/components/ui/Button";
 import { ShieldAlert, AlertCircle } from "lucide-react";
 
@@ -61,7 +61,15 @@ export default function SuperAdminLoginPage() {
     setError(null);
     setStatus("signing-in");
 
-    const auth = getFirebaseAuth();
+    // Sets browserLocalPersistence before the popup opens — Firebase's
+    // default IndexedDB-backed persistence has a real SDK bug where a
+    // second tab (or any concurrent connection) can force-close the
+    // IndexedDB connection mid-write, silently dropping the sign-in right
+    // after Google's OAuth handshake has already succeeded: the popup
+    // closes normally, no error surfaces, and the page just sits there.
+    // See lib/firebase-client.ts. The vendor /login page already carries
+    // this fix; this page just never got it.
+    const auth = await getFirebaseAuthReady();
     let idToken: string;
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -92,7 +100,7 @@ export default function SuperAdminLoginPage() {
     let cancelled = false;
     (async () => {
       try {
-        const result = await getRedirectResult(getFirebaseAuth());
+        const result = await getRedirectResult(await getFirebaseAuthReady());
         if (!result || cancelled) return;
         const idToken = await result.user.getIdToken();
         if (!cancelled) await completeSignIn(idToken);

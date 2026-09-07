@@ -27,8 +27,26 @@ export class VercelDomainProvider implements DomainProvider {
     if (res.ok) return;
 
     const body = await res.json().catch(() => null);
-    // Idempotent: this project already owns the domain — treat as success.
-    if (res.status === 409 && body?.error?.code === "domain_already_in_use") return;
+
+    // Vercel returns this same 409 whether THIS project already owns the
+    // domain (harmless — nothing to do) or a DIFFERENT project already
+    // claims it, including another one of this same account's projects.
+    // Those are not the same outcome: the second one means Vercel's edge
+    // will keep routing every request for this domain to that other
+    // project's deployment — our own app is never even invoked, so no
+    // amount of DNS or app-level correctness here would ever show it.
+    // Blindly treating both as success is exactly how a vendor's domain
+    // can end up "verified" in our UI while silently serving someone
+    // else's site. Confirm real ownership before declaring success.
+    if (res.status === 409) {
+      const ownershipCheck = await fetch(`${API_BASE}/v9/projects/${projectId}/domains/${domain}${teamQuery()}`, {
+        headers: authHeaders(),
+      });
+      if (ownershipCheck.ok) return;
+      throw new Error(
+        `"${domain}" is already connected to a different Vercel project in this account. Remove it from that project's Domains settings in the Vercel dashboard, then try again here.`
+      );
+    }
 
     throw new Error(body?.error?.message ?? `Vercel addDomain failed (${res.status})`);
   }

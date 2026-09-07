@@ -162,6 +162,9 @@ export default function SuperAdminLoginPage() {
         <p className="text-xs text-center mt-6" style={{ color: "var(--tx3)" }}>
           Access is granted by invitation only. There is no sign-up.
         </p>
+        <p className="text-xs text-center mt-3" style={{ color: "var(--tx3)" }}>
+          v{process.env.NEXT_PUBLIC_APP_VERSION} · build {process.env.NEXT_PUBLIC_BUILD_NUMBER}
+        </p>
       </div>
     </div>
   );

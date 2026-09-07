@@ -228,6 +228,12 @@ model Staff {
   roleDetail        String?
   botAccess         Boolean           @default(false)
   active            Boolean           @default(true)
+  // Separate from `active`: this controls whether a real, working staff
+  // member appears as a choice in the public booking flow's staff-
+  // preference picker — not whether they can sign in or show up in the
+  // dashboard. An assistant or a prep-only role can be exempted here
+  // without deactivating their account.
+  bookable          Boolean           @default(true)
   serviceCategories ServiceCategory[]
   createdAt         DateTime          @default(now()) @db.Timestamptz(3)
 

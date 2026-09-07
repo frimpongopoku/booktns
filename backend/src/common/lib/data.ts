@@ -42,6 +42,7 @@ export const staff: Staff[] = [
     role: "Owner",
     botAccess: true,
     active: true,
+    bookable: true,
     serviceCategories: ["Hair", "Nails", "Skin", "Lashes"],
   },
   {
@@ -53,6 +54,7 @@ export const staff: Staff[] = [
     role: "Management",
     botAccess: true,
     active: true,
+    bookable: true,
     serviceCategories: ["Skin"],
   },
   {
@@ -65,6 +67,7 @@ export const staff: Staff[] = [
     roleDetail: "Hair",
     botAccess: true,
     active: true,
+    bookable: true,
     serviceCategories: ["Hair"],
   },
   {
@@ -77,6 +80,7 @@ export const staff: Staff[] = [
     roleDetail: "Nails",
     botAccess: false,
     active: true,
+    bookable: true,
     serviceCategories: ["Nails"],
   },
 ];

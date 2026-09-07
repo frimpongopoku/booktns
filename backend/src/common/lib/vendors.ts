@@ -34,7 +34,11 @@ async function fetchStorefrontVendor(where: { slug: string; active: true; storef
       products: { where: { active: true }, include: { images: true } },
       videos: { orderBy: { displayOrder: "asc" } },
       paymentMethods: { where: { active: true }, orderBy: { displayOrder: "asc" } },
-      staff: { where: { active: true } },
+      // bookable: true excludes staff a vendor exempted from the public
+      // booking picker (see Staff.bookable) — the only place `vendor.staff`
+      // is used downstream is BookingFlow's staff-preference step, so this
+      // is the single boundary where that filter needs to apply.
+      staff: { where: { active: true, bookable: true } },
       businessHours: { orderBy: { dayOfWeek: "asc" } },
     },
   });

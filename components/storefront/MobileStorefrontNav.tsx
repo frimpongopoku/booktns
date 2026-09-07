@@ -8,15 +8,20 @@ import { storefrontHref } from "@/lib/storefront-links";
 interface MobileStorefrontNavProps {
   slug: string;
   isCustomDomain: boolean;
+  // Defaults true (unchanged behaviour) for the pages that don't have a
+  // product count on hand — a product detail page implies products exist
+  // anyway, and the pay page isn't where a vendor's empty catalogue would
+  // stand out. Only the home page currently passes this explicitly.
+  showShop?: boolean;
 }
 
-export default function MobileStorefrontNav({ slug, isCustomDomain }: MobileStorefrontNavProps) {
+export default function MobileStorefrontNav({ slug, isCustomDomain, showShop = true }: MobileStorefrontNavProps) {
   const pathname = usePathname();
 
   const items = [
     { label: "Home", href: storefrontHref(slug, isCustomDomain, ""), icon: Home },
     { label: "Services", href: storefrontHref(slug, isCustomDomain, "#services"), icon: Scissors },
-    { label: "Shop", href: storefrontHref(slug, isCustomDomain, "/shop"), icon: ShoppingBag },
+    ...(showShop ? [{ label: "Shop", href: storefrontHref(slug, isCustomDomain, "/shop"), icon: ShoppingBag }] : []),
     { label: "Pay", href: storefrontHref(slug, isCustomDomain, "/pay"), icon: CreditCard },
   ];
 

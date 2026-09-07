@@ -83,6 +83,9 @@ export interface Staff {
   roleDetail?: string;
   botAccess: boolean;
   active: boolean;
+  // Separate from `active` — whether this person appears as a choice in the
+  // public booking flow's staff-preference picker.
+  bookable: boolean;
   serviceCategories: ServiceCategory[];
 }
 

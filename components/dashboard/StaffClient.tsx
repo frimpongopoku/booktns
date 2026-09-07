@@ -7,7 +7,7 @@ import Topbar from "@/components/dashboard/Topbar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { Plus, X, MessageCircle, Pencil, UserX } from "lucide-react";
+import { Plus, X, MessageCircle, Pencil, UserX, CalendarX } from "lucide-react";
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   Owner: "Owner",
@@ -58,6 +58,7 @@ function StaffModal({ staff, onClose, onSaved }: StaffModalProps) {
   const [role, setRole] = useState<StaffRole>(staff?.role ?? "Service");
   const [roleDetail, setRoleDetail] = useState(staff?.roleDetail ?? "");
   const [botAccess, setBotAccess] = useState(staff?.botAccess ?? false);
+  const [bookable, setBookable] = useState(staff?.bookable ?? true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExiting, setIsExiting] = useState(false);
@@ -75,6 +76,7 @@ function StaffModal({ staff, onClose, onSaved }: StaffModalProps) {
       role,
       roleDetail: roleDetail.trim() || undefined,
       botAccess,
+      bookable,
     };
 
     try {
@@ -163,6 +165,27 @@ function StaffModal({ staff, onClose, onSaved }: StaffModalProps) {
               <span
                 className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform"
                 style={{ left: botAccess ? "calc(100% - 18px)" : "2px" }}
+              />
+            </button>
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-[var(--r)]" style={{ background: "var(--bg2)" }}>
+            <div className="flex items-center gap-2">
+              <CalendarX size={16} style={{ color: bookable ? "var(--tx3)" : "var(--amber)" }} />
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>Bookable by customers</p>
+                <p className="text-xs" style={{ color: "var(--tx3)" }}>
+                  Shows up as a staff choice during guest booking — turn off for someone who still works here but shouldn&apos;t be picked directly (an assistant, prep-only role).
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setBookable((v) => !v)}
+              className="w-10 h-6 rounded-full transition-colors relative flex-shrink-0"
+              style={{ background: bookable ? "var(--green)" : "var(--bg3)" }}
+            >
+              <span
+                className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                style={{ left: bookable ? "calc(100% - 18px)" : "2px" }}
               />
             </button>
           </div>

@@ -111,6 +111,14 @@ export default function BookingFlow({
 
   // Step 1 — Services
   const [selectedServices, setSelectedServices] = useState<Service[]>(initialServices);
+  // "All" plus only the categories this vendor actually has services in —
+  // no point showing a filter chip for a category with nothing behind it.
+  // Only worth rendering the row at all once there's something to filter:
+  // a single-category shop (or one with a handful of services total) gets
+  // no chips, since they'd have nothing to narrow down.
+  const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const serviceCategories = useMemo(() => Array.from(new Set(services.map((s) => s.category))), [services]);
+  const visibleServices = categoryFilter === "All" ? services : services.filter((s) => s.category === categoryFilter);
 
   // Step 2 — Staff
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -379,8 +387,31 @@ export default function BookingFlow({
                 No services available yet — check back soon or contact us on WhatsApp.
               </p>
             ) : (
+            <>
+            {serviceCategories.length > 1 && (
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+                {["All", ...serviceCategories].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat)}
+                    className="px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0"
+                    style={{
+                      background: categoryFilter === cat ? "var(--ac)" : "var(--bg2)",
+                      color: categoryFilter === cat ? "white" : "var(--tx2)",
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+            {visibleServices.length === 0 ? (
+              <p className="text-base text-center py-10" style={{ color: "var(--tx3)" }}>
+                No {categoryFilter.toLowerCase()} services — try another category.
+              </p>
+            ) : (
             <div className="flex flex-col gap-2">
-              {services.map((svc) => {
+              {visibleServices.map((svc) => {
                 const selected = selectedServices.some((s) => s.id === svc.id);
                 return (
                   <button
@@ -419,6 +450,8 @@ export default function BookingFlow({
                 );
               })}
             </div>
+            )}
+            </>
             )}
           </div>
         )}

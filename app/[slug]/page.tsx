@@ -38,12 +38,20 @@ import type { StorefrontDisplayMode, ServiceCategory } from "@/types";
 
 // The home page's "featured" teaser sections respect the vendor's display
 // mode; the full /book and /shop pages always show everything regardless.
+//
+// Capped at HOME_TEASER_LIMIT regardless of mode — a vendor with a large
+// catalogue used to get every single service laid out on the home page in
+// "All" mode (that branch was a bare passthrough), which read as an
+// overwhelming wall rather than a teaser. Featured items are sorted first
+// before truncating in every mode (including "All"), so if only some of
+// the list fits, it's the vendor's own picks that survive the cut — "View
+// all N services"/products below always links to the real, complete list.
+const HOME_TEASER_LIMIT = 6;
+
 function selectStorefrontItems<T extends { featured: boolean }>(items: T[], mode: StorefrontDisplayMode): T[] {
-  if (mode === "FeaturedOnly") return items.filter((item) => item.featured);
-  if (mode === "AllWithFeaturedHighlighted") {
-    return [...items].sort((a, b) => Number(b.featured) - Number(a.featured));
-  }
-  return items;
+  const filtered = mode === "FeaturedOnly" ? items.filter((item) => item.featured) : items;
+  const sorted = [...filtered].sort((a, b) => Number(b.featured) - Number(a.featured));
+  return sorted.slice(0, HOME_TEASER_LIMIT);
 }
 
 interface PageProps {
@@ -255,6 +263,7 @@ export default async function StorefrontPage({ params }: PageProps) {
         vendorLogoUrl={vendorData.logoUrl}
         isCustomDomain={isCustomDomain}
         showVideos={vendorData.showVideoSection && vendorVideos.length > 0}
+        showShop={vendorData.products.length > 0}
       />
 
       {isPreview && (
@@ -470,7 +479,14 @@ export default async function StorefrontPage({ params }: PageProps) {
         </div>
       </section>
 
-      {/* Products */}
+      {/* Products — the whole section (and the Shop nav link, see
+          StorefrontNav/MobileStorefrontNav) is hidden when a vendor has no
+          products at all. That's different from having products but none
+          matching the current display mode (e.g. FeaturedOnly with nothing
+          featured yet), which still shows the section with its own empty
+          state below — a vendor who genuinely sells nothing shouldn't have
+          an empty "Shop" promoted on their own storefront. */}
+      {vendorData.products.length > 0 && (
       <section className="px-4 md:px-8 py-12">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-7">
@@ -529,14 +545,18 @@ export default async function StorefrontPage({ params }: PageProps) {
               ))}
             </div>
           ) : (
+            // Reachable only when storefrontDisplayMode filtered every
+            // product out (e.g. FeaturedOnly with nothing marked featured
+            // yet) — vendorData.products.length > 0 is already guaranteed
+            // by the section-level gate above, or this whole block wouldn't
+            // be rendering at all.
             <p className="text-base text-center py-10" style={{ color: "var(--tx3)" }}>
-              {vendorData.products.length > 0
-                ? "No featured products yet — check back shortly."
-                : "Products coming soon — check back shortly."}
+              No featured products yet — check back shortly.
             </p>
           )}
         </div>
       </section>
+      )}
 
       {/* Videos — the vendor can switch this section off without having
           to delete the videos themselves. */}
@@ -676,7 +696,7 @@ export default async function StorefrontPage({ params }: PageProps) {
         hasOwnerEmail={Boolean(vendorData.ownerEmail)}
       />
 
-      <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} />
+      <MobileStorefrontNav slug={slug} isCustomDomain={isCustomDomain} showShop={vendorData.products.length > 0} />
     </div>
   );
 }

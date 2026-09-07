@@ -27,6 +27,7 @@ export class StaffService {
           roleDetail: dto.roleDetail,
           botAccess: dto.botAccess ?? false,
           serviceCategories: dto.serviceCategories ?? [],
+          bookable: dto.bookable ?? true,
         },
       });
       return { staff: serializeStaff(staff) };

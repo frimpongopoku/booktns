@@ -13,6 +13,12 @@ export const createStaffSchema = z.object({
   roleDetail: z.string().trim().optional(),
   botAccess: z.boolean().optional(),
   serviceCategories: z.array(z.enum(SERVICE_CATEGORIES)).optional(),
+  // Whether this person can be picked as a preferred stylist during guest
+  // booking — separate from `active`, which controls sign-in/dashboard
+  // access entirely. A real, working staff member (an assistant, someone
+  // who only does prep work) can be exempt from the public picker without
+  // being deactivated.
+  bookable: z.boolean().optional(),
 });
 export type CreateStaffDto = z.infer<typeof createStaffSchema>;
 
@@ -25,5 +31,6 @@ export const updateStaffSchema = z.object({
   botAccess: z.boolean().optional(),
   active: z.boolean().optional(),
   serviceCategories: z.array(z.enum(SERVICE_CATEGORIES)).optional(),
+  bookable: z.boolean().optional(),
 });
 export type UpdateStaffDto = z.infer<typeof updateStaffSchema>;

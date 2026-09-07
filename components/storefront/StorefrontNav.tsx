@@ -11,10 +11,11 @@ interface StorefrontNavProps {
   vendorLogoUrl?: string;
   isCustomDomain: boolean;
   showVideos: boolean;
+  showShop: boolean;
   verified: boolean;
 }
 
-export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCustomDomain, showVideos, verified }: StorefrontNavProps) {
+export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCustomDomain, showVideos, showShop, verified }: StorefrontNavProps) {
   const href = (path: string = "") => storefrontHref(slug, isCustomDomain, path);
 
   return (
@@ -42,9 +43,11 @@ export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCusto
             Videos
           </Link>
         )}
-        <Link href={href("/shop")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
-          Shop
-        </Link>
+        {showShop && (
+          <Link href={href("/shop")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
+            Shop
+          </Link>
+        )}
         <Link href={href("/pay")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
           Pay
         </Link>

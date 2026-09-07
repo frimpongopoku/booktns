@@ -6,6 +6,7 @@ import type { BusinessHours, Vendor, StorefrontDisplayMode, HeroCardMode, Vendor
 import { formatPrice, formatDuration } from "@/lib/data";
 import { apiBrowser, ApiError } from "@/lib/api-client";
 import { STOREFRONT_THEMES } from "@/lib/theme";
+import { SITE_URL } from "@/lib/site";
 import Topbar from "@/components/dashboard/Topbar";
 import BusinessHoursCard from "@/components/dashboard/BusinessHoursCard";
 import MediaPickerModal from "@/components/dashboard/MediaPickerModal";
@@ -18,7 +19,7 @@ import { AutoSaveBadge, ManualSaveBadge, UnsavedChangesBar } from "@/components/
 import PlatformCredit from "@/components/shared/PlatformCredit";
 import VerificationTab, { type VerificationApplication } from "@/components/dashboard/VerificationTab";
 import QrCodeCard from "@/components/dashboard/QrCodeCard";
-import { CreditCard, Smartphone, Banknote, Check, ImagePlus, ExternalLink, Rocket, X, Plus, Archive, CalendarDays, Globe, ShieldCheck, AlertTriangle, Share2, MessageCircle } from "lucide-react";
+import { CreditCard, Smartphone, Banknote, Check, ImagePlus, ExternalLink, Rocket, X, Plus, Archive, CalendarDays, Globe, ShieldCheck, AlertTriangle, Share2, MessageCircle, Search, ChevronDown } from "lucide-react";
 
 const DISPLAY_MODE_OPTIONS: { value: StorefrontDisplayMode; label: string; desc: string }[] = [
   { value: "All", label: "Show all", desc: "Every active service/product appears on your home page" },
@@ -1238,12 +1239,41 @@ function ShareRow({ label, sublabel, url, vendorName }: ShareRowProps) {
   );
 }
 
+// Cheap, non-cryptographic — this only ever feeds a cache-busting query
+// param, never anything security-sensitive. Short and stable is all that
+// matters: the same inputs always produce the same string, and different
+// inputs (almost) always produce a different one.
+function shortHash(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 // The public, customer-facing link — deliberately a separate tab from the
 // Calendar feed next door, which is the vendor's own private subscription.
 // Putting a "share this everywhere" link and a "never share this" link on
 // one screen is how the wrong one gets posted.
+// Below this, the plain list stays exactly as it was — search and collapse
+// only earn their keep once there's actually something to search or hide.
+const SERVICE_LINKS_COLLAPSE_THRESHOLD = 6;
+
 function ShareTab({ vendor, storefrontOrigin, services }: ShareTabProps) {
-  const bookingUrl = `${storefrontOrigin}/${vendor.slug}/book`;
+  const [serviceSearch, setServiceSearch] = useState("");
+  const [showAllServices, setShowAllServices] = useState(false);
+
+  // A verified custom domain already drops the /{slug} prefix on the
+  // storefront itself (see storefrontHref/proxy.ts) — these share links
+  // should hand out that same clean form rather than the platform-style
+  // path, which still works there but isn't the address a vendor actually
+  // wants printed on a poster or pasted into their Instagram bio.
+  const isCustomDomain = storefrontOrigin !== SITE_URL;
+  const bookingUrl = isCustomDomain ? `${storefrontOrigin}/book` : `${storefrontOrigin}/${vendor.slug}/book`;
+
+  // Busts the QR API route's hour-long cache the moment anything its
+  // artwork or target URL depends on changes — see QrCodeCard.
+  const qrVersion = shortHash(`${vendor.logoUrl ?? ""}|${vendor.storefrontTheme}|${storefrontOrigin}`);
 
   return (
     <div className="max-w-xl">
@@ -1280,7 +1310,7 @@ function ShareTab({ vendor, storefrontOrigin, services }: ShareTabProps) {
       {/* The same link, in the form you hand to someone standing in front of
           you rather than paste into a chat. */}
       <div className="mb-6">
-        <QrCodeCard slug={vendor.slug} vendorName={vendor.name} published={vendor.storefrontPublished} />
+        <QrCodeCard slug={vendor.slug} vendorName={vendor.name} published={vendor.storefrontPublished} version={qrVersion} />
       </div>
 
       <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--tx3)" }}>
@@ -1301,17 +1331,64 @@ function ShareTab({ vendor, storefrontOrigin, services }: ShareTabProps) {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {services.map((service) => (
-            <ShareRow
-              key={service.id}
-              label={service.name}
-              sublabel={`${formatPrice(service.priceInPesewas)} · ${formatDuration(service.durationMinutes)}`}
-              url={`${bookingUrl}?service=${service.id}`}
-              vendorName={vendor.name}
-            />
-          ))}
-        </div>
+        (() => {
+          const isLong = services.length > SERVICE_LINKS_COLLAPSE_THRESHOLD;
+          const filtered = serviceSearch.trim()
+            ? services.filter((s) => s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase()))
+            : services;
+          // Search always shows every match — collapsing only applies to
+          // the unfiltered list, or narrowing a search down to one result
+          // would still hide it behind "Show all".
+          const visible = !serviceSearch.trim() && !showAllServices ? filtered.slice(0, SERVICE_LINKS_COLLAPSE_THRESHOLD) : filtered;
+
+          return (
+            <>
+              {isLong && (
+                <div className="relative mb-3">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--tx3)" }} />
+                  <input
+                    type="text"
+                    value={serviceSearch}
+                    onChange={(e) => setServiceSearch(e.target.value)}
+                    placeholder={`Search ${services.length} services…`}
+                    className="w-full pl-8 pr-3 py-2 rounded-[var(--r)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--ac)]"
+                    style={{ background: "var(--bg2)", color: "var(--tx)", border: "1px solid var(--bd)" }}
+                  />
+                </div>
+              )}
+
+              {filtered.length === 0 ? (
+                <p className="text-xs text-center py-6" style={{ color: "var(--tx3)" }}>
+                  No services match &ldquo;{serviceSearch}&rdquo;.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {visible.map((service) => (
+                    <ShareRow
+                      key={service.id}
+                      label={service.name}
+                      sublabel={`${formatPrice(service.priceInPesewas)} · ${formatDuration(service.durationMinutes)}`}
+                      url={`${bookingUrl}?service=${service.id}`}
+                      vendorName={vendor.name}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {isLong && !serviceSearch.trim() && !showAllServices && filtered.length > SERVICE_LINKS_COLLAPSE_THRESHOLD && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllServices(true)}
+                  className="flex items-center gap-1 mx-auto mt-3 text-xs font-medium"
+                  style={{ color: "var(--ac)" }}
+                >
+                  Show all {services.length} services
+                  <ChevronDown size={13} />
+                </button>
+              )}
+            </>
+          );
+        })()
       )}
 
       <p className="text-xs mt-5" style={{ color: "var(--tx3)" }}>

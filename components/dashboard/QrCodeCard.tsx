@@ -8,6 +8,12 @@ interface QrCodeCardProps {
   slug: string;
   vendorName: string;
   published: boolean;
+  // Changes whenever anything the QR artwork or its target URL depends on
+  // changes (logo, theme, custom domain) — see ShareTab. The API route
+  // itself is cached hard (see app/api/qr/[slug]/route.ts), so without this
+  // in the URL a vendor who just updated their logo would keep seeing the
+  // old one baked into a cached image for up to an hour.
+  version?: string;
 }
 
 type Format = "png" | "pdf" | "bare";
@@ -20,12 +26,12 @@ const FILE_LABEL: Record<Format, string> = {
 
 // The vendor's QR, with the ways they'll actually use it: send it to someone,
 // save it, print it.
-export default function QrCodeCard({ slug, vendorName, published }: QrCodeCardProps) {
+export default function QrCodeCard({ slug, vendorName, published, version }: QrCodeCardProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const src = (format: Format, download = false) =>
-    `/api/qr/${slug}?format=${format}${download ? "&download=1" : ""}`;
+    `/api/qr/${slug}?format=${format}${download ? "&download=1" : ""}${version ? `&v=${version}` : ""}`;
 
   const fileName = (format: Format) => {
     const safe = vendorName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

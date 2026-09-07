@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import type { CreateEmailOptions } from "resend";
-import type { Booking } from "../../types";
+import type { Booking, StaffRole } from "../../types";
 import { formatPrice } from "../lib/data";
 import { buildGoogleCalendarUrl } from "../lib/calendar";
 import { whatsappLink } from "../lib/vendor-contact";
@@ -584,6 +584,55 @@ export async function sendVendorWelcomeEmail(params: {
       <p style="font-size: 14px; color: #52525B; margin: 0;">
         Your storefront preview is already live at <a href="${storefrontUrl}" style="color:#C0283A;">${storefrontUrl}</a>,
         but customers can't book yet — publish it from Settings &rarr; Storefront in your dashboard whenever you're ready.
+      </p>
+    `),
+  });
+}
+
+const STAFF_ROLE_LABEL: Record<StaffRole, string> = {
+  Owner: "Owner",
+  Management: "Management",
+  Service: "Service staff",
+};
+
+// Provisioning a Staff row is what actually grants access (CLAUDE.md §Auth
+// Rules — Google Sign-In never creates the row, it only authenticates
+// against one that already exists), so this is the one moment a newly
+// added person finds out they can sign in at all. Fire-and-forget from
+// StaffService.create, same as every other account-provisioning email —
+// the staff row already exists regardless of whether this send succeeds.
+export async function sendStaffInviteEmail(params: {
+  to: string;
+  staffName: string;
+  vendorName: string;
+  role: StaffRole;
+}): Promise<void> {
+  const client = getResendClient();
+  if (!client) {
+    console.warn("RESEND_API_KEY not configured — skipping sendStaffInviteEmail");
+    return;
+  }
+
+  const loginUrl = `${APP_URL}/login`;
+
+  await sendOrThrow(client, {
+    from: EMAIL_FROM,
+    to: params.to,
+    subject: `You've been added to ${params.vendorName} on Booktns`,
+    html: platformShell(`
+      <h1 style="font-size: 20px; margin: 0 0 12px;">You're in</h1>
+      <p style="font-size: 14px; color: #52525B; margin: 0 0 16px;">
+        Hi ${params.staffName}, you've been added to <strong>${params.vendorName}</strong>'s team on Booktns
+        as <strong>${STAFF_ROLE_LABEL[params.role]}</strong>.
+      </p>
+      <p style="margin: 0 0 20px;">
+        <a href="${loginUrl}" style="display: inline-block; padding: 10px 20px; background: #C0283A; color: #fff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
+          Sign in to the dashboard
+        </a>
+      </p>
+      <p style="font-size: 14px; color: #52525B; margin: 0;">
+        Sign in with the Google account for this exact address (${params.to}) — there's no password, ever.
+        If you don't recognise ${params.vendorName}, you can safely ignore this email.
       </p>
     `),
   });

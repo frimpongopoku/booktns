@@ -9,6 +9,16 @@ export interface StorefrontVendor extends Vendor {
   paymentMethods: PaymentMethod[];
   staff: Staff[];
   businessHours: BusinessHours[];
+  // Only ever the *verified* domain — an unverified one isn't live yet, so
+  // it has no business being treated as this vendor's real address by
+  // anything public (QR codes, canonical links). serializeVendor()/the
+  // shared Vendor type never expose customDomain at all (see
+  // app/(dashboard)/dashboard/settings/page.tsx); this is the one
+  // deliberate, narrower exception, gated on the same cached
+  // customDomainVerified flag the proxy's own fast routing path already
+  // trusts — a verified domain is by definition already publicly resolvable
+  // DNS, so surfacing it here reveals nothing that isn't already public.
+  customDomain?: string;
 }
 
 // The owner's name/phone/email each carry their own show* flag. A field the
@@ -47,6 +57,7 @@ async function fetchStorefrontVendor(where: { slug: string; active: true; storef
 
   return {
     ...redactHiddenOwnerDetails(serializeVendor(vendor)),
+    customDomain: vendor.customDomainVerified ? vendor.customDomain ?? undefined : undefined,
     services: vendor.services.map(serializeService),
     products: vendor.products.map(serializeProduct),
     videos: vendor.videos.map(serializeVendorVideo),

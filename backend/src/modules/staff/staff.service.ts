@@ -2,6 +2,8 @@ import { ConflictException, Injectable, NotFoundException } from "@nestjs/common
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { Prisma } from "../../generated/prisma/client";
 import { serializeStaff } from "../../common/lib/serialize";
+import { sendStaffInviteEmail } from "../../common/lib/email";
+import { logger } from "../../common/lib/logger";
 import type { CreateStaffDto, UpdateStaffDto } from "./staff.schemas";
 
 const DUPLICATE_EMAIL_ERROR = { error: "That email is already registered to another staff account.", code: "duplicate_email" };
@@ -16,8 +18,9 @@ export class StaffService {
   }
 
   async create(vendorId: string, dto: CreateStaffDto) {
+    let staff;
     try {
-      const staff = await this.prisma.staff.create({
+      staff = await this.prisma.staff.create({
         data: {
           vendorId,
           name: dto.name,
@@ -30,13 +33,25 @@ export class StaffService {
           bookable: dto.bookable ?? true,
         },
       });
-      return { staff: serializeStaff(staff) };
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         throw new ConflictException(DUPLICATE_EMAIL_ERROR);
       }
       throw err;
     }
+
+    // Fire-and-forget, same pattern as every other account-provisioning
+    // email (sendVendorWelcomeEmail, sendSuperAdminInviteEmail) — the staff
+    // row already exists regardless of whether this send succeeds, and a
+    // flaky Resend call must never fail a request that already worked.
+    const vendor = await this.prisma.vendor.findUnique({ where: { id: vendorId }, select: { name: true } });
+    if (vendor) {
+      sendStaffInviteEmail({ to: staff.email, staffName: staff.name, vendorName: vendor.name, role: staff.role }).catch((err) =>
+        logger.error("sendStaffInviteEmail failed", { staffId: staff.id, vendorId, err }),
+      );
+    }
+
+    return { staff: serializeStaff(staff) };
   }
 
   async update(vendorId: string, id: string, dto: UpdateStaffDto) {

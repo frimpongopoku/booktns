@@ -10,6 +10,8 @@ export interface StorefrontVendor extends Vendor {
   paymentMethods: PaymentMethod[];
   staff: Staff[];
   businessHours: BusinessHours[];
+  // Only present once verified — see backend/src/common/lib/vendors.ts.
+  customDomain?: string;
 }
 
 export interface VendorPublicMeta {

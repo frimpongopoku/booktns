@@ -32,11 +32,19 @@ export async function GET(request: Request, { params }: RouteContext) {
   const format = (url.searchParams.get("format") ?? "png") as Format;
   const download = url.searchParams.get("download") === "1";
 
+  // A verified custom domain is this vendor's real public address — the
+  // code (and the URL printed under it) should point there, not at the
+  // platform domain, and without the redundant /{slug} prefix a custom
+  // domain's own routing already drops (see storefrontHref/proxy.ts). Falls
+  // back to the platform URL for every vendor without one.
+  const origin = vendor.customDomain ? `https://${vendor.customDomain}` : SITE_URL;
+  const isCustomDomain = Boolean(vendor.customDomain);
+
   // The code points at /book rather than the storefront root: someone
   // scanning a sticker on a product is trying to make an appointment, not
   // browse. One fewer tap.
-  const target = `${SITE_URL}/${vendor.slug}/book`;
-  const displayUrl = `${SITE_URL.replace(/^https?:\/\//, "")}/${vendor.slug}`;
+  const target = isCustomDomain ? `${origin}/book` : `${origin}/${vendor.slug}/book`;
+  const displayUrl = isCustomDomain ? vendor.customDomain! : `${SITE_URL.replace(/^https?:\/\//, "")}/${vendor.slug}`;
 
   // A filename the vendor can find again in their downloads folder.
   const safeName = vendor.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -53,8 +61,12 @@ export async function GET(request: Request, { params }: RouteContext) {
       headers: {
         "Content-Type": type,
         // Long cache: the artwork is a pure function of the vendor's name,
-        // logo, theme and slug. stale-while-revalidate keeps it instant
-        // after a change while the new one renders.
+        // logo, theme, domain and slug — none of which change often, and
+        // none of which this route itself can know changed on a plain GET
+        // (the URL is all a cache honours). QrCodeCard is what actually
+        // busts it: it appends a version query param derived from those
+        // same fields, so the URL itself changes the moment any of them do,
+        // and this max-age can stay long without ever serving a stale QR.
         "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
         // inline by default so the URL previews in a chat or a browser tab;
         // ?download=1 for the button in Settings.

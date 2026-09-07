@@ -10,6 +10,15 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { LayoutDashboard, BadgeCheck, Store, ShieldAlert, Users, LogOut } from "lucide-react";
 import type { SuperAdminSessionPayload } from "@/lib/superadmin-auth";
 
+// Same values PlatformCredit reads on the vendor side — injected at build
+// time by next.config.ts from package.json and the git commit count. Kept
+// as a bare version line here rather than reusing PlatformCredit itself:
+// that component's copyright/legal links/builder-credit are aimed at a
+// vendor's own customers, not the platform team looking at their own
+// internal console.
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
+const BUILD_NUMBER = process.env.NEXT_PUBLIC_BUILD_NUMBER;
+
 const NAV = [
   { label: "Overview", href: "/superadmin", icon: LayoutDashboard },
   { label: "Verifications", href: "/superadmin/verifications", icon: BadgeCheck },
@@ -118,6 +127,12 @@ export default function SuperAdminShell({ admin, pendingVerifications, children 
       <main className="flex-1 px-4 md:px-6 py-6">
         <div className="max-w-5xl mx-auto">{children}</div>
       </main>
+
+      <footer className="px-4 md:px-6 py-4" style={{ borderTop: "1px solid var(--bd)" }}>
+        <p className="text-xs" style={{ color: "var(--tx3)" }}>
+          Booktns platform · v{APP_VERSION} · build {BUILD_NUMBER}
+        </p>
+      </footer>
 
       {confirmingLogout && (
         <ConfirmDialog

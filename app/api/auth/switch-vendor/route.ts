@@ -16,18 +16,32 @@ interface SwitchResponse {
   role: string;
 }
 
+// apiServer() reads the existing session cookie, which is itself enough of
+// a dynamic signal to keep Next.js from statically optimizing this route —
+// but the sibling routes that mint a cookie without ever reading one
+// (app/api/auth/session, app/api/superadmin/auth/session) needed this
+// explicitly, since they had no such signal and got cached, silently
+// stripping Set-Cookie. Declared here too rather than relying on the read
+// alone, so nothing about "does this route still count as dynamic" is left
+// to Next's inference.
+export const dynamic = "force-dynamic";
+
+function noStoreJson<T>(body: T, init?: ResponseInit): NextResponse {
+  return NextResponse.json(body, { ...init, headers: { ...init?.headers, "Cache-Control": "no-store" } });
+}
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
 
   try {
     const result = await apiServer<SwitchResponse>("/auth/switch-vendor", { method: "POST", body });
     await setSessionCookie(result.token);
-    return NextResponse.json({ ok: true, vendorId: result.vendorId, role: result.role });
+    return noStoreJson({ ok: true, vendorId: result.vendorId, role: result.role });
   } catch (err) {
     if (err instanceof ApiError) {
-      return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
+      return noStoreJson({ error: err.message, code: err.code }, { status: err.status });
     }
-    return NextResponse.json(
+    return noStoreJson(
       { error: "Couldn't reach the server. Please try again.", code: "upstream_unreachable" },
       { status: 502 },
     );

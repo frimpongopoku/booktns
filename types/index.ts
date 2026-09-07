@@ -60,6 +60,9 @@ export interface Vendor {
   suspendedReason?: string;
   videoSectionTitle?: string;
   videoSectionSubtitle?: string;
+  galleryImageUrls: string[];
+  galleryTitle?: string;
+  galleryDescription?: string;
   depositSetting: DepositSetting;
   depositValue?: number;
   cancellationPolicy?: string;

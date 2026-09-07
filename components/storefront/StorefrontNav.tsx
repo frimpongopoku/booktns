@@ -11,11 +11,12 @@ interface StorefrontNavProps {
   vendorLogoUrl?: string;
   isCustomDomain: boolean;
   showVideos: boolean;
+  showGallery: boolean;
   showShop: boolean;
   verified: boolean;
 }
 
-export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCustomDomain, showVideos, showShop, verified }: StorefrontNavProps) {
+export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCustomDomain, showVideos, showGallery, showShop, verified }: StorefrontNavProps) {
   const href = (path: string = "") => storefrontHref(slug, isCustomDomain, path);
 
   return (
@@ -38,6 +39,11 @@ export default function StorefrontNav({ slug, vendorName, vendorLogoUrl, isCusto
         </Link>
         {/* Only rendered when the section it jumps to is actually on the
             page — this nav only ever appears on the storefront home. */}
+        {showGallery && (
+          <Link href={href("#gallery")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
+            Gallery
+          </Link>
+        )}
         {showVideos && (
           <Link href={href("#videos")} className="px-3 py-1.5 rounded-full transition-colors hover:bg-[var(--bg2)] hover:text-[var(--tx)]">
             Videos

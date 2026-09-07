@@ -10,6 +10,7 @@ import { SITE_URL } from "@/lib/site";
 import StorefrontNav from "@/components/storefront/StorefrontNav";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
 import VideoSection from "@/components/storefront/VideoSection";
+import GallerySection from "@/components/storefront/GallerySection";
 import HeroCard from "@/components/storefront/HeroCard";
 import StorefrontUnavailable from "@/components/storefront/StorefrontUnavailable";
 import StorefrontFooter from "@/components/storefront/StorefrontFooter";
@@ -252,6 +253,7 @@ export default async function StorefrontPage({ params }: PageProps) {
           service_count: vendorData.services.length,
           product_count: vendorData.products.length,
           video_count: vendorVideos.length,
+          photo_count: vendorData.galleryImageUrls.length,
           is_preview: isPreview,
           on_custom_domain: isCustomDomain,
         }}
@@ -263,6 +265,7 @@ export default async function StorefrontPage({ params }: PageProps) {
         vendorLogoUrl={vendorData.logoUrl}
         isCustomDomain={isCustomDomain}
         showVideos={vendorData.showVideoSection && vendorVideos.length > 0}
+        showGallery={vendorData.galleryImageUrls.length > 0}
         showShop={vendorData.products.length > 0}
       />
 
@@ -557,6 +560,13 @@ export default async function StorefrontPage({ params }: PageProps) {
         </div>
       </section>
       )}
+
+      {/* Gallery — hides itself when the vendor hasn't picked any photos. */}
+      <GallerySection
+        images={vendorData.galleryImageUrls}
+        title={vendorData.galleryTitle}
+        description={vendorData.galleryDescription}
+      />
 
       {/* Videos — the vendor can switch this section off without having
           to delete the videos themselves. */}

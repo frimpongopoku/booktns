@@ -176,6 +176,20 @@ model Vendor {
   videoSectionTitle    String?
   videoSectionSubtitle String?
 
+  // Storefront photo gallery section (home page), managed from Settings >
+  // Storefront > Home page. Opt-in via content rather than a toggle like
+  // showVideoSection above: every vendor starts with an empty gallery, so
+  // there's nothing to opt out of until photos are actually picked — the
+  // section simply doesn't render while galleryImageUrls is empty. Holds
+  // plain Media URLs (copied by value, same as heroGalleryUrls above — no
+  // relation), capped generously since this is the vendor's full showcase
+  // rather than the hero card's 6-photo rotation. Title/description are
+  // null until the vendor writes their own — the storefront falls back to
+  // defaults ("Our Gallery" etc.).
+  galleryImageUrls   String[] @default([])
+  galleryTitle       String?
+  galleryDescription String?
+
   // Owner's own details, distinct from the business `phone`/`whatsapp`
   // above (those are the shop's contact channels; these are the person who
   // runs it). Each field carries its own visibility flag rather than one

@@ -27,6 +27,7 @@ export const vendor: Vendor = {
   storefrontDisplayMode: "All",
   heroCardMode: "CoverImage",
   heroGalleryUrls: [],
+  galleryImageUrls: [],
   storefrontTheme: "Red",
   active: true,
   createdAt: "2024-01-15T09:00:00Z",

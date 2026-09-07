@@ -160,6 +160,8 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
     showOwnerPhone: vendor.showOwnerPhone,
     showOwnerEmail: vendor.showOwnerEmail,
     displayMode: vendor.storefrontDisplayMode,
+    galleryTitle: vendor.galleryTitle ?? "",
+    galleryDescription: vendor.galleryDescription ?? "",
   });
 
   const [name, setName] = useState(savedFields.name);
@@ -176,19 +178,24 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
   const [logoUrl, setLogoUrl] = useState(vendor.logoUrl);
   const [coverImageUrl, setCoverImageUrl] = useState(vendor.coverImageUrl);
   const [displayMode, setDisplayMode] = useState<StorefrontDisplayMode>(savedFields.displayMode);
+  const [galleryTitle, setGalleryTitle] = useState(savedFields.galleryTitle);
+  const [galleryDescription, setGalleryDescription] = useState(savedFields.galleryDescription);
   const [published, setPublished] = useState(vendor.storefrontPublished);
   const [heroCardMode, setHeroCardMode] = useState<HeroCardMode>(vendor.heroCardMode);
   const [heroGalleryUrls, setHeroGalleryUrls] = useState<string[]>(vendor.heroGalleryUrls);
   const [heroVideoId, setHeroVideoId] = useState(vendor.heroVideoId);
+  const [galleryImageUrls, setGalleryImageUrls] = useState<string[]>(vendor.galleryImageUrls);
   const [storefrontTheme, setStorefrontTheme] = useState<StorefrontTheme>(vendor.storefrontTheme);
   const [activeSection, setSection] = useState<StorefrontSection>("branding");
   const [showLogoPicker, setShowLogoPicker] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const [showGalleryImagesPicker, setShowGalleryImagesPicker] = useState(false);
   const [savingLogo, setSavingLogo] = useState(false);
   const [savingCover, setSavingCover] = useState(false);
   const [savingHeroMode, setSavingHeroMode] = useState(false);
   const [savingGallery, setSavingGallery] = useState(false);
+  const [savingGalleryImages, setSavingGalleryImages] = useState(false);
   const [savingHeroVideo, setSavingHeroVideo] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -259,6 +266,19 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
     }
   };
 
+  const handleGalleryImagesChange = async (urls: string[]) => {
+    setSavingGalleryImages(true);
+    setError(null);
+    try {
+      await patchVendor({ galleryImageUrls: urls });
+      setGalleryImageUrls(urls);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSavingGalleryImages(false);
+    }
+  };
+
   const handleHeroVideoChange = async (id: string) => {
     setSavingHeroVideo(true);
     setError(null);
@@ -298,6 +318,8 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
     showOwnerPhone,
     showOwnerEmail,
     displayMode,
+    galleryTitle,
+    galleryDescription,
   };
 
   const dirty = (Object.keys(currentFields) as (keyof typeof currentFields)[]).some(
@@ -317,6 +339,8 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
     setShowOwnerPhone(savedFields.showOwnerPhone);
     setShowOwnerEmail(savedFields.showOwnerEmail);
     setDisplayMode(savedFields.displayMode);
+    setGalleryTitle(savedFields.galleryTitle);
+    setGalleryDescription(savedFields.galleryDescription);
     setError(null);
   };
 
@@ -337,6 +361,8 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
         showOwnerPhone,
         showOwnerEmail,
         storefrontDisplayMode: displayMode,
+        galleryTitle: galleryTitle.trim() || null,
+        galleryDescription: galleryDescription.trim() || null,
       });
       // New baseline — the Save bar disappears because there is genuinely
       // nothing left unsaved, not because a timer ran out.
@@ -591,6 +617,67 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
             </div>
           )}
         </div>
+
+        <div className="flex flex-col gap-3 pt-2" style={{ borderTop: "1px solid var(--bds)" }}>
+          <div>
+            <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>
+              Photo gallery <AutoSaveBadge />
+            </label>
+            <p className="text-xs mt-1" style={{ color: "var(--tx3)" }}>
+              {galleryImageUrls.length > 0
+                ? "Shown in its own section on your storefront home page."
+                : "Add photos of your work to show them off in their own section — hidden until you add at least one."}
+            </p>
+          </div>
+
+          {galleryImageUrls.length > 0 && (
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {galleryImageUrls.map((url) => (
+                <div key={url} className="relative aspect-square rounded-[var(--r)] overflow-hidden" style={{ background: "var(--bg3)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="w-full h-full object-cover object-top" />
+                  <button
+                    type="button"
+                    onClick={() => handleGalleryImagesChange(galleryImageUrls.filter((u) => u !== url))}
+                    className="absolute top-1 right-1 p-1 rounded-full"
+                    style={{ background: "rgba(0,0,0,0.6)", color: "white" }}
+                    aria-label="Remove photo"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button type="button" variant="secondary" size="sm" loading={savingGalleryImages} onClick={() => setShowGalleryImagesPicker(true)} className="w-fit">
+            <Plus size={13} />
+            Add photos
+          </Button>
+
+          {galleryImageUrls.length > 0 && (
+            <div className="flex flex-col gap-3 pt-1">
+              <p className="text-xs font-medium flex items-center gap-2" style={{ color: "var(--tx2)" }}>
+                Section heading
+                <ManualSaveBadge />
+              </p>
+              <Input
+                label="Title"
+                placeholder="Our Gallery"
+                value={galleryTitle}
+                onChange={(e) => setGalleryTitle(e.target.value)}
+                hint="Leave blank to use the default"
+              />
+              <Input
+                label="Description"
+                placeholder="A closer look at our work"
+                value={galleryDescription}
+                onChange={(e) => setGalleryDescription(e.target.value)}
+                hint="Leave blank to use the default"
+              />
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-col gap-2">
           <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Home page display</label>
           <div className="flex flex-col gap-2">
@@ -745,6 +832,14 @@ function StorefrontTab({ vendor, businessHours, initialVideos }: StorefrontTabPr
           maxSelectable={6}
           onClose={() => setShowGalleryPicker(false)}
           onConfirm={(urls) => handleGalleryChange([...new Set([...heroGalleryUrls, ...urls])].slice(0, 6))}
+        />
+      )}
+      {showGalleryImagesPicker && (
+        <MediaPickerModal
+          selectedUrls={galleryImageUrls}
+          maxSelectable={24}
+          onClose={() => setShowGalleryImagesPicker(false)}
+          onConfirm={(urls) => handleGalleryImagesChange([...new Set([...galleryImageUrls, ...urls])].slice(0, 24))}
         />
       )}
     </div>

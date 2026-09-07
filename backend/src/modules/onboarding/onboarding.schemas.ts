@@ -21,7 +21,6 @@ export const createOnboardingSchema = z.object({
     slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+$/, "Slug must be lowercase letters and numbers only"),
     description: z.string(),
     location: z.string(),
-    hours: z.string(),
     phone: z.string(),
   }),
   staffList: z.array(z.object({

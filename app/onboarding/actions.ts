@@ -7,7 +7,6 @@ interface BusinessInfoInput {
   slug: string;
   description: string;
   location: string;
-  hours: string;
   phone: string;
 }
 

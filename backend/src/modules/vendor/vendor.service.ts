@@ -3,6 +3,7 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import { Prisma } from "../../generated/prisma/client";
 import { serializeVendor } from "../../common/lib/serialize";
 import { normalizePhone } from "../../common/lib/phone";
+import { formatBusinessHours } from "../../common/lib/business-hours";
 import { getDomainProvider } from "../../common/lib/domains/factory";
 import type { UpdateVendorDto, UpdateHoursDto } from "./vendor.schemas";
 
@@ -55,6 +56,15 @@ export class VendorService {
         }),
       ),
     );
+
+    // Vendor.hours is a denormalised display string derived from these rows
+    // (see formatBusinessHours) — kept in sync here, the only place
+    // BusinessHours ever changes, so every read site (PDFs, the contact
+    // card, the storefront hero) can go on reading vendor.hours directly
+    // without re-deriving it themselves, and without ever drifting from
+    // what's actually configured here.
+    await this.prisma.vendor.update({ where: { id: vendorId }, data: { hours: formatBusinessHours(dto.days) } });
+
     return { days };
   }
 

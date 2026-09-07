@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable } from "@nestjs/comm
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { Prisma } from "../../generated/prisma/client";
 import { normalizePhone } from "../../common/lib/phone";
+import { formatBusinessHours } from "../../common/lib/business-hours";
 import { sendVendorWelcomeEmail } from "../../common/lib/email";
 import { logger } from "../../common/lib/logger";
 import type { StaffRole, ServiceCategory, PaymentMethodType } from "../../types";
@@ -82,7 +83,12 @@ export class OnboardingService {
             slug: businessInfo.slug,
             description: businessInfo.description.trim(),
             location: businessInfo.location.trim(),
-            hours: businessInfo.hours.trim(),
+            // Derived from DEFAULT_BUSINESS_HOURS below rather than taken as
+            // free text from the wizard — the two used to be independently
+            // typed/set and could disagree from the very first day. This is
+            // the one place Vendor.hours is set outside VendorService.
+            // updateHours, and it must stay derived the same way that is.
+            hours: formatBusinessHours(DEFAULT_BUSINESS_HOURS),
             phone: normalizedPhone,
             whatsapp: normalizedPhone,
           },

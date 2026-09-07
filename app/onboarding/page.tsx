@@ -131,7 +131,6 @@ interface BusinessInfoData {
   slug: string;
   description: string;
   location: string;
-  hours: string;
   phone: string;
 }
 
@@ -149,7 +148,6 @@ function BusinessInfoStep({
   const [slug, setSlug] = useState(initialValues?.slug ?? "");
   const [description, setDescription] = useState(initialValues?.description ?? "");
   const [location, setLocation] = useState(initialValues?.location ?? "");
-  const [hours, setHours] = useState(initialValues?.hours ?? "Mon–Sat 9am–7pm");
   const [phone, setPhone] = useState(initialValues?.phone ?? "");
   const [loading, setLoading] = useState(false);
   const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
@@ -184,7 +182,7 @@ function BusinessInfoStep({
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
-    onNext({ name, slug, description, location, hours, phone });
+    onNext({ name, slug, description, location, phone });
   };
 
   const slugHint =
@@ -212,8 +210,10 @@ function BusinessInfoStep({
       />
       <Textarea label="Description" placeholder="Tell customers what makes you special…" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
       <Input label="Location" placeholder="e.g. East Legon, Accra" value={location} onChange={(e) => setLocation(e.target.value)} />
-      <Input label="Business hours" placeholder="Mon–Sat 9am–7pm" value={hours} onChange={(e) => setHours(e.target.value)} />
       <Input label="Contact phone / WhatsApp" type="tel" placeholder="+233 24 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      <p className="text-xs -mt-1" style={{ color: "var(--tx3)" }}>
+        Opening hours default to 9am–7pm every day — fine-tune them per day from Settings once your storefront is set up.
+      </p>
       <Button size="lg" loading={loading} onClick={handleNext} disabled={!canContinue} className="mt-2">
         Continue
       </Button>

@@ -7,7 +7,7 @@ import Topbar from "@/components/dashboard/Topbar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { Plus, X, MessageCircle, Pencil, UserX, CalendarX } from "lucide-react";
+import { Plus, X, Pencil, UserX, CalendarX, Trash2 } from "lucide-react";
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   Owner: "Owner",
@@ -57,7 +57,6 @@ function StaffModal({ staff, onClose, onSaved }: StaffModalProps) {
   const [phone, setPhone] = useState(staff?.phone ?? "");
   const [role, setRole] = useState<StaffRole>(staff?.role ?? "Service");
   const [roleDetail, setRoleDetail] = useState(staff?.roleDetail ?? "");
-  const [botAccess, setBotAccess] = useState(staff?.botAccess ?? false);
   const [bookable, setBookable] = useState(staff?.bookable ?? true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +74,6 @@ function StaffModal({ staff, onClose, onSaved }: StaffModalProps) {
       phone: phone.trim() || undefined,
       role,
       roleDetail: roleDetail.trim() || undefined,
-      botAccess,
       bookable,
     };
 
@@ -151,25 +149,6 @@ function StaffModal({ staff, onClose, onSaved }: StaffModalProps) {
           )}
           <div className="flex items-center justify-between p-3 rounded-[var(--r)]" style={{ background: "var(--bg2)" }}>
             <div className="flex items-center gap-2">
-              <MessageCircle size={16} style={{ color: "var(--green)" }} />
-              <div>
-                <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>Bot access</p>
-                <p className="text-xs" style={{ color: "var(--tx3)" }}>Can manage bookings via WhatsApp</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setBotAccess((v) => !v)}
-              className="w-10 h-6 rounded-full transition-colors relative"
-              style={{ background: botAccess ? "var(--green)" : "var(--bg3)" }}
-            >
-              <span
-                className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform"
-                style={{ left: botAccess ? "calc(100% - 18px)" : "2px" }}
-              />
-            </button>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-[var(--r)]" style={{ background: "var(--bg2)" }}>
-            <div className="flex items-center gap-2">
               <CalendarX size={16} style={{ color: bookable ? "var(--tx3)" : "var(--amber)" }} />
               <div>
                 <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>Bookable by customers</p>
@@ -214,6 +193,8 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
   const [showModal, setShowModal] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deactivating, setDeactivating] = useState<Staff | null>(null);
+  const [deleting, setDeleting] = useState<Staff | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleSaved = (s: Staff) => {
     setStaffList((prev) => {
@@ -227,28 +208,30 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
     });
   };
 
-  const toggleBot = async (member: Staff) => {
-    setBusyId(member.id);
-    try {
-      const { staff } = await apiBrowser<{ staff: Staff }>(`/staff/${member.id}`, { method: "PATCH", body: { botAccess: !member.botAccess } });
-      handleSaved(staff);
-    } catch {
-      // Silent — a toggle failure just leaves the switch unchanged.
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   const handleDeactivate = async (member: Staff) => {
     setBusyId(member.id);
     try {
       await apiBrowser(`/staff/${member.id}`, { method: "DELETE" });
       setStaffList((prev) => prev.map((s) => (s.id === member.id ? { ...s, active: false } : s)));
     } catch {
-      // Silent, same rationale as toggleBot.
+      // Silent — a failed deactivate just leaves the row as it was.
     } finally {
       setBusyId(null);
       setDeactivating(null);
+    }
+  };
+
+  const handleDelete = async (member: Staff) => {
+    setBusyId(member.id);
+    setDeleteError(null);
+    try {
+      await apiBrowser(`/staff/${member.id}?force=true`, { method: "DELETE" });
+      setStaffList((prev) => prev.filter((s) => s.id !== member.id));
+      setDeleting(null);
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : `Couldn't remove ${member.name}. Please try again.`);
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -265,19 +248,24 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
         }
       />
 
+      {deleteError && (
+        <div className="px-3 py-2 rounded-[var(--r)] text-sm mb-4" style={{ background: "rgba(185,28,28,0.08)", color: "#B91C1C" }}>
+          {deleteError}
+        </div>
+      )}
+
       <div
         className="rounded-[var(--rl)] overflow-hidden"
         style={{ border: "1px solid var(--bds)" }}
       >
         {/* Header */}
         <div
-          className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-2.5 text-xs font-semibold uppercase tracking-wide"
+          className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1fr_auto] gap-4 px-5 py-2.5 text-xs font-semibold uppercase tracking-wide"
           style={{ background: "var(--bg2)", color: "var(--tx3)" }}
         >
           <span>Name</span>
           <span>Role</span>
           <span>Email</span>
-          <span>Bot</span>
           <span>Status</span>
           <span></span>
         </div>
@@ -286,7 +274,7 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
           {staffList.map((member) => (
             <div
               key={member.id}
-              className="grid md:grid-cols-[2fr_1fr_1.5fr_1fr_1fr_auto] gap-3 md:gap-4 px-3 py-3.5 rounded-lg hover:bg-[var(--bg2)] transition-colors items-center"
+              className="grid md:grid-cols-[2fr_1fr_1.5fr_1fr_auto] gap-3 md:gap-4 px-3 py-3.5 rounded-lg hover:bg-[var(--bg2)] transition-colors items-center"
             >
               {/* Name */}
               <div className="flex items-center gap-3">
@@ -316,20 +304,6 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
                 {member.email}
               </p>
 
-              {/* Bot toggle */}
-              <button
-                onClick={() => toggleBot(member)}
-                disabled={busyId === member.id}
-                className="w-10 h-6 rounded-full transition-colors relative disabled:opacity-50"
-                style={{ background: member.botAccess ? "var(--green)" : "var(--bg3)" }}
-                title={member.botAccess ? "Bot access on" : "Bot access off"}
-              >
-                <span
-                  className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform"
-                  style={{ left: member.botAccess ? "calc(100% - 18px)" : "2px" }}
-                />
-              </button>
-
               {/* Status */}
               <StatusChip active={member.active} />
 
@@ -354,6 +328,16 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
                     <UserX size={13} />
                   </button>
                 )}
+                <button
+                  onClick={() => setDeleting(member)}
+                  disabled={busyId === member.id}
+                  className="p-1.5 rounded-[var(--r)] hover:bg-[var(--bg3)] transition-colors disabled:opacity-50"
+                  style={{ color: "var(--tx3)" }}
+                  aria-label={`Delete ${member.name}`}
+                  title="Delete permanently"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
           ))}
@@ -376,6 +360,17 @@ export default function StaffClient({ initialStaff }: StaffClientProps) {
           danger
           onConfirm={() => handleDeactivate(deactivating)}
           onCancel={() => setDeactivating(null)}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title="Delete staff member"
+          message={`Permanently delete ${deleting.name}? This can't be undone — unlike deactivating, they're removed entirely. Past bookings they were assigned to are kept, but will no longer show their name.`}
+          confirmLabel="Delete permanently"
+          danger
+          onConfirm={() => handleDelete(deleting)}
+          onCancel={() => setDeleting(null)}
         />
       )}
     </div>

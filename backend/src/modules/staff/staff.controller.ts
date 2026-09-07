@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { CurrentSession, Roles } from "../../common/decorators";
 import { ZodValidationPipe } from "../../common/zod.pipe";
 import type { SessionPayload } from "../../common/session.types";
@@ -36,9 +36,14 @@ export class StaffController {
     return this.staff.update(session.vendorId, id, dto);
   }
 
+  // ?force=true permanently deletes the row instead of deactivating it —
+  // a separate, deliberately explicit opt-in on the same route rather than
+  // a new resource path, since it's the same "remove this person" action
+  // the vendor already reaches for; force just changes how far it goes.
   @Roles("Owner")
   @Delete(":id")
-  archive(@Param("id") id: string, @CurrentSession() session: SessionPayload) {
+  archive(@Param("id") id: string, @Query("force") force: string | undefined, @CurrentSession() session: SessionPayload) {
+    if (force === "true") return this.staff.delete(session.vendorId, id);
     return this.staff.archive(session.vendorId, id);
   }
 }

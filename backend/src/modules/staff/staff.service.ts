@@ -70,11 +70,26 @@ export class StaffService {
     }
   }
 
-  // Soft delete only — deactivate rather than remove the record.
+  // The default: deactivate rather than remove the record. Staff isn't in
+  // CLAUDE.md's soft-delete-only list (bookings/orders/products) — see
+  // delete() below for when a vendor wants the row gone entirely.
   async archive(vendorId: string, id: string) {
     await this.assertOwned(vendorId, id);
     const staff = await this.prisma.staff.update({ where: { id }, data: { active: false } });
     return { staff: serializeStaff(staff) };
+  }
+
+  // A real, permanent removal — for a row added by mistake, or a vendor who
+  // just wants someone gone rather than sitting in the list as "Inactive"
+  // forever. Safe at the DB level: Booking.staffPreferenceId/assignedStaffId
+  // are onDelete: SetNull, so existing bookings survive, they just lose the
+  // assigned-staff name on any that referenced this person (there's no
+  // separate stored snapshot of it, unlike price_at_booking) — the frontend
+  // confirmation dialog says as much before this ever runs.
+  async delete(vendorId: string, id: string): Promise<{ ok: true }> {
+    await this.assertOwned(vendorId, id);
+    await this.prisma.staff.delete({ where: { id } });
+    return { ok: true };
   }
 
   private async assertOwned(vendorId: string, id: string): Promise<void> {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup, signOut, type AuthError } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, type AuthError } from "firebase/auth";
 import { getFirebaseAuth, googleProvider } from "@/lib/firebase-client";
 import Button from "@/components/ui/Button";
 import { ShieldAlert, AlertCircle } from "lucide-react";
@@ -20,23 +20,9 @@ export default function SuperAdminLoginPage() {
   const [status, setStatus] = useState<"idle" | "signing-in" | "verifying">("idle");
   const [error, setError] = useState<string | null>(null);
 
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setStatus("signing-in");
-
-    let idToken: string;
-    try {
-      const result = await signInWithPopup(getFirebaseAuth(), googleProvider);
-      idToken = await result.user.getIdToken();
-    } catch (err) {
-      const code = (err as AuthError).code;
-      setStatus("idle");
-      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
-        setError("Something went wrong signing in with Google. Please try again.");
-      }
-      return;
-    }
-
+  // Shared by both sign-in paths below — a Google ID token in hand, either
+  // from a popup that resolved directly or from a redirect round trip.
+  const completeSignIn = async (idToken: string) => {
     setStatus("verifying");
     try {
       const res = await fetch("/api/superadmin/auth/session", {
@@ -62,6 +48,65 @@ export default function SuperAdminLoginPage() {
       setError("Couldn't reach the server. Check your connection and try again.");
     }
   };
+
+  // Safari — especially iOS Safari — routinely blocks signInWithPopup
+  // outright (auth/popup-blocked) rather than letting it open. On that one
+  // error (and auth/operation-not-supported-in-this-environment, the same
+  // failure inside some in-app browsers), fall back to a full-page
+  // signInWithRedirect instead of just failing — the effect below picks the
+  // result back up once the browser returns to this page.
+  const POPUP_UNAVAILABLE_CODES = new Set(["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"]);
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setStatus("signing-in");
+
+    const auth = getFirebaseAuth();
+    let idToken: string;
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      idToken = await result.user.getIdToken();
+    } catch (err) {
+      const code = (err as AuthError).code;
+
+      if (POPUP_UNAVAILABLE_CODES.has(code)) {
+        // Navigates the whole page away to Google — nothing after this call
+        // runs.
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
+      setStatus("idle");
+      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
+        setError("Something went wrong signing in with Google. Please try again.");
+      }
+      return;
+    }
+
+    await completeSignIn(idToken);
+  };
+
+  // Picks up a sign-in that finished via the redirect fallback above — a
+  // no-op (resolves to null) on every ordinary page load.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getRedirectResult(getFirebaseAuth());
+        if (!result || cancelled) return;
+        const idToken = await result.user.getIdToken();
+        if (!cancelled) await completeSignIn(idToken);
+      } catch {
+        if (cancelled) return;
+        setError("Something went wrong signing in with Google. Please try again.");
+        setStatus("idle");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- completeSignIn is recreated every render; including it would re-run this on every render for no reason. It only closes over `router` (stable) and state setters (always stable).
+  }, []);
 
   return (
     <div className="dark superadmin-scope min-h-screen flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>

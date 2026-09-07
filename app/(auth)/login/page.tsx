@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signInWithPopup, type AuthError } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect, getRedirectResult, type AuthError } from "firebase/auth";
 import { getFirebaseAuthReady, googleProvider } from "@/lib/firebase-client";
 import Logo from "@/components/shared/Logo";
 import Button from "@/components/ui/Button";
@@ -38,34 +38,9 @@ export default function LoginPage() {
   const [status, setStatus] = useState<"idle" | "signing-in" | "verifying">("idle");
   const [error, setError] = useState<string | null>(null);
 
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setStatus("signing-in");
-
-    let idToken: string;
-    try {
-      const result = await signInWithPopup(await getFirebaseAuthReady(), googleProvider);
-      idToken = await result.user.getIdToken();
-    } catch (err) {
-      const code = (err as AuthError).code;
-      setStatus("idle");
-      // A user closing the popup isn't a failure worth reporting. Anything
-      // else is: the raw provider code goes to the error tracker, because
-      // "auth/unauthorized-domain" (the production domain missing from
-      // Firebase Console -> Authorized Domains) is the most common cause of
-      // "login silently does nothing" and is undiagnosable without it.
-      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
-        Sentry.captureException(err, { tags: { firebaseErrorCode: code ?? "unknown" } });
-        console.error("Google sign-in failed", code, err);
-        setError(
-          code === "auth/unauthorized-domain"
-            ? "This site isn't authorised for sign-in yet. Please tell the Booktns team."
-            : `Something went wrong signing in with Google. Please try again. (${code ?? "unknown"})`,
-        );
-      }
-      return;
-    }
-
+  // Shared by both sign-in paths below — a Google ID token in hand, either
+  // from a popup that resolved directly or from a redirect round trip.
+  const completeSignIn = async (idToken: string) => {
     setStatus("verifying");
     try {
       // Talks to the NestJS API (session-v2), not the legacy Next.js route —
@@ -95,6 +70,85 @@ export default function LoginPage() {
       setStatus("idle");
     }
   };
+
+  // Safari — especially iOS Safari — routinely blocks signInWithPopup
+  // outright (auth/popup-blocked) rather than letting it open, seemingly
+  // because Firebase's own async setup before the actual window.open()
+  // call falls outside the window Safari counts as "still a direct user
+  // gesture." There's no way to avoid that gap, only react to it: on this
+  // one error, fall back to a full-page signInWithRedirect instead of just
+  // failing. The effect below picks the result back up when the browser
+  // returns to this page. auth/operation-not-supported-in-this-environment
+  // gets the same treatment — popups can't work at all inside some in-app
+  // browsers (Instagram, TikTok), so there's nothing to retry there either.
+  const POPUP_UNAVAILABLE_CODES = new Set(["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"]);
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setStatus("signing-in");
+
+    const auth = await getFirebaseAuthReady();
+    let idToken: string;
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      idToken = await result.user.getIdToken();
+    } catch (err) {
+      const code = (err as AuthError).code;
+
+      if (POPUP_UNAVAILABLE_CODES.has(code)) {
+        // Navigates the whole page away to Google — nothing after this call
+        // runs. Status stays "signing-in" through the navigation itself.
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
+      setStatus("idle");
+      // A user closing the popup isn't a failure worth reporting. Anything
+      // else is: the raw provider code goes to the error tracker, because
+      // "auth/unauthorized-domain" (the production domain missing from
+      // Firebase Console -> Authorized Domains) is the most common cause of
+      // "login silently does nothing" and is undiagnosable without it.
+      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
+        Sentry.captureException(err, { tags: { firebaseErrorCode: code ?? "unknown" } });
+        console.error("Google sign-in failed", code, err);
+        setError(
+          code === "auth/unauthorized-domain"
+            ? "This site isn't authorised for sign-in yet. Please tell the Booktns team."
+            : `Something went wrong signing in with Google. Please try again. (${code ?? "unknown"})`,
+        );
+      }
+      return;
+    }
+
+    await completeSignIn(idToken);
+  };
+
+  // Picks up a sign-in that finished via the redirect fallback above — a
+  // no-op (resolves to null) on every ordinary page load, including the
+  // very first visit to /login, so this always runs but almost never does
+  // anything.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const auth = await getFirebaseAuthReady();
+        const result = await getRedirectResult(auth);
+        if (!result || cancelled) return;
+        const idToken = await result.user.getIdToken();
+        if (!cancelled) await completeSignIn(idToken);
+      } catch (err) {
+        if (cancelled) return;
+        const code = (err as AuthError).code;
+        Sentry.captureException(err, { tags: { firebaseErrorCode: code ?? "unknown" } });
+        setError(`Something went wrong signing in with Google. Please try again. (${code ?? "unknown"})`);
+        setStatus("idle");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- completeSignIn is recreated every render; including it would re-run this on every render for no reason. It only closes over `router` (stable) and state setters (always stable).
+  }, []);
 
   const loading = status !== "idle";
   const label = status === "verifying" ? "Verifying your account…" : "Continue with Google";

@@ -24,8 +24,14 @@ export class VendorService {
     }
 
     // Phone numbers are always stored E.164 (CLAUDE.md § Data Rules). An
-    // empty string clears the field; anything unparseable is a 400 rather
-    // than a silently mangled number.
+    // empty string clears an optional field; anything unparseable is a 400
+    // rather than a silently mangled number. personalWhatsappNumber and
+    // phone used to skip this entirely — saved as whatever the vendor typed
+    // ("024 412 3456", no country code, stray spaces) — which is exactly
+    // what produces a broken wa.me/<number> link: whatsappLink() only
+    // strips non-digit characters, it can't invent a missing country code,
+    // so a customer's WhatsApp app fails to resolve the number to a
+    // contact and falls back to treating the digits as a lookup/username.
     const data: Record<string, unknown> = { ...dto };
     if (dto.ownerPhone !== undefined) {
       if (!dto.ownerPhone) {
@@ -35,6 +41,22 @@ export class VendorService {
         if (!normalized) throw new BadRequestException({ error: "Enter a valid phone number", code: "invalid_request" });
         data.ownerPhone = normalized;
       }
+    }
+    if (dto.personalWhatsappNumber !== undefined) {
+      if (!dto.personalWhatsappNumber) {
+        data.personalWhatsappNumber = null;
+      } else {
+        const normalized = normalizePhone(dto.personalWhatsappNumber);
+        if (!normalized) throw new BadRequestException({ error: "Enter a valid WhatsApp number", code: "invalid_request" });
+        data.personalWhatsappNumber = normalized;
+      }
+    }
+    if (dto.phone !== undefined) {
+      // Unlike the two above, `phone` is required on Vendor — an empty
+      // string isn't "clear it", it's invalid input.
+      const normalized = normalizePhone(dto.phone);
+      if (!normalized) throw new BadRequestException({ error: "Enter a valid contact phone number", code: "invalid_request" });
+      data.phone = normalized;
     }
 
     const vendor = await this.prisma.vendor.update({ where: { id: vendorId }, data });

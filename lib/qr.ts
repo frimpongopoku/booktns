@@ -170,6 +170,12 @@ async function buildCardSvg(vendor: QrVendorInfo, url: string, displayUrl: strin
                   },
                   children: [
                     {
+                      // The platform's own mark, not the vendor's — same
+                      // gradient chip + bold "B" as the favicon and the
+                      // sidebar logo (Logo.tsx / renderIconMark in
+                      // lib/og-image.tsx), and always the platform's fixed
+                      // Red regardless of the vendor's own storefront theme,
+                      // matching the "Powered by booktns" credit line below.
                       type: "div",
                       props: {
                         style: {
@@ -178,13 +184,13 @@ async function buildCardSvg(vendor: QrVendorInfo, url: string, displayUrl: strin
                           height: BADGE - 12,
                           alignItems: "center",
                           justifyContent: "center",
-                          backgroundColor: "#09090B",
+                          background: "linear-gradient(135deg, #C0283A 0%, #D43D50 100%)",
                           borderRadius: 16,
                           fontSize: 44,
                           fontWeight: 700,
-                          color: "#D43D50",
+                          color: "#FFFFFF",
                         },
-                        children: "b",
+                        children: "B",
                       },
                     },
                   ],

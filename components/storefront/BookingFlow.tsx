@@ -17,6 +17,7 @@ import { formatPrice, formatDuration } from "@/lib/data";
 import { calculateDepositAmountPesewas } from "@/lib/deposit";
 import { apiPublic, ApiError } from "@/lib/api-client";
 import { useAvailableSlots } from "@/hooks/useAvailableSlots";
+import { MOBILE_NETWORK_LABEL } from "@/lib/mobile-network";
 import type { Service, Product, Staff, PaymentMethod, DepositSetting } from "@/types";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -867,7 +868,9 @@ export default function BookingFlow({
                             >
                               <div>
                                 <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{pm.label}</p>
-                                <p className="text-sm" style={{ color: "var(--tx3)" }}>{pm.accountName}</p>
+                                <p className="text-sm" style={{ color: "var(--tx3)" }}>
+                                  {pm.network ? `${MOBILE_NETWORK_LABEL[pm.network]} · ${pm.accountName}` : pm.accountName}
+                                </p>
                               </div>
                               <div
                                 className="w-4 h-4 rounded-full border-2 flex-shrink-0"

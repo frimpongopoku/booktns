@@ -22,6 +22,7 @@ export type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled" 
 export type OrderStatus = "new" | "processing" | "ready" | "completed" | "cancelled";
 
 export type PaymentMethodType = "momo" | "bank" | "cash";
+export type MobileNetwork = "MTN" | "Telecel" | "AirtelTigo";
 
 export type StorefrontDisplayMode = "All" | "FeaturedOnly" | "AllWithFeaturedHighlighted";
 
@@ -208,7 +209,7 @@ export interface PaymentMethod {
   accountName: string;
   accountNumber?: string;
   bankName?: string;
-  network?: string;
+  network?: MobileNetwork;
   active: boolean;
   displayOrder: number;
 }

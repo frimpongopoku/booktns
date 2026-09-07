@@ -69,6 +69,18 @@ enum PaymentMethodType {
   cash
 }
 
+// Ghana's three mobile money carriers. Was a free-text field — a customer
+// paying via MoMo needs to select the same network the money is actually
+// on before their wallet app will even let them dial the code, so letting
+// a vendor type anything ("mtn", "Vodafone", a typo) turned that into a
+// guessing game. Fixed to exactly these three rather than left open with
+// an "Other" escape hatch, since there isn't a fourth network to name.
+enum MobileNetwork {
+  MTN
+  Telecel
+  AirtelTigo
+}
+
 enum OrderDeliveryPreference {
   Pickup
   Delivery
@@ -435,7 +447,7 @@ model PaymentMethod {
   accountName   String
   accountNumber String?
   bankName      String?
-  network       String?
+  network       MobileNetwork?
   active        Boolean           @default(true)
   displayOrder  Int               @default(0)
 

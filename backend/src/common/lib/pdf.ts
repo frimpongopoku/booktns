@@ -1,11 +1,12 @@
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import { PDFDocument, PDFName, PDFString, type PDFPage } from "pdf-lib";
-import type { Booking, Order } from "../../types";
+import type { Booking, Order, PaymentMethod } from "../../types";
 import { formatPrice } from "../lib/data";
 import { fetchImageAsPngDataUri } from "../lib/image";
 import { loadInterFonts } from "../lib/fonts";
 import { STOREFRONT_THEMES, type StorefrontTheme } from "../lib/theme";
+import { MOBILE_NETWORK_LABEL } from "../lib/mobile-network";
 import { SITE_URL } from "../lib/site";
 
 // Only what the PDF layouts actually render — avoids requiring a full
@@ -56,6 +57,20 @@ function row(label: string, value: string) {
       ],
     },
   };
+}
+
+// Every field a customer actually needs to complete the payment — not just
+// enough to recognise which method it is. A MoMo entry with no network row
+// is unpayable: the customer has to know which carrier before their wallet
+// app will dial the code. [label, value] tuples so callers can both render
+// them with row() and use .length for page-height math.
+function paymentMethodRows(pm: PaymentMethod): [string, string][] {
+  const rows: [string, string][] = [["Method", pm.label]];
+  if (pm.type === "momo" && pm.network) rows.push(["Network", MOBILE_NETWORK_LABEL[pm.network]]);
+  if (pm.type === "bank" && pm.bankName) rows.push(["Bank", pm.bankName]);
+  rows.push(["Account name", pm.accountName]);
+  if (pm.accountNumber) rows.push([pm.type === "momo" ? "MoMo number" : "Account number", pm.accountNumber]);
+  return rows;
 }
 
 // Section headings carry the vendor's storefront colour — the cheapest,
@@ -212,8 +227,13 @@ export async function generateConfirmedBookingPdf(booking: Booking, vendor: Vend
   const fonts = await loadInterFonts();
   const logoDataUri = vendor.logoUrl ? await fetchImageAsPngDataUri(vendor.logoUrl) : null;
   const accent = accentColor(vendor);
+  const paymentRows = booking.paymentMethod ? paymentMethodRows(booking.paymentMethod) : [];
 
-  const rowCount = booking.services.length + booking.products.length + (vendor.cancellationPolicy ? 3 : 0) + (booking.paymentMethod ? 3 : 0);
+  const rowCount =
+    booking.services.length +
+    booking.products.length +
+    (vendor.cancellationPolicy ? 3 : 0) +
+    (paymentRows.length > 0 ? 1 + (booking.depositReferenceCode ? 1 : 0) + paymentRows.length : 0);
   const pageHeight = BASE_HEIGHT + rowCount * ROW_HEIGHT;
 
   const staffName = booking.assignedStaffName ?? booking.staffPreferenceName;
@@ -335,9 +355,7 @@ export async function generateConfirmedBookingPdf(booking: Booking, vendor: Vend
                   children: [
                     row("Amount", formatPrice(booking.depositAmountPesewas)),
                     ...(booking.depositReferenceCode ? [row("Reference code", booking.depositReferenceCode)] : []),
-                    ...(booking.paymentMethod
-                      ? [row(booking.paymentMethod.label, booking.paymentMethod.accountNumber ?? booking.paymentMethod.accountName)]
-                      : []),
+                    ...paymentRows.map(([label, value]) => row(label, value)),
                   ],
                 },
               },
@@ -377,8 +395,9 @@ export async function generateOrderConfirmationPdf(order: Order, vendor: VendorP
   const fonts = await loadInterFonts();
   const logoDataUri = vendor.logoUrl ? await fetchImageAsPngDataUri(vendor.logoUrl) : null;
   const accent = accentColor(vendor);
+  const paymentRows = order.paymentMethod ? paymentMethodRows(order.paymentMethod) : [];
 
-  const rowCount = order.items.length + (order.paymentMethod ? 4 : 1) + (order.notes ? 2 : 0);
+  const rowCount = order.items.length + (paymentRows.length > 0 ? paymentRows.length : 1) + (order.notes ? 2 : 0);
   const pageHeight = BASE_HEIGHT + rowCount * ROW_HEIGHT;
 
   const itemsTotal = order.items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0);
@@ -488,11 +507,7 @@ export async function generateOrderConfirmationPdf(order: Order, vendor: VendorP
             children: [
               totalRow("Amount due", formatPrice(order.totalPesewas), accent),
               ...(order.paymentMethod
-                ? [
-                    row("Method", order.paymentMethod.label),
-                    row("Account name", order.paymentMethod.accountName),
-                    ...(order.paymentMethod.accountNumber ? [row("Account number", order.paymentMethod.accountNumber)] : []),
-                  ]
+                ? paymentRows.map(([label, value]) => row(label, value))
                 : [
                     {
                       type: "div",

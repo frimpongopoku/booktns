@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { PaymentMethod, PaymentMethodType } from "@/types";
+import type { PaymentMethod, PaymentMethodType, MobileNetwork } from "@/types";
 import { apiBrowser, ApiError } from "@/lib/api-client";
+import { MOBILE_NETWORKS, MOBILE_NETWORK_LABEL } from "@/lib/mobile-network";
 import Topbar from "@/components/dashboard/Topbar";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Input from "@/components/ui/Input";
@@ -32,7 +33,7 @@ function PaymentMethodModal({ method, onClose, onSaved }: PaymentMethodModalProp
   const [accountName, setAccountName] = useState(method?.accountName ?? "");
   const [accountNumber, setAccountNumber] = useState(method?.accountNumber ?? "");
   const [bankName, setBankName] = useState(method?.bankName ?? "");
-  const [network, setNetwork] = useState(method?.network ?? "");
+  const [network, setNetwork] = useState<MobileNetwork>(method?.network ?? "MTN");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExiting, setIsExiting] = useState(false);
@@ -49,7 +50,7 @@ function PaymentMethodModal({ method, onClose, onSaved }: PaymentMethodModalProp
       accountName: accountName.trim(),
       accountNumber: type === "cash" ? undefined : accountNumber.trim(),
       bankName: type === "bank" ? bankName.trim() : undefined,
-      network: type === "momo" ? network.trim() : undefined,
+      network: type === "momo" ? network : undefined,
     };
 
     try {
@@ -103,6 +104,21 @@ function PaymentMethodModal({ method, onClose, onSaved }: PaymentMethodModalProp
           </div>
           <Input label="Label" placeholder="e.g. MTN MoMo" value={label} onChange={(e) => setLabel(e.target.value)} />
           <Input label="Account name" placeholder="Full name" value={accountName} onChange={(e) => setAccountName(e.target.value)} />
+          {type === "momo" && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={{ color: "var(--tx2)" }}>Network</label>
+              <select
+                value={network}
+                onChange={(e) => setNetwork(e.target.value as MobileNetwork)}
+                className="px-3 py-2 rounded-[var(--r)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--ac)]"
+                style={{ background: "var(--bg2)", color: "var(--tx)", border: "1px solid var(--bd)" }}
+              >
+                {MOBILE_NETWORKS.map((n) => (
+                  <option key={n} value={n}>{MOBILE_NETWORK_LABEL[n]}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {type !== "cash" && (
             <Input
               label={type === "momo" ? "MoMo number" : "Account number"}
@@ -112,9 +128,6 @@ function PaymentMethodModal({ method, onClose, onSaved }: PaymentMethodModalProp
           )}
           {type === "bank" && (
             <Input label="Bank name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-          )}
-          {type === "momo" && (
-            <Input label="Network" placeholder="e.g. MTN" value={network} onChange={(e) => setNetwork(e.target.value)} />
           )}
         </div>
         <div className="flex gap-3 px-5 py-4" style={{ borderTop: "1px solid var(--bd)" }}>
@@ -217,6 +230,7 @@ export default function PaymentsClient({ initialPaymentMethods }: PaymentsClient
                 <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{pm.label}</p>
                 <p className="text-xs" style={{ color: "var(--tx3)" }}>
                   {pm.accountName}
+                  {pm.network && ` · ${MOBILE_NETWORK_LABEL[pm.network]}`}
                   {pm.accountNumber && ` · ${pm.accountNumber}`}
                   {pm.bankName && ` · ${pm.bankName}`}
                 </p>

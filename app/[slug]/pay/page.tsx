@@ -12,6 +12,7 @@ import TrackView from "@/components/storefront/TrackView";
 import VerifiedBadge from "@/components/shared/VerifiedBadge";
 import { ANALYTICS_EVENTS } from "@/lib/analytics";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { MOBILE_NETWORK_LABEL } from "@/lib/mobile-network";
 import { Smartphone, CreditCard, Banknote, MapPin, BadgeCheck, ShieldAlert } from "lucide-react";
 
 interface PageProps {
@@ -165,6 +166,19 @@ export default async function PayPage({ params }: PageProps) {
 
               {pm.type !== "cash" ? (
                 <div className="flex flex-col gap-2">
+                  {pm.type === "momo" && pm.network && (
+                    <div
+                      className="flex items-center justify-between p-3 rounded-[var(--r)]"
+                      style={{ background: "var(--bg3)" }}
+                    >
+                      <div>
+                        <p className="text-xs uppercase tracking-wide" style={{ color: "var(--tx3)" }}>
+                          Network
+                        </p>
+                        <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{MOBILE_NETWORK_LABEL[pm.network]}</p>
+                      </div>
+                    </div>
+                  )}
                   <div
                     className="flex items-center justify-between p-3 rounded-[var(--r)]"
                     style={{ background: "var(--bg3)" }}

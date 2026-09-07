@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/data";
 import { apiPublic, ApiError } from "@/lib/api-client";
 import { getCart, setCart as persistCart, clearCart } from "@/lib/cart";
 import { captureEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { MOBILE_NETWORK_LABEL } from "@/lib/mobile-network";
 import type { Product, CartItem, PaymentMethod, OrderDeliveryPreference } from "@/types";
 import { ShoppingBag, Plus, Minus, X, ShoppingCart, ArrowLeft, Check } from "lucide-react";
 import MobileStorefrontNav from "@/components/storefront/MobileStorefrontNav";
@@ -489,7 +490,9 @@ export default function ShopClient({ slug, vendorName, vendorLogoUrl, products, 
                           >
                             <div>
                               <p className="text-base font-medium" style={{ color: "var(--tx)" }}>{pm.label}</p>
-                              <p className="text-sm" style={{ color: "var(--tx3)" }}>{pm.accountName}</p>
+                              <p className="text-sm" style={{ color: "var(--tx3)" }}>
+                                {pm.network ? `${MOBILE_NETWORK_LABEL[pm.network]} · ${pm.accountName}` : pm.accountName}
+                              </p>
                             </div>
                             <div
                               className="w-4 h-4 rounded-full border-2 flex-shrink-0"

@@ -12,6 +12,7 @@ import VendorContactCard from "@/components/storefront/VendorContactCard";
 import VendorWordmark from "@/components/storefront/VendorWordmark";
 import StartYourOwnShopLink from "@/components/shared/StartYourOwnShopLink";
 import { buildVendorContactMeta } from "@/lib/vendor-contact";
+import { SITE_URL } from "@/lib/site";
 import {
   CheckCircle2,
   Clock,
@@ -83,7 +84,9 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
 
   const contact = buildVendorContactMeta(booking.vendor);
 
-  const whatsappMessage = `Hi ${booking.vendor.name}, I'd like to confirm my booking reference ${booking.slug}. Customer: ${booking.customerName}.`;
+  const servicesLabel = booking.services.map((s) => s.name).join(" + ");
+  const bookingUrl = `${SITE_URL}/booking/${booking.slug}`;
+  const whatsappMessage = `Hey ${booking.vendor.name}, my name is ${booking.customerName}. I just made a booking for ${servicesLabel} on ${formatDateTime(booking.startTime)}. Here is my booking reference: ${booking.slug} — please review and confirm. Here's a link to my booking: ${bookingUrl}`;
 
   const servicesTotal = booking.services.reduce((s, svc) => s + svc.priceAtBooking, 0);
 

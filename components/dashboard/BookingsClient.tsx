@@ -184,9 +184,12 @@ function BookingDrawer({ booking, staff, vendorSlug, vendorName, vendorLocation,
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white flex-shrink-0" style={{ background: "var(--ac)" }}>
                   {booking.customerName[0]}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>{booking.customerName}</p>
                   <p className="text-xs" style={{ color: "var(--tx3)" }}>{booking.customerPhone}</p>
+                  {booking.customerEmail && (
+                    <p className="text-xs truncate" style={{ color: "var(--tx3)" }}>{booking.customerEmail}</p>
+                  )}
                 </div>
                 <a
                   href={`https://wa.me/${booking.customerPhone.replace("+", "")}`}

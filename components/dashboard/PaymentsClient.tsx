@@ -5,10 +5,11 @@ import type { PaymentMethod, PaymentMethodType, MobileNetwork } from "@/types";
 import { apiBrowser, ApiError } from "@/lib/api-client";
 import { MOBILE_NETWORKS, MOBILE_NETWORK_LABEL } from "@/lib/mobile-network";
 import Topbar from "@/components/dashboard/Topbar";
+import { ShareRow } from "@/components/dashboard/ShareRow";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import { CreditCard, Smartphone, Banknote, Plus, Archive, X } from "lucide-react";
+import { CreditCard, Smartphone, Banknote, Plus, Archive, X, AlertTriangle } from "lucide-react";
 
 // Lifted out of the Settings tab strip and given its own dashboard route.
 // Being paid is a standing job a vendor comes back to, not a setting they
@@ -143,9 +144,12 @@ function PaymentMethodModal({ method, onClose, onSaved }: PaymentMethodModalProp
 
 interface PaymentsClientProps {
   initialPaymentMethods: PaymentMethod[];
+  vendorName: string;
+  payUrl: string;
+  storefrontPublished: boolean;
 }
 
-export default function PaymentsClient({ initialPaymentMethods }: PaymentsClientProps) {
+export default function PaymentsClient({ initialPaymentMethods, vendorName, payUrl, storefrontPublished }: PaymentsClientProps) {
   const [methods, setMethods] = useState<PaymentMethod[]>(initialPaymentMethods);
   const [showModal, setShowModal] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | undefined>();
@@ -208,6 +212,26 @@ export default function PaymentsClient({ initialPaymentMethods }: PaymentsClient
         )}
 
         <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--tx3)" }}>
+            Your payment page
+          </p>
+          {!storefrontPublished && (
+            <div className="flex items-start gap-2.5 p-3 rounded-[var(--r)] mb-3" style={{ background: "var(--amber-bg)" }}>
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" style={{ color: "var(--amber)" }} />
+              <p className="text-xs" style={{ color: "var(--amber)" }}>
+                Your storefront isn&apos;t published yet, so this link won&apos;t open for anyone but you.
+              </p>
+            </div>
+          )}
+          <div className="mb-6">
+            <ShareRow
+              label="Payment page"
+              sublabel="Shows your payment methods so a customer can pay you directly"
+              url={payUrl}
+              vendorName={vendorName}
+            />
+          </div>
+
           <p className="text-sm mb-4" style={{ color: "var(--tx2)" }}>
             How customers pay you. These appear on your storefront&apos;s payment page and on every
             booking or order that asks for a deposit. Booktns never handles the money — customers

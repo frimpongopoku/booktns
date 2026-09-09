@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { apiServer } from "@/lib/api-client.server";
+import { SITE_URL } from "@/lib/site";
 import PaymentsClient from "@/components/dashboard/PaymentsClient";
-import type { PaymentMethod } from "@/types";
+import type { PaymentMethod, Vendor } from "@/types";
 
 // Payment details are Owner-only, matching the guard on every
 // /payment-methods route (@Roles("Owner")) and spec §7.4's "Payment
@@ -29,7 +30,25 @@ export default async function PaymentsPage() {
     );
   }
 
-  const { paymentMethods } = await apiServer<{ paymentMethods: PaymentMethod[] }>("/payment-methods");
+  const [{ paymentMethods }, { vendor }, domain] = await Promise.all([
+    apiServer<{ paymentMethods: PaymentMethod[] }>("/payment-methods"),
+    apiServer<{ vendor: Vendor }>("/vendor"),
+    // Same rule as Settings > Booking link: hand out the vendor's own
+    // domain only once it's actually verified, or the link is dead on
+    // arrival.
+    apiServer<{ domain: string | null; verified: boolean }>("/vendor/domain"),
+  ]);
 
-  return <PaymentsClient initialPaymentMethods={paymentMethods} />;
+  const isCustomDomain = Boolean(domain.domain && domain.verified);
+  const storefrontOrigin = isCustomDomain ? `https://${domain.domain}` : SITE_URL;
+  const payUrl = isCustomDomain ? `${storefrontOrigin}/pay` : `${storefrontOrigin}/${vendor.slug}/pay`;
+
+  return (
+    <PaymentsClient
+      initialPaymentMethods={paymentMethods}
+      vendorName={vendor.name}
+      payUrl={payUrl}
+      storefrontPublished={vendor.storefrontPublished}
+    />
+  );
 }

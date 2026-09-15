@@ -163,7 +163,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
                 <div>
                   <p className="text-base font-semibold" style={{ color: "var(--tx)" }}>{booking.customerName}</p>
                   <p className="text-sm" style={{ color: "var(--tx3)" }}>{booking.customerPhone}</p>
-                  <p className="text-sm" style={{ color: "var(--tx3)" }}>{booking.customerEmail}</p>
+                  {booking.customerEmail && <p className="text-sm" style={{ color: "var(--tx3)" }}>{booking.customerEmail}</p>}
                 </div>
               </div>
               {booking.notes && (

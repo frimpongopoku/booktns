@@ -293,7 +293,9 @@ export async function generateConfirmedBookingPdf(booking: Booking, vendor: Vend
                   children: [
                     { type: "span", props: { style: { display: "flex", fontSize: 16, fontWeight: 700, color: "#18181B" }, children: booking.customerName } },
                     { type: "span", props: { style: { display: "flex", fontSize: 13, color: "#71717A", marginTop: 2 }, children: booking.customerPhone } },
-                    { type: "span", props: { style: { display: "flex", fontSize: 13, color: "#71717A" }, children: booking.customerEmail } },
+                    ...(booking.customerEmail
+                      ? [{ type: "span", props: { style: { display: "flex", fontSize: 13, color: "#71717A" }, children: booking.customerEmail } }]
+                      : []),
                   ],
                 },
               },

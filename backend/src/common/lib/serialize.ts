@@ -142,7 +142,7 @@ export function serializeBooking(booking: BookingWithRelations): Booking {
     vendorId: booking.vendorId,
     customerName: booking.customerName,
     customerPhone: booking.customerPhone,
-    customerEmail: booking.customerEmail,
+    customerEmail: booking.customerEmail ?? undefined,
     services: booking.services,
     products: booking.products.map((p) => ({
       id: p.id,

@@ -341,7 +341,10 @@ model Booking {
   slug                 String         @unique
   customerName         String
   customerPhone        String
-  customerEmail        String
+  // Optional — many customers only have a phone number (spec/CLAUDE.md data
+  // rules still require phone always). Email-sending code checks for null
+  // and simply skips the customer email rather than failing.
+  customerEmail        String?
   staffPreferenceId    String?
   staffPreference      Staff?         @relation("BookingStaffPreference", fields: [staffPreferenceId], references: [id], onDelete: SetNull)
   assignedStaffId      String?

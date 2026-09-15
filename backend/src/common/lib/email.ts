@@ -221,6 +221,7 @@ function cancellationPolicyHtml(vendor: VendorEmailInfo): string {
 }
 
 export async function sendBookingRequestEmail(booking: Booking, vendor: VendorEmailInfo): Promise<void> {
+  if (!booking.customerEmail) return;
   const bookingUrl = `${APP_URL}/booking/${booking.slug}`;
   const body = `
     <h1 style="font-size: 18px; margin: 0 0 12px;">Your booking request has been sent</h1>
@@ -258,6 +259,7 @@ export async function sendBookingRequestEmail(booking: Booking, vendor: VendorEm
 }
 
 export async function sendBookingConfirmedEmail(booking: Booking, vendor: VendorEmailInfo): Promise<void> {
+  if (!booking.customerEmail) return;
   const bookingUrl = `${APP_URL}/booking/${booking.slug}`;
   const body = `
     <h1 style="font-size: 18px; margin: 0 0 12px; color: #15803D;">Your booking is confirmed</h1>
@@ -294,6 +296,7 @@ export async function sendBookingConfirmedEmail(booking: Booking, vendor: Vendor
 }
 
 export async function sendBookingCancelledEmail(booking: Booking, vendor: VendorEmailInfo): Promise<void> {
+  if (!booking.customerEmail) return;
   const bookingUrl = `${APP_URL}/booking/${booking.slug}`;
   const body = `
     <h1 style="font-size: 18px; margin: 0 0 12px; color: #B91C1C;">Your booking has been cancelled</h1>
@@ -328,6 +331,7 @@ export async function sendBookingCancelledEmail(booking: Booking, vendor: Vendor
 }
 
 export async function sendBookingCompletedEmail(booking: Booking, vendor: VendorEmailInfo): Promise<void> {
+  if (!booking.customerEmail) return;
   const serviceNames = booking.services.map((s) => s.name).join(", ");
   const body = `
     <h1 style="font-size: 18px; margin: 0 0 12px; color: #15803D;">Thank you for visiting ${vendor.name}!</h1>
@@ -359,6 +363,7 @@ export async function sendBookingCompletedEmail(booking: Booking, vendor: Vendor
 }
 
 export async function sendBookingRescheduledEmail(booking: Booking, vendor: VendorEmailInfo): Promise<void> {
+  if (!booking.customerEmail) return;
   const bookingUrl = `${APP_URL}/booking/${booking.slug}`;
   const body = `
     <h1 style="font-size: 18px; margin: 0 0 12px;">Your booking has been rescheduled</h1>

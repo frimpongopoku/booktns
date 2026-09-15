@@ -152,7 +152,7 @@ export interface Booking {
   vendorId: string;
   customerName: string;
   customerPhone: string;
-  customerEmail: string;
+  customerEmail?: string;
   services: BookingService[];
   products: BookingProduct[];
   staffPreferenceId?: string;

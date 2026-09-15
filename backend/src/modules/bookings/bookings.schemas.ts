@@ -6,7 +6,12 @@ export const createBookingSchema = z.object({
   vendorSlug: z.string().trim().min(1),
   customerName: z.string().trim().min(1, "Name is required"),
   customerPhone: z.string().trim().min(1, "Phone number is required"),
-  customerEmail: z.string().trim().email("Enter a valid email address"),
+  // Optional — many customers only have a phone number. An empty string
+  // (a blank form field) is treated the same as omitting it entirely.
+  customerEmail: z
+    .union([z.string().trim().email("Enter a valid email address"), z.literal("")])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
   serviceIds: z.array(z.string().trim().min(1)).min(1, "Select at least one service"),
   products: z
     .array(z.object({ productId: z.string().trim().min(1), quantity: z.number().int().positive() }))
@@ -37,7 +42,9 @@ export type UpdateBookingDto = z.infer<typeof updateBookingSchema>;
 export const selfServiceUpdateSchema = z.object({
   customerName: z.string().trim().min(1, "Name is required").optional(),
   customerPhone: z.string().trim().min(1, "Phone number is required").optional(),
-  customerEmail: z.string().trim().email("Enter a valid email address").optional(),
+  customerEmail: z
+    .union([z.string().trim().email("Enter a valid email address"), z.literal("")])
+    .optional(),
   status: z.literal("cancelled").optional(),
 });
 export type SelfServiceUpdateDto = z.infer<typeof selfServiceUpdateSchema>;

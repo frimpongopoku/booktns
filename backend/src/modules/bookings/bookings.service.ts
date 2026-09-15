@@ -182,7 +182,7 @@ export class BookingsService {
                 slug: generateBookingSlug(),
                 customerName: dto.customerName,
                 customerPhone: normalizedPhone,
-                customerEmail: dto.customerEmail,
+                customerEmail: dto.customerEmail ?? null,
                 staffPreferenceId: dto.staffPreferenceId || null,
                 startTime,
                 endTime,
@@ -415,7 +415,7 @@ export class BookingsService {
       data: {
         ...(dto.customerName !== undefined ? { customerName: dto.customerName } : {}),
         ...(normalizedPhone !== undefined ? { customerPhone: normalizedPhone } : {}),
-        ...(dto.customerEmail !== undefined ? { customerEmail: dto.customerEmail } : {}),
+        ...(dto.customerEmail !== undefined ? { customerEmail: dto.customerEmail || null } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
       },
       include: {

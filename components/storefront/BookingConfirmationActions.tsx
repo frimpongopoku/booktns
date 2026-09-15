@@ -15,7 +15,7 @@ interface BookingConfirmationActionsProps {
   vendorName: string;
   customerName: string;
   customerPhone: string;
-  customerEmail: string;
+  customerEmail?: string;
   calendarUrl: string;
   confirmedPdfUrl?: string;
 }
@@ -39,7 +39,7 @@ export default function BookingConfirmationActions({
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [name, setName] = useState(customerName);
   const [phone, setPhone] = useState(customerPhone);
-  const [email, setEmail] = useState(customerEmail);
+  const [email, setEmail] = useState(customerEmail ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -134,7 +134,7 @@ export default function BookingConfirmationActions({
         <div className="flex flex-col gap-3 p-4 rounded-[var(--rl)]" style={{ background: "var(--bg2)", border: "1px solid var(--bds)" }}>
           <Input label="Full name" value={name} onChange={(e) => setName(e.target.value)} />
           <Input label="WhatsApp number" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <Input label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input label="Email address (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <div className="flex gap-2">
             <Button variant="ghost" className="flex-1" onClick={() => { setEditing(false); setError(null); }}>
               Cancel

@@ -152,7 +152,8 @@ export interface Booking {
   vendorId: string;
   customerName: string;
   customerPhone: string;
-  customerEmail: string;
+  // Optional — a customer may not have an email address at all.
+  customerEmail?: string;
   services: BookingService[];
   products: BookingProduct[];
   staffPreferenceId?: string;

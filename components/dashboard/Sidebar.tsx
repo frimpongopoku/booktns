@@ -44,7 +44,7 @@ const manageNav: (NavItem & { roles: StaffRole[] })[] = [
   { label: "Staff", href: "/dashboard/staff", icon: <Users size={15} />, roles: ["Owner"] },
   { label: "Services", href: "/dashboard/services", icon: <Scissors size={15} />, roles: ["Owner", "Management"] },
   { label: "Products", href: "/dashboard/products", icon: <Package size={15} />, roles: ["Owner", "Management"] },
-  { label: "Media", href: "/dashboard/media", icon: <Images size={15} />, roles: ["Owner", "Management"] },
+  { label: "Gallery", href: "/dashboard/media", icon: <Images size={15} />, roles: ["Owner", "Management"] },
   { label: "Videos", href: "/dashboard/videos", icon: <Video size={15} />, roles: ["Owner", "Management"] },
 ];
 

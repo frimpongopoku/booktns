@@ -34,19 +34,27 @@ async function proxy(request: Request, path: string[]): Promise<Response> {
   if (contentType) headers["Content-Type"] = contentType;
 
   // Streamed through rather than parsed: media upload posts multipart bodies
-  // that must not be buffered or re-encoded here.
+  // that must not be buffered into memory here — a proxy that awaits
+  // request.arrayBuffer() pulls the *entire* file into this function before
+  // forwarding a single byte, which is exactly what blows past a serverless
+  // function's memory/body-size ceiling on a large or multi-file upload.
+  // request.body is the raw stream; duplex: "half" is required by fetch()
+  // the moment a stream is passed as the body (Node throws without it).
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
 
   const upstream = await fetch(url, {
     method: request.method,
     headers,
-    body: hasBody ? await request.arrayBuffer() : undefined,
+    body: hasBody ? request.body : undefined,
+    ...(hasBody ? { duplex: "half" as const } : {}),
     // The API is a different origin; nothing about this call is cookie-based.
     cache: "no-store",
   });
 
-  const responseBody = await upstream.arrayBuffer();
-  return new NextResponse(responseBody, {
+  // Streamed back the same way — buffering the response here would defeat
+  // the point for a large file download (e.g. a streamed PDF/photo) even
+  // once the request side no longer does.
+  return new NextResponse(upstream.body, {
     status: upstream.status,
     headers: {
       "Content-Type": upstream.headers.get("content-type") ?? "application/json",

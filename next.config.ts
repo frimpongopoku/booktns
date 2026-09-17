@@ -44,6 +44,19 @@ const nextConfig: NextConfig = {
   // The rewrites above proxy to a different origin; without this, requests
   // that end in a trailing slash get redirected and lose their payload.
   skipTrailingSlashRedirect: true,
+  experimental: {
+    // Next's own default cap on a request body a Route Handler is allowed to
+    // read is 10MB. Without this, app/api/admin/[...path]/route.ts silently
+    // receives a truncated body (Next logs "Request body exceeded 10MB" and
+    // cuts it off there), which surfaces downstream as the backend's
+    // multipart parser throwing "Unexpected end of form" — a confusing error
+    // with no obvious link back to this setting. MediaUploadModal uploads one
+    // photo per request now (never batched — see its own comments), so the
+    // real worst case is a single file at the backend's own per-file cap
+    // (media.schemas.ts MAX_FILE_SIZE_BYTES = 10MB); 16mb leaves headroom for
+    // multipart overhead without masking a file that's genuinely too big.
+    proxyClientMaxBodySize: "16mb",
+  },
 };
 
 export default withSentryConfig(nextConfig, {

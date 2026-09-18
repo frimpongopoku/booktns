@@ -20,23 +20,39 @@ interface MediaUploadModalProps {
 // Mirrors the backend's own compressImage() (lib/image.ts: 2000px longest
 // edge, quality 82) so a photo looks the same whichever pass actually did
 // the work — but goes further, targeting a real byte-size ceiling rather
-// than just a fixed quality. That distinction matters: each photo now
-// uploads as its own request (see UPLOAD_CONCURRENCY below), so "does this
-// one file's request ever risk exceeding Vercel's 4.5MB-per-invocation body
-// ceiling" is the one question that decides whether uploading N files can
-// ever fail purely because of N — and a fixed quality alone can't promise an
-// answer for an unusually dense or high-resolution source photo. Animated
-// GIFs are skipped entirely — re-encoding through canvas would flatten them
-// to their first frame.
-const DIMENSION_STEPS = [2000, 1600, 1200, 900];
+// than just a fixed quality, and cascading through progressively smaller
+// dimensions and lower quality until it actually gets there. That distinction
+// matters: each photo now uploads as its own request (see UPLOAD_CONCURRENCY
+// below), so "does this one file's request ever risk exceeding Vercel's
+// 4.5MB-per-invocation body ceiling" is the one question that decides
+// whether uploading N files can ever fail purely because of N — and a fixed
+// quality alone can't promise an answer for an unusually dense or
+// high-resolution source photo. Most people on this platform are uploading
+// straight off an iPhone, so this has to actually work for that, not just
+// the easy case: the steps below run all the way down to a size any real
+// photo lands well under long before the floor, and are generous enough to
+// still get pathological/synthetic images there too. Animated GIFs are
+// skipped entirely — re-encoding through canvas would flatten them to their
+// first frame.
+const DIMENSION_STEPS = [2000, 1600, 1200, 900, 600, 400];
 const START_QUALITY = 0.82;
-const MIN_QUALITY = 0.5;
+const MIN_QUALITY = 0.3;
 const QUALITY_STEP = 0.1;
 // Comfortably under Vercel's hard, non-configurable 4.5MB request-body
 // ceiling (same on every plan) — real photos at the defaults above land
 // nowhere near this; the margin exists for the rare source image that
 // resists compression.
 const TARGET_MAX_BYTES = 3.5 * 1024 * 1024;
+// Absolute backstop, checked right before a file is sent — independent of
+// whether compression actually ran. The compression cascade below is
+// exhaustive enough that it should always land under TARGET_MAX_BYTES for
+// anything it can decode at all (including HEIC, via the fallback below);
+// this only still matters for a file that's genuinely corrupt or in a format
+// neither path can open, where compressImageFile has no choice but to hand
+// back the untouched original. Below this, refuse to send and say so clearly
+// instead of letting an oversized file hit the network and come back as an
+// opaque, unparseable "413" with no indication of which file or why.
+const SAFE_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 function encodeAt(bitmap: ImageBitmap, maxDimension: number, quality: number): Promise<Blob | null> {
   const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
@@ -52,49 +68,79 @@ function encodeAt(bitmap: ImageBitmap, maxDimension: number, quality: number): P
   return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
 }
 
+// createImageBitmap can't decode HEIC/HEIF at all in most non-Apple browsers
+// (Chrome, Firefox, Edge on Windows/Android/Linux) — and that's the format
+// iPhones save photos in by default, so it's the common case here, not an
+// edge case. heic2any (WASM-based, client-side, no server round trip) is the
+// fallback specifically for that: convert to JPEG first, then decode the
+// *result* through the normal path below. Dynamically imported — it pulls in
+// a real WASM decoder, and the large majority of uploads are already a
+// browser-native format that never needs it at all.
+async function decodeBitmap(file: File): Promise<{ bitmap: ImageBitmap; convertedFromHeic: boolean }> {
+  try {
+    return { bitmap: await createImageBitmap(file), convertedFromHeic: false };
+  } catch {
+    const heic2any = (await import("heic2any")).default;
+    const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+    const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+    return { bitmap: await createImageBitmap(jpegBlob), convertedFromHeic: true };
+  }
+}
+
 async function compressImageFile(file: File): Promise<File> {
   if (file.type === "image/gif") return file;
 
+  let bitmap: ImageBitmap;
+  let convertedFromHeic: boolean;
   try {
-    const bitmap = await createImageBitmap(file);
-    let best: Blob | null = null;
-
-    // Quality first (cheaper visual trade), dimension only if quality alone
-    // can't get under the target — the vast majority of real photos succeed
-    // on the very first pass (2000px, quality 0.82) and this loop exits
-    // immediately; it only cascades further for genuinely pathological
-    // source images.
-    dimensionSteps:
-    for (const maxDimension of DIMENSION_STEPS) {
-      for (let quality = START_QUALITY; quality >= MIN_QUALITY; quality -= QUALITY_STEP) {
-        const blob = await encodeAt(bitmap, maxDimension, quality);
-        if (!blob) continue;
-        best = blob;
-        if (blob.size <= TARGET_MAX_BYTES) break dimensionSteps;
-      }
-    }
-    bitmap.close();
-
-    // A tiny already-optimized source (e.g. a small PNG icon) can re-encode
-    // larger as JPEG — never hand back something bigger than we started with.
-    if (!best || best.size >= file.size) return file;
-
-    const newName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
-    return new File([best], newName, { type: "image/jpeg" });
+    ({ bitmap, convertedFromHeic } = await decodeBitmap(file));
   } catch {
-    // Decoding failure (corrupt file, unsupported subformat) — let the
-    // original through and let the backend's own validation reject it with
-    // a real error, rather than silently dropping the vendor's photo here.
+    // Genuinely undecodable (corrupt file, or a format neither canvas nor
+    // heic2any can open) — let the original through and let SAFE_UPLOAD_BYTES
+    // (or the backend's own validation) catch it with a real error, rather
+    // than silently dropping the vendor's photo here.
     return file;
   }
+
+  let best: Blob | null = null;
+
+  // Quality first (cheaper visual trade), dimension only if quality alone
+  // can't get under the target — the vast majority of real photos succeed on
+  // the very first pass (2000px, quality 0.82) and this loop exits
+  // immediately; it only cascades further for genuinely pathological source
+  // images, all the way down to a floor no real photo should ever reach.
+  dimensionSteps:
+  for (const maxDimension of DIMENSION_STEPS) {
+    for (let quality = START_QUALITY; quality >= MIN_QUALITY; quality -= QUALITY_STEP) {
+      const blob = await encodeAt(bitmap, maxDimension, quality);
+      if (!blob) continue;
+      best = blob;
+      if (blob.size <= TARGET_MAX_BYTES) break dimensionSteps;
+    }
+  }
+  bitmap.close();
+
+  if (!best) return file;
+  // A tiny already-optimized source (e.g. a small PNG icon) can re-encode
+  // larger as JPEG — never hand back something bigger than we started with.
+  // Doesn't apply to a HEIC source: the raw original there isn't a valid
+  // fallback at all (browsers can't display it back in the gallery, and nor
+  // can most of what downstream reads it), so the re-encode is used
+  // regardless of the size comparison.
+  if (!convertedFromHeic && best.size >= file.size) return file;
+
+  const newName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+  return new File([best], newName, { type: "image/jpeg" });
 }
 
 // Each photo is its own request — not batched — so the number of files a
 // vendor selects can never itself be what causes an upload to fail; only an
-// individual file being too large after compression can. This concurrency
-// cap is what keeps that safe *and* fast: uploads run in parallel up to this
-// limit rather than one at a time (slow for 20 photos) or all at once
-// (many simultaneous serverless invocations is what caused the original
+// individual file being too large after compression can (and the cascade
+// above is built so that's vanishingly rare). This concurrency cap is what
+// keeps the whole pipeline (compress, then upload) safe *and* fast: it runs
+// in parallel up to this limit rather than one file at a time (slow for 20
+// photos, and HEIC decoding is real CPU work) or all at once (many
+// simultaneous serverless invocations is what caused the original
 // timeout/rate-limit failures).
 const UPLOAD_CONCURRENCY = 3;
 
@@ -143,17 +189,36 @@ export default function MediaUploadModal({ onClose, onUploaded }: MediaUploadMod
     setError(null);
 
     const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
-    const compressed = await Promise.all(pending.map((p) => compressImageFile(p.file)));
+    const originals = pending.map((p) => p.file);
 
     const uploaded: Media[] = [];
     const failed: string[] = [];
 
-    // however many files are staged, only UPLOAD_CONCURRENCY uploads are
-    // ever in flight at once — see the constant's comment above.
+    // Compress-then-upload runs as one pipeline per file, not compress-all
+    // followed by upload-all — a file starts uploading as soon as it's ready
+    // instead of every file waiting on the slowest one (HEIC decoding is real
+    // CPU work) to finish first. however many files are staged, only
+    // UPLOAD_CONCURRENCY of these pipelines are ever in flight at once — see
+    // the constant's comment above.
     let cursor = 0;
     async function worker() {
-      while (cursor < compressed.length) {
-        const file = compressed[cursor++];
+      while (cursor < originals.length) {
+        const original = originals[cursor++];
+
+        let file: File;
+        try {
+          file = await compressImageFile(original);
+        } catch {
+          failed.push(`${original.name} (couldn't be processed)`);
+          continue;
+        }
+
+        // Refuse before ever hitting the network — see SAFE_UPLOAD_BYTES.
+        if (file.size > SAFE_UPLOAD_BYTES) {
+          failed.push(`${file.name} (couldn't be compressed enough to upload — try a different photo)`);
+          continue;
+        }
+
         const formData = new FormData();
         formData.append("files", file);
         if (tags.length > 0) formData.append("tags", JSON.stringify(tags));
@@ -169,7 +234,7 @@ export default function MediaUploadModal({ onClose, onUploaded }: MediaUploadMod
       }
     }
 
-    const workerCount = Math.min(UPLOAD_CONCURRENCY, compressed.length);
+    const workerCount = Math.min(UPLOAD_CONCURRENCY, originals.length);
     await Promise.all(Array.from({ length: workerCount }, worker));
 
     // Whatever succeeded is real and worth keeping even if something else
@@ -181,7 +246,7 @@ export default function MediaUploadModal({ onClose, onUploaded }: MediaUploadMod
       const shown = failed.slice(0, 3).join(", ");
       const rest = failed.length > 3 ? `, +${failed.length - 3} more` : "";
       setError(
-        `${failed.length} of ${compressed.length} photo${compressed.length > 1 ? "s" : ""} failed to upload: ${shown}${rest}` +
+        `${failed.length} of ${originals.length} photo${originals.length > 1 ? "s" : ""} failed to upload: ${shown}${rest}` +
           (uploaded.length > 0 ? ` (${uploaded.length} uploaded successfully)` : "")
       );
       setUploading(false);
@@ -217,7 +282,7 @@ export default function MediaUploadModal({ onClose, onUploaded }: MediaUploadMod
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
             multiple
             className="hidden"
             onChange={(e) => handleSelect(e.target.files)}
@@ -231,7 +296,7 @@ export default function MediaUploadModal({ onClose, onUploaded }: MediaUploadMod
             >
               <ImagePlus size={24} style={{ color: "var(--tx3)" }} />
               <p className="text-sm font-medium" style={{ color: "var(--tx)" }}>Select photos</p>
-              <p className="text-xs" style={{ color: "var(--tx3)" }}>JPEG, PNG, WebP, or GIF — resized automatically, upload as many as you like</p>
+              <p className="text-xs" style={{ color: "var(--tx3)" }}>JPEG, PNG, WebP, GIF, or straight from an iPhone (HEIC) — resized automatically, upload as many as you like</p>
             </button>
           ) : (
             <>
